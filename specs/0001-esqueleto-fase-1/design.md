@@ -46,6 +46,6 @@ A abordagem exata de sessão (JWT vs cookie de sessão) será **confirmada lendo
 
 ## Decisoes irreversiveis (-> ADR)
 - **ADR 0001** — Estratégia de autenticação e 2FA (TOTP) herdada e simplificada para 1 usuário. Molda todo endpoint protegido.
-- **ADR 0002** (status: proposto, aguarda decisão do responsável) — Inconsistências doc encontradas: (a) `CLAUDE.md §5.5`
-  referencia `BRIEFING §10.7` inexistente; (b) escopo de "respostas da IA" (`CLAUDE.md §5.5–5.6, §8`) vs `BRIEFING §3`
-  que as põe fora da v1. Não bloqueia a Fase 1; decidir antes das fases de IA (3/6).
+- **ADR 0002** (status: resolvido) — Inconsistências doc apontadas contra uma versão antiga do BRIEFING; o BRIEFING
+  atual (atualização de 30/10/2026) já inclui respostas controladas (§3, §10.7, fase 8) e o CLAUDE.md está consistente.
+  Decisão: seguir o BRIEFING; nenhuma edição necessária.
