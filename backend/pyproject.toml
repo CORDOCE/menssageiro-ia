@@ -25,6 +25,9 @@ dev = [
 [tool.ruff]
 line-length = 110
 target-version = "py314"
+# Arquivos de migração são gerados pelo Alembic (boilerplate op/sa, typing legado); revisados
+# à mão no /migracao, não pelo linter. O env.py (hand-maintained) continua lintado.
+extend-exclude = ["migrations/versions"]
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "UP", "B", "SIM"]

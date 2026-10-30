@@ -12,8 +12,9 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
 
-    # Banco
-    database_url: str = "postgresql+psycopg://localhost:5432/mensageiro"
+    # Banco. Default = PostgreSQL local do docker-compose (porta 5434). Em staging/produção,
+    # a Railway injeta DATABASE_URL e sobrescreve este default (RAILWAY.md).
+    database_url: str = "postgresql+psycopg://mensageiro:mensageiro@localhost:5434/mensageiro"
 
     # WhatsApp Cloud API (Meta) — opcionais até a fase 3
     whatsapp_token: str | None = None
