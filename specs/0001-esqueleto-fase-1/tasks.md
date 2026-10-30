@@ -10,7 +10,7 @@ description: Quebra de tasks da feature 0001-esqueleto-fase-1. Cada task mapeia 
 | 0 | Infra git: `git init`, branches `main`/`develop`, `.gitignore`, `.env.example` | — | — | `git rev-parse --abbrev-ref HEAD` = feature off `develop`; `git check-ignore .env` | done |
 | 1 | `backend/pyproject.toml` com stack e configs de ruff/mypy/pytest; estrutura `app/` | AC-1 | 0 | `ruff check .` e `mypy app` → código 0 | done |
 | 2 | `app/core/config.py` (pydantic-settings) lendo `.env` | AC-1 | 1 | incluído no gate de AC-1; teste de carga de settings | done |
-| 3 | `app/db/database.py` (SQLAlchemy 2) + Alembic (`alembic.ini`, `migrations/env.py`, migração base) | AC-4 | 1,2 | `alembic upgrade head` && `alembic downgrade base` → código 0 | todo |
+| 3 | `app/db/database.py` (SQLAlchemy 2) + Alembic (`alembic.ini`, `migrations/env.py`, migração base) | AC-4 | 1,2 | `alembic upgrade head` && `alembic downgrade base` → código 0 | done |
 | 4 | `app/main.py` FastAPI + `GET /health` | AC-3 | 1,2 | teste: `GET /health` → 200 JSON "ok" | done |
 | 5 | Modelo `usuario` + auth herdada (adaptar BRIEFING §8) simplificada p/ 1 admin | AC-7 | 3,4 | teste: rota protegida 401 sem token / 200 com token | todo |
 | 6 | 2FA TOTP (pyotp) no fluxo de login | AC-5, AC-6 | 5 | teste matriz de decisão (senha×TOTP) | todo |
