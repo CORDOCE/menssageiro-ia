@@ -1,30 +1,29 @@
-# ADR 0002 — Inconsistências entre CLAUDE.md e BRIEFING (referência §10.7 e escopo de respostas da IA)
+# ADR 0002 — Escopo de respostas controladas da IA e referência §10.7
 
-- **Status:** proposto (aguarda decisão do responsável, Jefferson)
+- **Status:** resolvido (seguir o BRIEFING; confirmado por Jefferson em 2026-10-30)
 - **Data:** 2026-10-30
 - **Contexto da feature:** `specs/0001-esqueleto-fase-1/` (não bloqueia a Fase 1)
 
 ## Contexto
-Durante a leitura dos documentos (sessão de 2026-10-30) foram encontradas duas inconsistências:
+No início da sessão (2026-10-30), lendo uma versão **anterior** do `BRIEFING.md`, apontei duas inconsistências:
+1. `CLAUDE.md §5.5` referenciava `BRIEFING §10.7`, que **não existia** naquela versão (§10 ia até §10.6).
+2. `CLAUDE.md` (§5.5–5.6, §8) tratava "respostas controladas" como parte do sistema, enquanto aquele BRIEFING
+   listava "respostas automáticas da IA" **fora da v1**.
 
-1. **Referência a seção inexistente.** `CLAUDE.md §5.5` diz: "A IA não envia nada sem passar pelas verificações
-   em código (**BRIEFING §10.7**)". O `BRIEFING.md §10` vai só até **§10.6** (10.1 Cliente WhatsApp, 10.2 Webhook,
-   10.3 Worker, 10.4 IA, 10.5 Comandos, 10.6 Frontend). Não existe §10.7. [verificado: BRIEFING §10 lido por inteiro]
+## Resolução
+As inconsistências **já estavam resolvidas pelo próprio BRIEFING**, que foi atualizado (nota "Mudança de escopo
+(30/10/2026)" na §1) para **incluir respostas controladas na v1**. Verificado no BRIEFING atual [arquivo:linha]:
+- §1 (l.23–25): o assistente também responde mensagens recebidas, de forma controlada e monitorada; ref. §10.7.
+- §3 "Fora da v1" (l.62–67): reescrita — não exclui mais respostas automáticas; exclui só assuntos fora da lista
+  e negociação de valores pela IA.
+- §10.7 (l.240+): fluxo completo de respostas controladas (`services/respostas/`): interruptor geral, classificação,
+  guardrails em código, modo Aprovação/Automático.
+- §14 fase 8 (l.321): "Respostas controladas (seção 10.7)".
 
-2. **Escopo de "respostas da IA".** `CLAUDE.md` trata respostas controladas como parte do sistema: §5.5–5.6
-   (a IA responde dentro de verificações; "interruptor geral de respostas... checado a cada ciclo"), §8 (módulo
-   `respostas/` com mypy estrito), e a skill `/avaliar-ia`. Já o `BRIEFING.md §3` lista **"Respostas automáticas
-   da IA para os contatos"** explicitamente **fora da v1**. O pedido de abertura do projeto também chamou o sistema
-   de "respostas controladas", reforçando a tensão.
-
-## Decisão (pendente)
-Opções a decidir com o responsável:
-- **(a)** Respostas controladas da IA **entram na v1** → atualizar o BRIEFING §3 (tirar de "fora da v1"), criar a
-  seção BRIEFING §10.7 descrevendo as verificações, e manter CLAUDE.md como está.
-- **(b)** Respostas **ficam fora da v1** (como no BRIEFING) → ajustar CLAUDE.md §5.5–5.6 e §8 para não pressupor o
-  módulo de respostas na v1, e corrigir/remover a referência à §10.7.
+Decisão: **seguir o BRIEFING** — respostas controladas são escopo da v1. O `CLAUDE.md` (§5.5 ref. §10.7, §5.6
+interruptor geral, §8 módulo `respostas/`) **já está consistente** com isso; **nenhuma edição aplicada**.
 
 ## Consequências
-- Não afeta a Fase 1 (esqueleto/CI/login) — registrado para resolver **antes das fases de IA (3/6)**.
-- A escolha muda o escopo das fases de IA, o módulo `respostas/` e a aplicação da skill `/avaliar-ia`.
-- Enquanto pendente, nenhum código de respostas da IA é escrito.
+- Nenhuma mudança no CLAUDE.md nem no BRIEFING decorrente deste ADR.
+- Respostas controladas permanecem na fase 8 (BRIEFING §14); a skill `/avaliar-ia` governa prompts/regras/guardrails.
+- Lição: reler a versão vigente do documento-fonte antes de afirmar inconsistência (CLAUDE.md §1.5: "não encontrei" ≠ "não existe").
