@@ -1,0 +1,4 @@
+{
+  "guardPush": "block",
+  "note": "block=PR-first (bloqueia push na main) | warn=deploy-por-push (so avisa). force-push e remocoes destrutivas sempre bloqueados."
+}
