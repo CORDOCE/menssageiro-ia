@@ -32,6 +32,20 @@ extend-exclude = ["migrations/versions"]
 [tool.ruff.lint]
 select = ["E", "F", "I", "UP", "B", "SIM"]
 
+# Depends/Header/etc. em defaults são o padrão idiomático do FastAPI, não o bug que o B008 visa.
+[tool.ruff.lint.flake8-bugbear]
+extend-immutable-calls = [
+    "fastapi.Depends",
+    "fastapi.Header",
+    "fastapi.Query",
+    "fastapi.Path",
+    "fastapi.Body",
+    "fastapi.Cookie",
+    "fastapi.Form",
+    "fastapi.File",
+    "fastapi.Security",
+]
+
 [tool.mypy]
 python_version = "3.14"
 strict = false

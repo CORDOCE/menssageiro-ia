@@ -7,7 +7,10 @@ Nesta fase expõe apenas o healthcheck shallow `/health` (RAILWAY §4). O `/admi
 from fastapi import FastAPI
 from pydantic import BaseModel
 
+from app.api.auth import router as auth_router
+
 app = FastAPI(title="Mensageiro API", version="0.1.0")
+app.include_router(auth_router)
 
 
 class HealthResponse(BaseModel):

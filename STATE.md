@@ -6,35 +6,34 @@ _Atualizado: 2026-10-30_
 
 ## Em andamento
 - **Spec ativa:** `specs/0001-esqueleto-fase-1/` (Esqueleto da Fase 1).
-- **Task 3 (DB/Alembic)** implementada e **validada** no branch `feat/0001-task3-db-alembic`
-  (commit `96d9c9f`), ainda **sem push/PR**. Gates da §4.4 rodados (ver abaixo).
+- **Task 5 (modelo `usuario` + auth)** **commitada** (`b58151f`) no branch `feat/0001-task5-usuario-auth`
+  (a partir de `develop`). **Só senha** (TOTP é task 6; rate limit é task 7). Ainda **sem push/PR**.
 
 ## Próximo passo
-1. **Push + abrir PR** de `feat/0001-task3-db-alembic` → `develop` (aguarda autorização do Jefferson).
-2. Depois: seguir a spec 0001 — task 5 (modelo `usuario` + auth) → 6 (2FA TOTP) → 7 (rate limit) →
-   8 (worker loop) → 9 (cobertura ≥90%). Frontend (10→11) em paralelo. CI (12) por último.
+1. **Push + abrir PR** `feat/0001-task5-usuario-auth` → `develop` (aguarda autorização do Jefferson).
+   Commit pronto; gates e review já feitos.
+2. **Task 6**: 2FA TOTP (`pyotp` — dep nova, precisa aprovação §4) no fluxo de login; usa `usuarios.totp_secret`.
+3. Depois: task 7 (rate limit no login) → 8 (worker) → 9 (cobertura) → 10–11 (frontend) → 12 (CI).
 
-## Validação da task 3 (§4.4, equivalente de CI no host via Docker)
-- `/revisar`: PRONTO PRA PR (1 P2 corrigido — interpolação `%` da URL no `env.py`).
-- `/seguranca`: sem CRÍTICO/ALTO (1 MÉDIO corrigido — bind do Postgres restrito a `127.0.0.1`).
-- Gates verdes com Postgres dockerizado: ruff, mypy, pytest, ciclo `alembic upgrade/downgrade/upgrade`
-  (AC-4), `pip-audit` (sem vulnerabilidades). `ci.yml` formal fica para a task 12.
+## Como a auth foi feita (ADR 0001, herdada de `document-ai-system`, adaptada)
+- Sessão = **token opaco Bearer no banco** (tabela `sessoes_usuario`), não JWT/cookie. 1 sessão ativa por usuário.
+- Tabelas pt-BR: `usuarios`, `sessoes_usuario`, `auditoria`. Sem papéis (1 admin). Datas `timestamptz`.
+- Endurecimentos vs. herdado: token via `secrets.token_urlsafe`, senha com scrypt + `hmac.compare_digest`,
+  resposta genérica anti-enumeração, auditoria não-bloqueante de login/logout (invariante §5.8).
+- Rotas: `POST /auth/login`, `POST /auth/logout`, `GET /auth/me`. Admin criado por `python -m app.criar_admin`.
+- `pyproject`: ruff `flake8-bugbear.extend-immutable-calls` p/ o padrão `Depends/Header` do FastAPI.
 
-## Decisões da sessão
-- PRs **#2** (ADR 0002 + housekeeping) e **#3** (regra CLAUDE.md §4.4: gates + CI via Docker) já
-  **mergeados** em `develop`. Branches mergeadas apagadas (local + origin).
-- Task 3: migração base **vazia** (não há modelos ainda; `usuario` é a task 5) — só estabelece a cadeia
-  Alembic e torna o AC-4 testável. URL do banco lida do `Settings` no `env.py` (não no `alembic.ini`).
-- `docker-compose` usa Postgres na porta **5434** do host (5432/5433 ocupadas por outros projetos nesta máquina).
-- `migrations/versions/` excluído do ruff (arquivos gerados; revisão manual via `/migracao`).
+## Validação da task 5 (§4.4, Postgres via Docker) — concluída
+- Gates verdes: ruff, mypy (17 arquivos), **16 testes** (1 health + 15 auth), ciclo `alembic base→head`,
+  `pip-audit` sem vulnerabilidades. **Cobertura das regras de auth = 100%** (auth.py, auth_deps.py, security.py, audit.py).
+- `/revisar` + `/seguranca`: 1 achado corrigido — **timing enumeration** no login (scrypt roda contra hash
+  fictício quando o e-mail não existe → "mesmo custo de tempo" da spec). Sem P0/P1 nem CRÍTICO/ALTO em aberto.
+- Migração `ab30d72b78e4` (cria as 3 tabelas); revisada linha a linha; downgrade funcional.
 
 ## Bloqueios/pendências
-- A regra §4.4 ainda carece de `.github/workflows/ci.yml` (task 12) para o job de CI formal; o
-  `docker-compose` já existe (criado na task 3).
-- claude-mem (memória de sessões) estava **indisponível** nesta sessão (`fetch failed`).
+- Push/PR da task 5 aguarda autorização do Jefferson.
+- Testes usam um banco dedicado `<db>_test` (criado pela fixture). Container `mensageiro-ia-db-1` de pé.
 
 ## Estado do git
-- Branch atual: `feat/0001-task3-db-alembic` (sem commit ainda; mudanças no working tree).
-- `develop` = topo `e3d07b8` (PRs #1, #2, #3 mergeados).
-- Arquivos da task 3: `docker-compose.yml`, `backend/app/db/{__init__,database}.py`, `backend/alembic.ini`,
-  `backend/migrations/**`, e ajustes em `backend/pyproject.toml`, `backend/app/core/config.py`, `.env.example`, `tasks.md`.
+- Branch: `feat/0001-task5-usuario-auth`, commit `b58151f`, **árvore limpa** (exceto este STATE.md ao salvar).
+- `develop` = topo `d7bee54` (PRs #1–#4 mergeados).
