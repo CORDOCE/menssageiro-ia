@@ -58,7 +58,11 @@ Use a skill **/hipotese** para conduzir esse ciclo.
 2. Branch por tarefa a partir de `develop`; PR para `develop`; `develop` → `main` só após staging validado.
    Push direto em `main` é bloqueado pelo hook `guard-push`.
 3. Commits no padrão Conventional Commits, em português. **Sem co-autoria de IA** (hook `guard-coauthor`).
-4. Antes do PR, nesta ordem: **/revisar** → **/seguranca** → **/validar**. Achado P0/P1 bloqueia o PR.
+4. **Antes de abrir PR de código**, nesta ordem e tudo verde: **/revisar** → **/seguranca** → **/validar**,
+   e rodar a **suíte de CI completa localmente no host via Docker** — os mesmos passos do workflow de CI
+   (`.github/workflows/ci.yml`), com PostgreSQL em container. Achado P0/P1 de **/revisar**, vulnerabilidade
+   explorável de **/seguranca** ou **CI vermelho** bloqueiam o PR. PR só de documentação/texto dispensa a
+   suíte Docker (mas não **/revisar**).
 5. Banco: toda mudança via **Alembic**, com `downgrade` funcional (**/migracao**).
 6. Decisão difícil de reverter → ADR curto em `docs/decisoes/NNNN-titulo.md`.
 7. Ao pausar ou encerrar: **/handoff** (atualiza `STATE.md`).
