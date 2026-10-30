@@ -1,0 +1,55 @@
+[project]
+name = "mensageiro-backend"
+version = "0.1.0"
+description = "Backend (API + worker) do Mensageiro — mensagens agendadas no WhatsApp Cloud API."
+requires-python = ">=3.14"
+dependencies = [
+    "fastapi>=0.162",
+    "uvicorn[standard]>=0.54",
+    "sqlalchemy>=2.1",
+    "alembic>=1.20",
+    "pydantic>=2.14",
+    "pydantic-settings>=2.16",
+    "psycopg[binary]>=3.3",
+    "httpx>=0.28",
+]
+
+[dependency-groups]
+dev = [
+    "pytest>=9",
+    "pytest-cov>=7",
+    "ruff>=0.17",
+    "mypy>=1.13",
+]
+
+[tool.ruff]
+line-length = 110
+target-version = "py314"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B", "SIM"]
+
+[tool.mypy]
+python_version = "3.14"
+strict = false
+warn_unused_ignores = true
+warn_redundant_casts = true
+ignore_missing_imports = true
+
+# Rigor máximo onde o domínio é crítico (CLAUDE.md §8).
+[[tool.mypy.overrides]]
+module = ["app.services.*", "app.worker.*"]
+disallow_untyped_defs = true
+disallow_any_generics = true
+warn_return_any = true
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["app"]
