@@ -9,7 +9,7 @@ description: Design doc da feature 0001-esqueleto-fase-1 (tier arquitetural). Es
 Respeitar a arquitetura já fixada no `BRIEFING.md` (§5 arquitetura, §6 layout, §7 stack) — não inventar padrão novo.
 
 **Estrutura (BRIEFING §6):**
-- `backend/` — um único código Python 3.12 servindo dois processos: `app.main:app` (API FastAPI) e
+- `backend/` — um único código Python 3.14 servindo dois processos: `app.main:app` (API FastAPI) e
   `python -m app.worker` (loop). Camadas conforme §6: `app/api`, `app/core`, `app/models`, `app/schemas`,
   `app/services`, `app/worker`; `migrations/` (Alembic); `tests/`; `pyproject.toml`.
 - `frontend/` — Next.js + TypeScript estrito, PWA (manifest + service worker), tokens de tema (DESIGN §2/§10).

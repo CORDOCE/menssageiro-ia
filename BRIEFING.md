@@ -136,7 +136,7 @@ mensageiro-whatsapp/
 
 | Camada | Tecnologia |
 |---|---|
-| Backend/worker | Python 3.12, FastAPI, SQLAlchemy 2, Pydantic v2, Alembic, httpx |
+| Backend/worker | Python 3.14, FastAPI, SQLAlchemy 2, Pydantic v2, Alembic, httpx (ver ADR 0003) |
 | Frontend | TypeScript, Next.js, PWA (manifest + service worker + Web Push) |
 | Banco | PostgreSQL |
 | IA | SDK oficial da OpenAI, saída em JSON estruturado (schema) |

@@ -103,7 +103,7 @@ Use a skill **/hipotese** para conduzir esse ciclo.
 
 ## 8. Qualidade de código
 
-- Python 3.12 com type hints; `ruff` + `mypy` (estrito em `services/`, `worker/` e `respostas/`).
+- Python 3.14 com type hints; `ruff` + `mypy` (estrito em `services/`, `worker/` e `respostas/`). Ver ADR 0003.
 - TypeScript estrito no frontend; `eslint` + `tsc --noEmit`.
 - Testes: pytest (unitários + integração com PostgreSQL real em container). Regras de envio, webhook e
   verificações da IA: cobertura mínima de **90%** de linhas e testes de borda explícitos.
