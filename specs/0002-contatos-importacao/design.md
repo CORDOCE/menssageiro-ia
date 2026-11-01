@@ -69,7 +69,7 @@ qualquer envio futuro (§5.4). Reimportar não reativa.
 | tabela N:N de tags | normalizado | overkill v1 | Descartada |
 
 ## Trade-offs e riscos
-- **Duas dependências novas** (`phonenumbers`, `openpyxl`) → exigem aprovação do responsável (CLAUDE.md §4):
+- **Duas dependências novas** (`phonenumbers`, `openpyxl`) → **aprovadas** (ADR 0006, 2026-11-01):
   justificativa = correção de E.164 (nativo é inviável/frágil) e leitura de XLSX (sem alternativa nativa); libs
   maduras, mantidas, licença permissiva. Versões fixadas; entram no `pip-audit` do CI.
 - Import síncrono trava a request em arquivos grandes → mitigado pela escala + **limite de tamanho/linhas** configurável.
@@ -78,6 +78,6 @@ qualquer envio futuro (§5.4). Reimportar não reativa.
 - Telefone em log → sempre `mascarar_telefone` (§6). Texto de erro do import não vaza PII.
 
 ## Decisoes irreversiveis (-> ADR)
-- **ADR 0006 (pendente de aprovação §4)** — Normalização de telefone **E.164 via `phonenumbers`** como formato
+- **ADR 0006 (aceito, 2026-11-01)** — Normalização de telefone **E.164 via `phonenumbers`** como formato
   canônico de armazenamento e **chave de deduplicação**; **`openpyxl`** para leitura de XLSX. É difícil de reverter
   porque define o formato gravado e a identidade de contato (reverter exige reprocessar toda a base).
