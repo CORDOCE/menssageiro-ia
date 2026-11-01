@@ -10,6 +10,7 @@ import secrets
 import uuid
 from datetime import UTC, datetime, timedelta
 
+import pyotp
 from fastapi import APIRouter, Depends, Header, HTTPException
 from sqlalchemy import select, update
 from sqlalchemy.orm import Session
@@ -29,6 +30,14 @@ router = APIRouter(prefix="/auth", tags=["auth"])
 _HASH_FICTICIO = hash_password(secrets.token_urlsafe(16))
 
 
+def _totp_confere(usuario: Usuario | None, codigo: str | None) -> bool:
+    """Valida o código TOTP (task 6). Tolera ±1 passo de 30 s (drift, spec: casos de borda).
+    Retorna False se não há usuário, segredo TOTP ou código — sem revelar qual faltou."""
+    if usuario is None or not usuario.totp_secret or not codigo:
+        return False
+    return pyotp.TOTP(usuario.totp_secret).verify(codigo, valid_window=1)
+
+
 @router.post("/login", response_model=LoginResponse)
 def login(
     payload: LoginRequest,
@@ -37,10 +46,12 @@ def login(
 ) -> LoginResponse:
     usuario = db.execute(select(Usuario).where(Usuario.email == payload.email)).scalar_one_or_none()
 
-    # Resposta genérica + tempo constante: não revela se o e-mail existe (anti-enumeração, §6).
+    # Resposta genérica + tempo constante: não revela se o e-mail/senha/TOTP falhou (anti-enumeração, §6).
+    # Senha e TOTP são sempre avaliados juntos; qualquer falha dá o mesmo 401 genérico.
     hash_referencia = usuario.senha_hash if usuario is not None else _HASH_FICTICIO
     senha_confere = verify_password(payload.senha, hash_referencia)
-    if usuario is None or not senha_confere:
+    totp_confere = _totp_confere(usuario, payload.totp)
+    if usuario is None or not senha_confere or not totp_confere:
         registrar_auditoria(operacao="login_falha", ator_email=payload.email, status="failure")
         raise HTTPException(status_code=401, detail="Credenciais inválidas")
 

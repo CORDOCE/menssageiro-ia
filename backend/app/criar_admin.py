@@ -7,6 +7,7 @@ Idempotente: se o e-mail já existir, não faz nada.
 import sys
 import uuid
 
+import pyotp
 from sqlalchemy import select
 
 from app.core.config import get_settings
@@ -27,16 +28,23 @@ def main() -> int:
         if existe is not None:
             print(f"Admin já existe: {s.admin_email}")
             return 0
+        # 2FA obrigatório (ADR 0001): provisiona um segredo TOTP no cadastro.
+        totp_secret = pyotp.random_base32()
         db.add(
             Usuario(
                 id=str(uuid.uuid4()),
                 nome="Admin",
                 email=s.admin_email,
                 senha_hash=hash_password(s.admin_password),
+                totp_secret=totp_secret,
             )
         )
         db.commit()
+        uri = pyotp.TOTP(totp_secret).provisioning_uri(name=s.admin_email, issuer_name="Mensageiro")
         print(f"Admin criado: {s.admin_email}")
+        print("2FA (TOTP) — cadastre no seu app autenticador (Google Authenticator, etc.):")
+        print(f"  segredo: {totp_secret}")
+        print(f"  otpauth: {uri}")
         return 0
     finally:
         db.close()

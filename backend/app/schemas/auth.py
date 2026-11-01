@@ -8,6 +8,9 @@ from pydantic import BaseModel, ConfigDict
 class LoginRequest(BaseModel):
     email: str
     senha: str
+    # 2FA TOTP (task 6). Opcional no schema para que "código ausente" caia na resposta genérica
+    # 401 (AC-6), e não num 422 de validação que revelaria o motivo.
+    totp: str | None = None
 
 
 class LoginResponse(BaseModel):
