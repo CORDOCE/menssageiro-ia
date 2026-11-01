@@ -10,6 +10,7 @@ import pyotp
 import app.db.database as db_mod
 from app.core.audit import registrar_auditoria
 from app.core.security import gerar_token_sessao, hash_password, verify_password
+from app.models.auditoria import Auditoria
 from app.models.usuario import SessaoUsuario, Usuario
 
 EMAIL = "admin@exemplo.com"
@@ -320,3 +321,48 @@ def test_renovacao_desliza_expira_em(client, db):
         assert s.expira_em > datetime.now(UTC) + timedelta(days=6)
     finally:
         sessao.close()
+
+
+# --- Rate limit do login (task 7, AC-8) -----------------------------------------------------------
+
+def _inserir_falhas(email: str, n: int, minutos_atras: int = 0) -> None:
+    """Grava N `login_falha` na auditoria (exercita o rate limit sem rodar N scrypt)."""
+    sessao = db_mod.SessionLocal()
+    try:
+        quando = datetime.now(UTC) - timedelta(minutes=minutos_atras)
+        for _ in range(n):
+            sessao.add(
+                Auditoria(
+                    id=str(uuid.uuid4()),
+                    operacao="login_falha",
+                    ator_email=email,
+                    status="failure",
+                    criado_em=quando,
+                )
+            )
+        sessao.commit()
+    finally:
+        sessao.close()
+
+
+def test_rate_limit_apos_limite_de_falhas_429(client, db):
+    # AC-8: excedido o limite de falhas (por e-mail) na janela → 429, mesmo com credenciais válidas.
+    _criar_usuario()
+    _inserir_falhas(EMAIL, n=5)  # login_max_tentativas (default) = 5
+    assert _post_login(client).status_code == 429
+
+
+def test_rate_limit_isolado_por_email(client, db):
+    # AC-8: o bloqueio é por e-mail; outro e-mail não é afetado.
+    _criar_usuario()
+    _criar_usuario(email="outro@exemplo.com")
+    _inserir_falhas(EMAIL, n=5)
+    assert _post_login(client).status_code == 429
+    assert _post_login(client, email="outro@exemplo.com").status_code == 200
+
+
+def test_rate_limit_so_conta_falhas_dentro_da_janela(client, db):
+    # Borda: falhas fora da janela (15 min) não contam (contador expira — spec: casos de borda).
+    _criar_usuario()
+    _inserir_falhas(EMAIL, n=5, minutos_atras=20)
+    assert _post_login(client).status_code == 200
