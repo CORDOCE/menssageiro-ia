@@ -1,10 +1,10 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useState, type FormEvent } from "react";
+import { useEffect, useState, type FormEvent } from "react";
 
 import { login } from "@/lib/api";
-import { salvarToken } from "@/lib/auth";
+import { lerEmail, lerSenha, limparSenha, salvarEmail, salvarSenha, salvarToken } from "@/lib/auth";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -12,8 +12,22 @@ export default function LoginPage() {
   const [senha, setSenha] = useState("");
   const [totp, setTotp] = useState("");
   const [mostrarSenha, setMostrarSenha] = useState(false);
+  const [lembrarSenha, setLembrarSenha] = useState(false);
   const [erro, setErro] = useState<string | null>(null);
   const [carregando, setCarregando] = useState(false);
+
+  // Pré-preenche a partir do navegador (só no cliente, após montar — evita hydration mismatch).
+  useEffect(() => {
+    const emailSalvo = lerEmail();
+    if (emailSalvo) {
+      setEmail(emailSalvo);
+    }
+    const senhaSalva = lerSenha();
+    if (senhaSalva) {
+      setSenha(senhaSalva);
+      setLembrarSenha(true);
+    }
+  }, []);
 
   async function enviar(e: FormEvent) {
     e.preventDefault();
@@ -22,6 +36,12 @@ export default function LoginPage() {
     try {
       const r = await login(email, senha, totp);
       salvarToken(r.token);
+      salvarEmail(email);
+      if (lembrarSenha) {
+        salvarSenha(senha);
+      } else {
+        limparSenha();
+      }
       router.replace("/painel");
     } catch (err) {
       setErro(err instanceof Error ? err.message : "Falha no login");
@@ -75,6 +95,19 @@ export default function LoginPage() {
             autoComplete="one-time-code"
             placeholder="000000"
           />
+        </label>
+        <label className="checkbox">
+          <input
+            type="checkbox"
+            checked={lembrarSenha}
+            onChange={(e) => setLembrarSenha(e.target.checked)}
+          />
+          <span>
+            Lembrar senha neste navegador
+            <small className="aviso">
+              Fica salva em texto neste dispositivo. Em computador compartilhado, não marque.
+            </small>
+          </span>
         </label>
         {erro ? (
           <p role="alert" className="erro">

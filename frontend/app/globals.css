@@ -90,6 +90,25 @@ label {
   text-decoration: underline;
 }
 
+.checkbox {
+  flex-direction: row;
+  align-items: flex-start;
+  gap: 0.5rem;
+  cursor: pointer;
+}
+
+.checkbox input {
+  width: auto;
+  margin-top: 0.15rem;
+}
+
+.aviso {
+  display: block;
+  color: var(--texto-2);
+  font-size: 0.75rem;
+  margin-top: 0.1rem;
+}
+
 input {
   padding: 0.6rem 0.7rem;
   border: 1px solid var(--borda);
