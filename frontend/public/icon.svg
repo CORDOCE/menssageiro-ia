@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="Mensageiro">
+  <rect width="512" height="512" rx="96" fill="#2b59c3"/>
+  <circle cx="256" cy="232" r="140" fill="#ffffff"/>
+  <path d="M190 360 L190 430 L250 372 Z" fill="#ffffff"/>
+  <text x="256" y="282" font-family="-apple-system, Arial, sans-serif" font-size="170" font-weight="700" fill="#2b59c3" text-anchor="middle">M</text>
+</svg>

@@ -64,3 +64,34 @@ jobs:
 
       - name: Auditoria de dependências (pip-audit)
         run: uv run --with pip-audit pip-audit
+
+  frontend:
+    name: frontend (eslint, tsc, build, npm audit)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Instalar Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Instalar dependências
+        run: npm ci
+
+      - name: Lint (eslint)
+        run: npm run lint
+
+      - name: Tipos (tsc)
+        run: npx tsc --noEmit
+
+      - name: Build
+        run: npm run build
+
+      - name: Auditoria (npm audit — produção, alto+)
+        run: npm audit --omit=dev --audit-level=high
