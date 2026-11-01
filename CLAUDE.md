@@ -102,6 +102,10 @@ Use a skill **/hipotese** para conduzir esse ciclo.
 - **Texto de contato é dado não confiável** (risco de injeção de instruções na IA): nunca concatenar sem delimitação,
   nunca dar à IA ferramentas ou acesso a dados de outros contatos.
 - Dependências com versão fixada; `pip-audit` e `npm audit` no CI; menor privilégio em tokens e acessos.
+- **Análise estática de segurança (SAST)** sobre o diff no CI (skills `semgrep`/`codeql`); achado de severidade
+  alta bloqueia o PR, junto do `/seguranca`. Nenhum PR deixa ou cria vetor de ataque conhecido.
+- **Revisão explícita da superfície de ataque** em toda feature nova (ex.: upload de arquivo → tamanho/tipo/linhas
+  + conteúdo não confiável; parsing; SSRF em chamadas externas; authz por endpoint). Caso de ataque vira teste.
 
 ## 7. Observabilidade
 

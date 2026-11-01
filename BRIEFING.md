@@ -142,6 +142,7 @@ mensageiro-whatsapp/
 | IA | SDK oficial da OpenAI, saída em JSON estruturado (schema) |
 | Qualidade | pytest, ruff, mypy, eslint, tsc |
 | Erros | Sentry (backend e frontend) |
+| Compatibilidade | **Multiplataforma**: o PWA deve funcionar em iOS/Safari, Android/Chrome e desktop (Windows, macOS, Linux). Backend/worker rodam em Linux (Railway). ⚠️ **Web Push no iOS** exige Safari ≥ 16.4 **com a PWA instalada na tela inicial** — tratar essa limitação no design da Fase 5 (fallback por e-mail quando push indisponível). Testar cross-browser (Playwright). |
 
 ## 8. Reaproveitamento do projeto antigo
 
