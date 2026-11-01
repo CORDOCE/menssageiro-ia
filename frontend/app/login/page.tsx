@@ -11,6 +11,7 @@ export default function LoginPage() {
   const [email, setEmail] = useState("");
   const [senha, setSenha] = useState("");
   const [totp, setTotp] = useState("");
+  const [mostrarSenha, setMostrarSenha] = useState(false);
   const [erro, setErro] = useState<string | null>(null);
   const [carregando, setCarregando] = useState(false);
 
@@ -45,9 +46,19 @@ export default function LoginPage() {
           />
         </label>
         <label>
-          Senha
+          <span className="rotulo-linha">
+            Senha
+            <button
+              type="button"
+              className="link"
+              onClick={() => setMostrarSenha((v) => !v)}
+              aria-pressed={mostrarSenha}
+            >
+              {mostrarSenha ? "Ocultar" : "Mostrar"}
+            </button>
+          </span>
           <input
-            type="password"
+            type={mostrarSenha ? "text" : "password"}
             value={senha}
             onChange={(e) => setSenha(e.target.value)}
             required

@@ -67,6 +67,29 @@ label {
   color: var(--texto-2);
 }
 
+.rotulo-linha {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.link {
+  background: none;
+  border: none;
+  padding: 0;
+  margin: 0;
+  width: auto;
+  font-size: 0.8rem;
+  font-weight: 500;
+  color: var(--cor-primaria);
+  cursor: pointer;
+}
+
+.link:hover {
+  background: none;
+  text-decoration: underline;
+}
+
 input {
   padding: 0.6rem 0.7rem;
   border: 1px solid var(--borda);
