@@ -39,6 +39,11 @@ class Settings(BaseSettings):
     vapid_public_key: str | None = None
     vapid_private_key: str | None = None
 
+    # Autenticação (ADR 0001)
+    session_horas: int = 8
+    admin_email: str | None = None
+    admin_password: str | None = None
+
     # Fuso (BRIEFING §9: exibição em America/Sao_Paulo)
     tz: str = "America/Sao_Paulo"
 

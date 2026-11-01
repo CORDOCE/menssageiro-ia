@@ -12,7 +12,8 @@ description: Quebra de tasks da feature 0001-esqueleto-fase-1. Cada task mapeia 
 | 2 | `app/core/config.py` (pydantic-settings) lendo `.env` | AC-1 | 1 | incluído no gate de AC-1; teste de carga de settings | done |
 | 3 | `app/db/database.py` (SQLAlchemy 2) + Alembic (`alembic.ini`, `migrations/env.py`, migração base) | AC-4 | 1,2 | `alembic upgrade head` && `alembic downgrade base` → código 0 | done |
 | 4 | `app/main.py` FastAPI + `GET /health` | AC-3 | 1,2 | teste: `GET /health` → 200 JSON "ok" | done |
-| 5 | Modelo `usuario` + auth herdada (adaptar BRIEFING §8) simplificada p/ 1 admin | AC-7 | 3,4 | teste: rota protegida 401 sem token / 200 com token | todo |
+| 5 | Modelo `usuario` + auth herdada (adaptar BRIEFING §8) simplificada p/ 1 admin | AC-7 | 3,4 | teste: rota protegida 401 sem token / 200 com token | done (só senha; TOTP é task 6) |
+| 5b | Sessão multi-dispositivo (ADR 0004): remove revoke-all do login; `logout` por token + `POST /auth/logout-todos`; expiração deslizante (inatividade + teto) com throttle; colunas `ultimo_uso_em`/`user_agent`; migration aditiva (`/migracao`) | AC-13, AC-14, AC-15, AC-16 | 5 | testes: 2 sessões simultâneas; logout isola vs logout-todos; renovação+teto absoluto; user_agent persistido | todo |
 | 6 | 2FA TOTP (pyotp) no fluxo de login | AC-5, AC-6 | 5 | teste matriz de decisão (senha×TOTP) | todo |
 | 7 | Rate limit no login | AC-8 | 5 | teste: N falhas → 429 | todo |
 | 8 | `app/worker/__main__.py` loop 60 s + heartbeat, sem envio | AC-9 | 3 | teste: 1 ciclo grava `ultimo_ciclo_em`; asserção de "nenhum envio" | todo |

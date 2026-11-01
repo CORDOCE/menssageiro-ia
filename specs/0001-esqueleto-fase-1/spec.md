@@ -25,6 +25,12 @@ Cada AC é testável e não-ambíguo (Definition of Ready). Um teste/gate por AC
 - **AC-11** — Dado o frontend buildado apontando para a API, Quando abro a tela de login e envio credenciais válidas (senha + TOTP), Então sou autenticado e vejo o shell protegido; credenciais inválidas mostram erro e não autenticam.
 - **AC-12** — Dado um push/PR para `develop`, Quando o workflow de CI roda, Então executa os jobs de backend (ruff, mypy, pytest+Postgres, pip-audit) e frontend (eslint, tsc, build, npm audit) e fica verde.
 
+### Sessão multi-dispositivo (ADR 0004)
+- **AC-13** — Dado o mesmo admin já logado num dispositivo, Quando faço login num segundo dispositivo, Então **ambas as sessões permanecem válidas** (o login não revoga a anterior).
+- **AC-14** — Dadas duas sessões ativas, Quando faço `POST /auth/logout` numa delas, Então **só aquela** é revogada (a outra ainda responde 200); Quando faço `POST /auth/logout-todos`, Então **todas** as sessões do usuário são revogadas.
+- **AC-15** — Dada uma sessão, Quando passo da janela de inatividade sem uso, Então acesso → 401; Quando uso dentro da janela, Então `expira_em`/`ultimo_uso_em` renovam (com throttle); Quando passo do **teto absoluto**, Então → 401 mesmo com uso recente.
+- **AC-16** — Dado um login, Quando a sessão é criada, Então o `user_agent` do dispositivo é persistido em `sessoes_usuario`.
+
 ## Casos de borda
 - TOTP com janela de tempo: código do passo imediatamente anterior/seguinte (drift) — definir tolerância explícita no teste.
 - Login com usuário inexistente vs senha errada: mesma resposta genérica (não revelar qual falhou) e mesmo custo de tempo.
@@ -32,6 +38,9 @@ Cada AC é testável e não-ambíguo (Definition of Ready). Um teste/gate por AC
 - `/health` deve responder mesmo sem variáveis da Meta/OpenAI configuradas (não depende delas).
 - Worker reiniciado no meio de um ciclo: próximo ciclo grava heartbeat normalmente (sem estado em memória — BRIEFING §5).
 - Rate limit: contador por identificador de origem; expira após a janela.
+- Multi-dispositivo: renovação deslizante só grava se passou do throttle (ex.: >5 min desde `ultimo_uso_em`), para não escrever a cada requisição.
+- `logout-todos` derruba inclusive a sessão que fez a chamada; `logout` simples preserva as demais.
+- Teto absoluto vence a renovação: sessão usada todo dia expira ao atingir `criada_em + teto`.
 
 ## Fora de escopo (vinculante)
 - Contatos, templates, agendamentos, envios, webhook da Meta, IA/sugestões, comandos pelo WhatsApp (fases 2–8).
