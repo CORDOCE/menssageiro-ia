@@ -1,8 +1,10 @@
 # ADR 0001 — Autenticação de 1 usuário com 2FA (TOTP), herdada do projeto antigo
 
-- **Status:** aceito
+- **Status:** aceito (parcialmente superado pelo ADR 0004)
 - **Data:** 2026-10-30
 - **Contexto da feature:** `specs/0001-esqueleto-fase-1/`
+- **Nota:** o ponto "1 sessão ativa por usuário" foi revisto pelo **ADR 0004** (sessões multi-dispositivo,
+  expiração deslizante). O restante (auth herdada, 2FA TOTP, rate limit, resposta genérica) permanece válido.
 
 ## Contexto
 A Fase 1 exige login funcionando (critério de pronto, BRIEFING §14). O BRIEFING §2 fixa "1 usuário (admin) com
