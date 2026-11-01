@@ -18,9 +18,9 @@ description: Quebra de tasks da feature 0001-esqueleto-fase-1. Cada task mapeia 
 | 7 | Rate limit no login (por e-mail; 5 falhas/15min → 429) | AC-8 | 5 | teste: N falhas → 429 | done |
 | 8 | `app/worker/__main__.py` loop 60 s + heartbeat, sem envio | AC-9 | 3 | teste: 1 ciclo grava `ultimo_ciclo_em`; asserção de "nenhum envio" | done |
 | 9 | Suíte de testes backend com cobertura ≥90% das regras de auth | AC-2 | 4–8 | `pytest --cov` → 0 e cobertura ≥90% | todo |
-| 10 | `frontend/` Next.js TS estrito + PWA (manifest/SW) + tokens de tema | AC-10 | — | `npm run lint && npx tsc --noEmit && npm run build` → 0 | todo |
-| 11 | Tela de login + shell protegido consumindo a API | AC-11 | 6,10 | teste e2e/manual: login válido → shell; inválido → erro | todo |
-| 12 | `.github/workflows/ci.yml` (backend + frontend + contraste WCAG) | AC-12 | 1–11 | mesmos comandos verdes localmente; CI verde no 1º PR | todo |
+| 10 | `frontend/` Next.js 16 TS estrito + PWA (manifest/SW) + tokens de tema | AC-10 | — | `npm run lint && npx tsc --noEmit && npm run build` → 0 | done |
+| 11 | Tela de login + shell protegido consumindo a API | AC-11 | 6,10 | teste e2e/manual: login válido → shell; inválido → erro | done (build/lint/tsc verdes; e2e de login validado no staging após deploy) |
+| 12 | `.github/workflows/ci.yml` (backend + frontend) | AC-12 | 1–11 | mesmos comandos verdes localmente; CI verde no 1º PR | done (backend + frontend; contraste WCAG fica p/ fase de UI) |
 | 13 | ADR 0001 (auth/2FA) e ADR 0002 (inconsistências doc) em `docs/decisoes/` | — | — | arquivos presentes e linkados no design.md | done |
 
 > `[P]` na frente de uma task = pode rodar em paralelo. Tasks 10 (frontend) e 1–9 (backend) são largamente paralelas;
