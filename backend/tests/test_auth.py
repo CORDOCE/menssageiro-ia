@@ -2,6 +2,7 @@
 à task 5 (só senha; as linhas com TOTP são a task 6)."""
 
 import uuid
+from datetime import UTC, datetime, timedelta
 
 import app.db.database as db_mod
 from app.core.audit import registrar_auditoria
@@ -83,13 +84,13 @@ def test_logout_revoga_sessao(client, db):
     assert client.get("/auth/me", headers=headers).status_code == 401
 
 
-def test_login_revoga_sessao_anterior(client, db):
-    # 1 sessão ativa por usuário: o 2º login invalida o token do 1º
+def test_login_multi_dispositivo_duas_sessoes_validas(client, db):
+    # AC-13 (ADR 0004): o 2º login NÃO revoga o 1º — ambos os tokens continuam válidos.
     _criar_usuario()
     t1 = client.post("/auth/login", json={"email": EMAIL, "senha": SENHA}).json()["token"]
     t2 = client.post("/auth/login", json={"email": EMAIL, "senha": SENHA}).json()["token"]
     assert t1 != t2
-    assert client.get("/auth/me", headers={"Authorization": f"Bearer {t1}"}).status_code == 401
+    assert client.get("/auth/me", headers={"Authorization": f"Bearer {t1}"}).status_code == 200
     assert client.get("/auth/me", headers={"Authorization": f"Bearer {t2}"}).status_code == 200
 
 
@@ -154,3 +155,108 @@ def test_auditoria_nunca_levanta(monkeypatch):
 
     monkeypatch.setattr(db_mod, "SessionLocal", _boom)
     registrar_auditoria(operacao="teste_falha")  # não deve levantar
+
+
+# --- Sessão multi-dispositivo (ADR 0004) ---------------------------------------------------------
+
+def _login(client) -> str:
+    return client.post("/auth/login", json={"email": EMAIL, "senha": SENHA}).json()["token"]
+
+
+def _ajustar_sessao(token: str, **campos: object) -> None:
+    """Edita colunas da sessão direto no banco (para simular inatividade/idade)."""
+    sessao = db_mod.SessionLocal()
+    try:
+        s = sessao.query(SessaoUsuario).filter_by(token=token).one()
+        for chave, valor in campos.items():
+            setattr(s, chave, valor)
+        sessao.commit()
+    finally:
+        sessao.close()
+
+
+def test_logout_isola_dispositivo_atual(client, db):
+    # AC-14: logout revoga só a sessão do token usado; a outra continua válida.
+    _criar_usuario()
+    t1, t2 = _login(client), _login(client)
+    assert client.post("/auth/logout", headers={"Authorization": f"Bearer {t1}"}).status_code == 200
+    assert client.get("/auth/me", headers={"Authorization": f"Bearer {t1}"}).status_code == 401
+    assert client.get("/auth/me", headers={"Authorization": f"Bearer {t2}"}).status_code == 200
+
+
+def test_logout_todos_revoga_todas_as_sessoes(client, db):
+    # AC-14: logout-todos derruba todas as sessões do usuário.
+    _criar_usuario()
+    t1, t2 = _login(client), _login(client)
+    r = client.post("/auth/logout-todos", headers={"Authorization": f"Bearer {t1}"})
+    assert r.status_code == 200
+    assert client.get("/auth/me", headers={"Authorization": f"Bearer {t1}"}).status_code == 401
+    assert client.get("/auth/me", headers={"Authorization": f"Bearer {t2}"}).status_code == 401
+
+
+def test_user_agent_persistido_na_sessao(client, db):
+    # AC-16: o user_agent do dispositivo é gravado na sessão.
+    _criar_usuario()
+    token = client.post(
+        "/auth/login", json={"email": EMAIL, "senha": SENHA}, headers={"User-Agent": "MeuApp/1.0"}
+    ).json()["token"]
+    sessao = db_mod.SessionLocal()
+    try:
+        s = sessao.query(SessaoUsuario).filter_by(token=token).one()
+        assert s.user_agent == "MeuApp/1.0"
+    finally:
+        sessao.close()
+
+
+def test_user_agent_longo_truncado_sem_erro(client, db):
+    # Borda: User-Agent > 255 (controlável pelo cliente) não quebra o login; é truncado.
+    _criar_usuario()
+    r = client.post(
+        "/auth/login", json={"email": EMAIL, "senha": SENHA}, headers={"User-Agent": "A" * 500}
+    )
+    assert r.status_code == 200
+    sessao = db_mod.SessionLocal()
+    try:
+        s = sessao.query(SessaoUsuario).filter_by(token=r.json()["token"]).one()
+        assert len(s.user_agent) == 255
+    finally:
+        sessao.close()
+
+
+def test_sessao_expira_por_inatividade_401(client, db):
+    # AC-15: expira_em no passado (inatividade além da janela) → 401.
+    _criar_usuario()
+    token = _login(client)
+    _ajustar_sessao(token, expira_em=datetime.now(UTC) - timedelta(minutes=1))
+    assert client.get("/auth/me", headers={"Authorization": f"Bearer {token}"}).status_code == 401
+
+
+def test_teto_absoluto_401_mesmo_com_uso_recente(client, db):
+    # AC-15: criada_em além do teto vence a renovação, mesmo com expira_em futuro.
+    _criar_usuario()
+    token = _login(client)
+    _ajustar_sessao(
+        token,
+        criada_em=datetime.now(UTC) - timedelta(days=31),
+        expira_em=datetime.now(UTC) + timedelta(days=1),
+        ultimo_uso_em=datetime.now(UTC),
+    )
+    assert client.get("/auth/me", headers={"Authorization": f"Bearer {token}"}).status_code == 401
+
+
+def test_renovacao_desliza_expira_em(client, db):
+    # AC-15: uso após o throttle renova expira_em para ~agora + inatividade.
+    _criar_usuario()
+    token = _login(client)
+    _ajustar_sessao(
+        token,
+        ultimo_uso_em=datetime.now(UTC) - timedelta(hours=1),
+        expira_em=datetime.now(UTC) + timedelta(minutes=10),
+    )
+    assert client.get("/auth/me", headers={"Authorization": f"Bearer {token}"}).status_code == 200
+    sessao = db_mod.SessionLocal()
+    try:
+        s = sessao.query(SessaoUsuario).filter_by(token=token).one()
+        assert s.expira_em > datetime.now(UTC) + timedelta(days=6)
+    finally:
+        sessao.close()

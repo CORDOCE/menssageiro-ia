@@ -39,8 +39,10 @@ class Settings(BaseSettings):
     vapid_public_key: str | None = None
     vapid_private_key: str | None = None
 
-    # Autenticação (ADR 0001)
-    session_horas: int = 8
+    # Autenticação (ADR 0001) + sessão multi-dispositivo (ADR 0004)
+    session_inatividade_dias: int = 7  # expira após N dias sem uso (janela deslizante)
+    session_max_dias: int = 30  # teto absoluto de vida da sessão, vence a renovação
+    session_throttle_min: int = 5  # só renova ultimo_uso_em/expira_em se passou disso
     admin_email: str | None = None
     admin_password: str | None = None
 

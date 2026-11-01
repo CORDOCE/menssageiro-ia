@@ -1,19 +1,21 @@
-"""Rotas de autenticação (ADR 0001).
+"""Rotas de autenticação (ADR 0001) + sessão multi-dispositivo (ADR 0004).
 
 Task 5: login **só com senha**, logout e `/me` (rota protegida). O 2FA (TOTP) é a task 6 e o rate
 limit é a task 7. Falha de credencial retorna resposta genérica (anti-enumeração, CLAUDE.md §6).
+Multi-dispositivo: o login não revoga sessões anteriores; `logout` encerra só o dispositivo atual e
+`logout-todos` encerra todos.
 """
 
 import secrets
 import uuid
 from datetime import UTC, datetime, timedelta
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, Header, HTTPException
 from sqlalchemy import select, update
 from sqlalchemy.orm import Session
 
 from app.core.audit import registrar_auditoria
-from app.core.auth_deps import usuario_atual
+from app.core.auth_deps import sessao_atual, usuario_atual
 from app.core.config import get_settings
 from app.core.security import gerar_token_sessao, hash_password, verify_password
 from app.db.database import get_db
@@ -28,7 +30,11 @@ _HASH_FICTICIO = hash_password(secrets.token_urlsafe(16))
 
 
 @router.post("/login", response_model=LoginResponse)
-def login(payload: LoginRequest, db: Session = Depends(get_db)) -> LoginResponse:
+def login(
+    payload: LoginRequest,
+    user_agent: str | None = Header(default=None),
+    db: Session = Depends(get_db),
+) -> LoginResponse:
     usuario = db.execute(select(Usuario).where(Usuario.email == payload.email)).scalar_one_or_none()
 
     # Resposta genérica + tempo constante: não revela se o e-mail existe (anti-enumeração, §6).
@@ -41,20 +47,18 @@ def login(payload: LoginRequest, db: Session = Depends(get_db)) -> LoginResponse
     if not usuario.ativo:
         raise HTTPException(status_code=403, detail="Usuário desativado")
 
-    # 1 sessão ativa por usuário: revoga as anteriores antes de emitir a nova.
-    db.execute(
-        update(SessaoUsuario)
-        .where(SessaoUsuario.usuario_id == usuario.id, SessaoUsuario.revogada.is_(False))
-        .values(revogada=True)
-    )
-
+    # Multi-dispositivo (ADR 0004): NÃO revoga as sessões anteriores — cada dispositivo tem a sua.
+    agora = datetime.now(UTC)
     token = gerar_token_sessao()
     db.add(
         SessaoUsuario(
             id=str(uuid.uuid4()),
             usuario_id=usuario.id,
             token=token,
-            expira_em=datetime.now(UTC) + timedelta(hours=get_settings().session_horas),
+            criada_em=agora,
+            expira_em=agora + timedelta(days=get_settings().session_inatividade_dias),
+            ultimo_uso_em=agora,
+            user_agent=user_agent[:255] if user_agent else None,
         )
     )
     db.commit()
@@ -64,14 +68,33 @@ def login(payload: LoginRequest, db: Session = Depends(get_db)) -> LoginResponse
 
 
 @router.post("/logout")
-def logout(usuario: Usuario = Depends(usuario_atual), db: Session = Depends(get_db)) -> dict[str, bool]:
+def logout(
+    sessao: SessaoUsuario = Depends(sessao_atual),
+    usuario: Usuario = Depends(usuario_atual),
+    db: Session = Depends(get_db),
+) -> dict[str, bool]:
+    """Encerra apenas a sessão do dispositivo atual (ADR 0004)."""
+    sessao.revogada = True
+    db.commit()
+    registrar_auditoria(operacao="logout", ator_email=usuario.email, alvo_tipo="usuario", alvo_id=usuario.id)
+    return {"ok": True}
+
+
+@router.post("/logout-todos")
+def logout_todos(
+    usuario: Usuario = Depends(usuario_atual),
+    db: Session = Depends(get_db),
+) -> dict[str, bool]:
+    """Encerra todas as sessões do usuário, em todos os dispositivos (ADR 0004)."""
     db.execute(
         update(SessaoUsuario)
         .where(SessaoUsuario.usuario_id == usuario.id, SessaoUsuario.revogada.is_(False))
         .values(revogada=True)
     )
     db.commit()
-    registrar_auditoria(operacao="logout", ator_email=usuario.email, alvo_tipo="usuario", alvo_id=usuario.id)
+    registrar_auditoria(
+        operacao="logout_todos", ator_email=usuario.email, alvo_tipo="usuario", alvo_id=usuario.id
+    )
     return {"ok": True}
 
 

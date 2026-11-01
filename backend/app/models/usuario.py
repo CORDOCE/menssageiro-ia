@@ -44,5 +44,10 @@ class SessaoUsuario(Base):
     )
     expira_em: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
     revogada: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+    # Multi-dispositivo (ADR 0004): renovação deslizante + rótulo do dispositivo.
+    ultimo_uso_em: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False
+    )
+    user_agent: Mapped[str | None] = mapped_column(String(255), nullable=True)
 
     usuario: Mapped[Usuario] = relationship(back_populates="sessoes")
