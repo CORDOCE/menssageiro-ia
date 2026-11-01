@@ -31,7 +31,7 @@ cada resposta, repasse para humano e interruptor geral. Detalhes na seção 10.7
 | Canal | **WhatsApp Cloud API oficial da Meta**, chamada diretamente pelo backend. Nada de Evolution API/Baileys. |
 | Número | Coexistência (app WhatsApp Business + API) se o número já for Business; senão, número dedicado. |
 | Categorias de template | Só **UTILITY**. Nunca MARKETING. |
-| Usuários do painel | **1 usuário** (admin), com verificação em duas etapas (TOTP). |
+| Usuários do painel | **1 usuário** (admin), com verificação em duas etapas (TOTP). **Sessões multi-dispositivo** (várias sessões simultâneas por usuário; expiração deslizante — ADR 0004). Multiusuário é evolução futura aditiva (fora da v1). |
 | Origem das mensagens | Digitadas no painel; IA pode sugerir melhoria de texto. |
 | Anexos | Sim: **PDF (boleto)** no cabeçalho do template e **código Pix** como variável de texto. |
 | Comandos pelo WhatsApp | **Na v1**, apenas do(s) número(s) de admin autorizado(s). |
@@ -168,11 +168,12 @@ recibos, FastAPI + Next.js, rodou na Railway). **Copiar e adaptar; nunca alterar
 | Tabela | Campos principais |
 |---|---|
 | `usuarios` | (do projeto antigo) + `totp_secret`, `telefone_whatsapp` (para comandos) |
-| `contatos` | id, nome, telefone_e164 (único), grupo/tags, consentimento (bool, data, origem), descadastrado_em, ultima_mensagem_recebida_em, observacoes |
+| `sessoes_usuario` | id, usuario_id (FK), token (único), criada_em, expira_em, revogada, `ultimo_uso_em`, `user_agent`/rótulo — multi-dispositivo, expiração deslizante; sem IP (ADR 0004) |
+| `contatos` | id, nome, telefone_e164 (único), grupo/tags, consentimento (bool, data, origem), descadastrado_em, ultima_mensagem_recebida_em, observacoes — **sem envio se `consentimento=false`; importação não auto-consente** (CLAUDE.md §5.9 / ADR 0005) |
 | `modelos` | id, nome_meta, idioma, categoria, status (rascunho/pendente/aprovado/rejeitado/pausado), corpo, variaveis (rótulos + exemplos), tem_anexo, motivo_rejeicao, sincronizado_em |
 | `anexos` | id, nome_arquivo, mime, tamanho, armazenamento (id de mídia Meta e/ou caminho), criado_em |
-| `agendamentos` | id, contato_id **ou** grupo, modelo_id, variaveis (JSON), anexo_id, executar_em (timestamptz), recorrencia (RRULE), status, origem (operador/ia/comando), criado_por, aprovado_por, chave_idempotencia (única) |
-| `envios` | id, agendamento_id, contato_id, wamid, status (enviado/entregue/lido/falhou), erro_codigo, erro_texto, tentativas, categoria_cobranca, custo_estimado, enviado_em, entregue_em, lido_em |
+| `agendamentos` | id, contato_id **ou** grupo, modelo_id, variaveis (JSON), anexo_id, executar_em (timestamptz), recorrencia (RRULE), status, origem (operador/ia/comando), criado_por, aprovado_por, `motivo_ultima_transicao`, `reagendamentos` (contador), `agendamento_pai_id` (recorrência) — próxima ocorrência dedupada por `UNIQUE(agendamento_pai_id, executar_em)`; idempotência de envio migrou para `envios` (ADR 0005) |
+| `envios` | id, agendamento_id, contato_id, wamid, status (enviado/entregue/lido/falhou), erro_codigo, erro_texto, tentativas, categoria_cobranca, custo_estimado, enviado_em, entregue_em, lido_em — **`UNIQUE(agendamento_id, contato_id)`** (idempotência por contato — ADR 0005) |
 | `conversas` | id, contato_id, modo (aprovacao/automatico/manual), motivo_modo, assumida_por_humano_em, ultima_mensagem_em, precisa_atencao (bool) |
 | `mensagens` | id, conversa_id, direcao (entrada/saida), origem (contato/operador/ia/agendamento/app_celular), wamid, tipo, texto, criada_em, lida_pelo_operador |
 | `assuntos` | id, nome (ex.: ja_paguei, segunda_via, horario), descricao, exemplos, modo_permitido (aprovacao/automatico/proibido), ativo, versao |
@@ -185,6 +186,10 @@ recibos, FastAPI + Next.js, rodou na Railway). **Copiar e adaptar; nunca alterar
 
 Ciclo de `agendamentos.status`:
 `rascunho → aguardando_template → aguardando_aprovacao (só IA) → aprovado → enviando → enviado | falhou | cancelado`
+- `adia` (limite diário/por contato) e `reagenda` (fora da janela) **não mudam o status**: permanecem `aprovado` e só
+  atualizam `executar_em` (reagenda → início da próxima janela permitida); `motivo_ultima_transicao`/`reagendamentos` registram o porquê.
+- `aprovado`/`enviando` → **`aguardando_decisao`** quando o worker detecta indisponibilidade (gap de heartbeat) **e** o item
+  está >2h atrasado; dali o operador escolhe **reenviar** (→ `aprovado`) ou **cancelar** (→ `cancelado`). (ADR 0005)
 
 Todas as datas em `timestamptz`; exibição em `America/Sao_Paulo`.
 
@@ -212,10 +217,15 @@ Todas as datas em `timestamptz`; exibição em `America/Sao_Paulo`.
 ### 10.3 Worker (`worker/`)
 Loop a cada 60 s:
 1. `SELECT … FOR UPDATE SKIP LOCKED` em agendamentos `aprovado` vencidos → `enviando`.
-2. Checagens: descadastrado → cancela; fora da janela (padrão seg–sáb 8h–20h) → reagenda; modelo não aprovado → falha + alerta;
-   limite diário / por contato → adia; `envios_pausados` → não envia.
-3. Envia, grava `envios`, auditoria; recorrência → cria próximo.
-4. Atrasos > 2 h após indisponibilidade: **não enviar automaticamente**; marcar para decisão do operador.
+2. Checagens (**por contato** quando for grupo): descadastrado → cancela; **sem consentimento → não envia** (CLAUDE.md §5.9);
+   fora da janela (padrão seg–sáb 8h–20h) → **reagenda para o início da próxima janela** (mantém `aprovado`);
+   modelo não aprovado → falha + alerta; limite diário / por contato → **adia** (mantém `aprovado`); `envios_pausados` → não envia.
+3. **Expande o grupo em envios no disparo** (um `envio` por contato elegível; `UNIQUE(agendamento_id, contato_id)` evita
+   duplicar após reinício no meio do lote); envia, grava `envios`, auditoria; recorrência → cria a próxima ocorrência
+   (nova linha de agendamento, dedup por `UNIQUE(agendamento_pai_id, executar_em)`).
+4. Atrasos > 2 h **quando houve indisponibilidade** (gap no heartbeat `ultimo_ciclo_em` maior que o intervalo do loop):
+   **não enviar automaticamente**; mover para `aguardando_decisao` (§9) → operador reenvia ou cancela.
+   Atraso **sem** gap de heartbeat segue o fluxo normal.
 5. Gravar heartbeat (`ultimo_ciclo_em`).
 
 Jobs diários: 06:00 sincronizar modelos · 07:00 gerar sugestões da IA · 07:30 resumo para o admin (WhatsApp + e-mail).

@@ -78,8 +78,9 @@ Use a skill **/hipotese** para conduzir esse ciclo.
 ## 5. Invariantes do domínio (nunca violar)
 
 1. Só o **worker** inicia mensagens agendadas; a API nunca envia agendamentos diretamente.
-2. **Idempotência**: cada agendamento tem `chave_idempotencia` única; o worker trava com `FOR UPDATE SKIP LOCKED`.
-   Nenhum caminho de código pode enviar a mesma mensagem duas vezes.
+2. **Idempotência**: cada `envio` é único por `(agendamento_id, contato_id)` (constraint no banco); o worker trava
+   agendamentos com `FOR UPDATE SKIP LOCKED` e expande grupos em envios no disparo. Nenhum caminho de código pode
+   enviar a mesma mensagem ao mesmo contato duas vezes — nem após reinício no meio de um lote. (ADR 0005)
 3. Mensagem que inicia conversa é **template aprovado, categoria UTILITY**. Texto livre só com janela de 24 h aberta,
    checada no banco no momento do envio.
 4. Contato descadastrado (SAIR/PARAR) nunca recebe nada; o descadastro é imediato.
@@ -87,6 +88,9 @@ Use a skill **/hipotese** para conduzir esse ciclo.
 6. O interruptor geral de respostas e a pausa de envios são checados **a cada ciclo**.
 7. Testes nunca chamam as APIs reais da Meta/OpenAI: usar mocks ou o número de teste em staging.
 8. Toda ação que muda estado gera registro de auditoria.
+9. **Consentimento**: nenhum contato recebe envio sem opt-in registrado (`consentimento = true` com origem e data),
+   no mesmo nível do descadastro (§5.4). A importação CSV/XLSX **não** concede consentimento automático: linha sem
+   origem+data entra "sem consentimento" e fica bloqueada até o operador registrar a base. (ADR 0005)
 
 ## 6. Segurança (baseline OWASP)
 
