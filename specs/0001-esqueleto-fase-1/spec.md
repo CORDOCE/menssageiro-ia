@@ -37,7 +37,7 @@ Cada AC é testável e não-ambíguo (Definition of Ready). Um teste/gate por AC
 - `alembic downgrade base` em banco já vazio não deve quebrar.
 - `/health` deve responder mesmo sem variáveis da Meta/OpenAI configuradas (não depende delas).
 - Worker reiniciado no meio de um ciclo: próximo ciclo grava heartbeat normalmente (sem estado em memória — BRIEFING §5).
-- Rate limit: contador por identificador de origem; expira após a janela.
+- Rate limit: **contador por e-mail/conta** (não por IP) — robusto a spoofing de `X-Forwarded-For` e limita direto o brute-force da conta (ameaça do 2FA); contador por janela deslizante de falhas, expira após a janela. Trade-off: um atacante pode trancar a conta do admin durante a janela (DoS de curta duração), mitigado pela janela curta.
 - Multi-dispositivo: renovação deslizante só grava se passou do throttle (ex.: >5 min desde `ultimo_uso_em`), para não escrever a cada requisição.
 - `logout-todos` derruba inclusive a sessão que fez a chamada; `logout` simples preserva as demais.
 - Teto absoluto vence a renovação: sessão usada todo dia expira ao atingir `criada_em + teto`.

@@ -46,6 +46,10 @@ class Settings(BaseSettings):
     admin_email: str | None = None
     admin_password: str | None = None
 
+    # Rate limit do login (task 7, CLAUDE.md §6): N falhas por e-mail dentro da janela → 429.
+    login_max_tentativas: int = 5
+    login_janela_min: int = 15
+
     # Fuso (BRIEFING §9: exibição em America/Sao_Paulo)
     tz: str = "America/Sao_Paulo"
 

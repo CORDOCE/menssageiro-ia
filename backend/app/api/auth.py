@@ -12,7 +12,7 @@ from datetime import UTC, datetime, timedelta
 
 import pyotp
 from fastapi import APIRouter, Depends, Header, HTTPException
-from sqlalchemy import select, update
+from sqlalchemy import func, select, update
 from sqlalchemy.orm import Session
 
 from app.core.audit import registrar_auditoria
@@ -20,6 +20,7 @@ from app.core.auth_deps import sessao_atual, usuario_atual
 from app.core.config import get_settings
 from app.core.security import gerar_token_sessao, hash_password, verify_password
 from app.db.database import get_db
+from app.models.auditoria import Auditoria
 from app.models.usuario import SessaoUsuario, Usuario
 from app.schemas.auth import LoginRequest, LoginResponse, UsuarioRead
 
@@ -38,12 +39,35 @@ def _totp_confere(usuario: Usuario | None, codigo: str | None) -> bool:
     return pyotp.TOTP(usuario.totp_secret).verify(codigo, valid_window=1)
 
 
+def _bloqueado_por_rate_limit(db: Session, email: str, agora: datetime) -> bool:
+    """True se houve falhas de login demais para este e-mail dentro da janela (task 7, §6).
+    Conta `login_falha` na auditoria (ator_email + criado_em indexados)."""
+    cfg = get_settings()
+    desde = agora - timedelta(minutes=cfg.login_janela_min)
+    falhas = db.execute(
+        select(func.count())
+        .select_from(Auditoria)
+        .where(
+            Auditoria.operacao == "login_falha",
+            Auditoria.ator_email == email,
+            Auditoria.criado_em >= desde,
+        )
+    ).scalar_one()
+    return falhas >= cfg.login_max_tentativas
+
+
 @router.post("/login", response_model=LoginResponse)
 def login(
     payload: LoginRequest,
     user_agent: str | None = Header(default=None),
     db: Session = Depends(get_db),
 ) -> LoginResponse:
+    agora = datetime.now(UTC)
+    # Rate limit (task 7): bloqueia ANTES do scrypt para conter brute-force (ex.: chute de TOTP).
+    if _bloqueado_por_rate_limit(db, payload.email, agora):
+        registrar_auditoria(operacao="login_bloqueado", ator_email=payload.email, status="failure")
+        raise HTTPException(status_code=429, detail="Muitas tentativas de login. Tente novamente mais tarde.")
+
     usuario = db.execute(select(Usuario).where(Usuario.email == payload.email)).scalar_one_or_none()
 
     # Resposta genérica + tempo constante: não revela se o e-mail/senha/TOTP falhou (anti-enumeração, §6).
@@ -59,7 +83,6 @@ def login(
         raise HTTPException(status_code=403, detail="Usuário desativado")
 
     # Multi-dispositivo (ADR 0004): NÃO revoga as sessões anteriores — cada dispositivo tem a sua.
-    agora = datetime.now(UTC)
     token = gerar_token_sessao()
     db.add(
         SessaoUsuario(
