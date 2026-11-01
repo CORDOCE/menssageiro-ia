@@ -1,0 +1,66 @@
+name: CI
+
+on:
+  push:
+    branches: [develop, main]
+  pull_request:
+    branches: [develop, main]
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+# Least-privilege: o CI só lê o código; não escreve no repo nem usa o token.
+permissions:
+  contents: read
+
+jobs:
+  backend:
+    name: backend (ruff, mypy, migrações, pytest+Postgres, pip-audit)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: mensageiro
+          POSTGRES_PASSWORD: mensageiro
+          POSTGRES_DB: mensageiro
+        ports:
+          - 5434:5432
+        options: >-
+          --health-cmd "pg_isready -U mensageiro"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      # Mesmo formato do default local (driver psycopg3); aponta para o Postgres do service.
+      DATABASE_URL: postgresql+psycopg://mensageiro:mensageiro@localhost:5434/mensageiro
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Instalar uv
+        uses: astral-sh/setup-uv@v5
+
+      - name: Sincronizar dependências (inclui dev)
+        run: uv sync --dev
+
+      - name: Lint (ruff)
+        run: uv run ruff check .
+
+      - name: Tipos (mypy)
+        run: uv run mypy app
+
+      - name: Migrações — ciclo upgrade/downgrade/upgrade
+        run: |
+          uv run alembic upgrade head
+          uv run alembic downgrade base
+          uv run alembic upgrade head
+
+      - name: Testes + cobertura das regras (>=90%)
+        run: uv run pytest --cov=app --cov-report=term-missing --cov-fail-under=90
+
+      - name: Auditoria de dependências (pip-audit)
+        run: uv run --with pip-audit pip-audit

@@ -64,6 +64,15 @@ warn_return_any = true
 testpaths = ["tests"]
 addopts = "-q"
 
+[tool.coverage.run]
+source = ["app"]
+# Gate de cobertura mede as REGRAS de domínio (CLAUDE.md §8 / spec 0001 AC-2: "regras ≥90%").
+# `criar_admin` é bootstrap/CLI (rodado à mão no 1º acesso), não é regra — fica fora do gate.
+omit = ["app/criar_admin.py", "migrations/*"]
+
+[tool.coverage.report]
+show_missing = true
+
 [build-system]
 requires = ["hatchling"]
 build-backend = "hatchling.build"
