@@ -10,6 +10,10 @@ concurrency:
   group: ci-${{ github.ref }}
   cancel-in-progress: true
 
+# Least-privilege: o CI só lê o código; não escreve no repo nem usa o token.
+permissions:
+  contents: read
+
 jobs:
   backend:
     name: backend (ruff, mypy, migrações, pytest+Postgres, pip-audit)
