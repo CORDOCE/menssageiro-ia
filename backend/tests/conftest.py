@@ -14,6 +14,7 @@ import app.db.database as db_mod
 from app.core.config import get_settings
 from app.db.database import Base
 from app.main import app
+from app.models.saude import Saude  # noqa: F401 (registra a tabela no create_all)
 
 
 def _url_teste(url: str) -> str:
@@ -47,7 +48,7 @@ def _preparar_banco():
 def db():
     """Sessão de teste; limpa as tabelas antes de cada teste para isolamento."""
     sessao = db_mod.SessionLocal()
-    sessao.execute(text("TRUNCATE usuarios, sessoes_usuario, auditoria RESTART IDENTITY CASCADE"))
+    sessao.execute(text("TRUNCATE usuarios, sessoes_usuario, auditoria, saude RESTART IDENTITY CASCADE"))
     sessao.commit()
     try:
         yield sessao

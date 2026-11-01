@@ -50,6 +50,9 @@ class Settings(BaseSettings):
     login_max_tentativas: int = 5
     login_janela_min: int = 15
 
+    # Worker (task 8): intervalo do loop de heartbeat.
+    worker_intervalo_s: int = 60
+
     # Fuso (BRIEFING §9: exibição em America/Sao_Paulo)
     tz: str = "America/Sao_Paulo"
 
