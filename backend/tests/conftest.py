@@ -4,17 +4,23 @@ Repontamos `engine`/`SessionLocal` globais para o banco de teste — assim tanto
 auditoria (que abre sua própria sessão) usam o mesmo banco. Isolamento por TRUNCATE antes de cada teste.
 """
 
-import psycopg
-import pytest
-from fastapi.testclient import TestClient
-from sqlalchemy import create_engine, text
-from sqlalchemy.orm import sessionmaker
+import os
 
-import app.db.database as db_mod
-from app.core.config import get_settings
-from app.db.database import Base
-from app.main import app
-from app.models.saude import Saude  # noqa: F401 (registra a tabela no create_all)
+# Define uma origem de frontend ANTES de importar o app (get_settings é cacheada no import),
+# para que o CORS tenha uma origem liberada nos testes.
+os.environ.setdefault("FRONTEND_URL", "http://localhost:3000")
+
+import psycopg  # noqa: E402
+import pytest  # noqa: E402
+from fastapi.testclient import TestClient  # noqa: E402
+from sqlalchemy import create_engine, text  # noqa: E402
+from sqlalchemy.orm import sessionmaker  # noqa: E402
+
+import app.db.database as db_mod  # noqa: E402
+from app.core.config import get_settings  # noqa: E402
+from app.db.database import Base  # noqa: E402
+from app.main import app  # noqa: E402
+from app.models.saude import Saude  # noqa: E402, F401 (registra a tabela no create_all)
 
 
 def _url_teste(url: str) -> str:
