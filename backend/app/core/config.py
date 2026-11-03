@@ -53,6 +53,10 @@ class Settings(BaseSettings):
     # Worker (task 8): intervalo do loop de heartbeat.
     worker_intervalo_s: int = 60
 
+    # Importação de contatos (spec 0002): limites configuráveis do upload (AC-17).
+    import_max_bytes: int = 5 * 1024 * 1024  # 5 MB
+    import_max_linhas: int = 5000
+
     # Fuso (BRIEFING §9: exibição em America/Sao_Paulo)
     tz: str = "America/Sao_Paulo"
 

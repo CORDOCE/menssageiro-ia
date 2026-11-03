@@ -15,6 +15,7 @@ dependencies = [
     "pyotp>=2.9",
     "phonenumbers>=9.0.42",
     "openpyxl>=3.1.5",
+    "python-multipart>=0.0.33",
 ]
 
 [dependency-groups]

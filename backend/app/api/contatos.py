@@ -9,11 +9,12 @@ from __future__ import annotations
 import uuid
 from datetime import UTC, datetime
 
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, File, HTTPException, Query, UploadFile
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from app.core.auth_deps import usuario_atual
+from app.core.config import get_settings
 from app.db.database import get_db
 from app.models.contato import Contato
 from app.schemas.contato import (
@@ -22,7 +23,9 @@ from app.schemas.contato import (
     ContatoRead,
     ContatoUpdate,
     RegistrarConsentimento,
+    RelatorioImportacao,
 )
+from app.services.contatos_import import ImportacaoError, importar
 
 router = APIRouter(prefix="/contatos", tags=["contatos"], dependencies=[Depends(usuario_atual)])
 
@@ -77,6 +80,24 @@ def listar(
     )
     items = [ContatoRead.model_validate(c) for c in rows]
     return ContatoLista(items=items, total=total, limit=limit, offset=offset)
+
+
+@router.post("/importar", response_model=RelatorioImportacao)
+async def importar_contatos(
+    arquivo: UploadFile = File(...),
+    db: Session = Depends(get_db),
+) -> RelatorioImportacao:
+    """Importa contatos de CSV/XLSX (multipart). Limites configuráveis (AC-17):
+    acima do tamanho → 413; acima do nº de linhas ou arquivo inválido → 422. Nada persiste."""
+    cfg = get_settings()
+    # Lê no máximo o limite + 1 byte: evita carregar um upload gigante inteiro na memória.
+    conteudo = await arquivo.read(cfg.import_max_bytes + 1)
+    if len(conteudo) > cfg.import_max_bytes:
+        raise HTTPException(status_code=413, detail="arquivo acima do limite de tamanho")
+    try:
+        return importar(conteudo, arquivo.filename or "", db, max_linhas=cfg.import_max_linhas)
+    except ImportacaoError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
 
 
 @router.get("/{contato_id}", response_model=ContatoRead)

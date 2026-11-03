@@ -38,9 +38,17 @@ class ImportacaoError(Exception):
     """Falha do arquivo inteiro (formato, decodificação, cabeçalho) — nada é persistido."""
 
 
-def importar(conteudo: bytes, nome_arquivo: str, db: Session) -> RelatorioImportacao:
-    """Importa contatos do arquivo e devolve o relatório por linha."""
+def importar(
+    conteudo: bytes, nome_arquivo: str, db: Session, max_linhas: int | None = None
+) -> RelatorioImportacao:
+    """Importa contatos do arquivo e devolve o relatório por linha.
+
+    `max_linhas` é checado após o parse e antes de persistir qualquer linha — acima do limite,
+    nada é gravado (AC-17).
+    """
     linhas = _parse(conteudo, nome_arquivo)
+    if max_linhas is not None and len(linhas) > max_linhas:
+        raise ImportacaoError(f"arquivo excede o limite de {max_linhas} linhas")
     resultados: list[ResultadoLinha] = [
         _processar_linha(db, linha, numero) for numero, linha in enumerate(linhas, start=2)
     ]
