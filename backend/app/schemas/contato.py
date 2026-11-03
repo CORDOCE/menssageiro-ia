@@ -8,6 +8,7 @@ registrado pelo endpoint dedicado (AC-8).
 from __future__ import annotations
 
 from datetime import UTC, date, datetime
+from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
@@ -105,3 +106,21 @@ class RegistrarConsentimento(BaseModel):
         if v > datetime.now(UTC).date():
             raise ValueError("data de consentimento não pode ser futura")
         return v
+
+
+class ResultadoLinha(BaseModel):
+    """Resultado de uma linha da importação. `telefone` vem mascarado (AC-16)."""
+
+    linha: int
+    status: Literal["criado", "atualizado", "ignorado", "erro"]
+    telefone: str | None = None
+    motivo: str | None = None
+
+
+class RelatorioImportacao(BaseModel):
+    total: int
+    criados: int
+    atualizados: int
+    ignorados: int
+    erros: int
+    linhas: list[ResultadoLinha]
