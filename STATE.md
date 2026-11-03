@@ -5,33 +5,32 @@
 _Atualizado: 2026-11-03_
 
 ## Em andamento
-- **Fase 2 (`specs/0002-contatos-importacao/`) EM IMPLEMENTAÇÃO.** Branch `feat/0002-contatos`.
-- Tasks 1–7 feitas e **commitadas** (TDD, verde). Task 8 implementada mas **não commitada** — bloqueada por decisão §4 (dependência nova).
+- **Fase 2 (`specs/0002-contatos-importacao/`) CODE-COMPLETE na branch `feat/0002-contatos`.** Gate pré-PR passado (/revisar, /seguranca, /validar + CI backend). **PR ainda não aberta.**
 
 ## Próximo passo
-1. **Resolver o gate §4 da task 8** (ver bloqueios): aprovar `python-multipart` OU trocar o endpoint para corpo bruto. Só então commitar a task 8.
-2. Seguir: **task 9** (auditoria do import sem PII — contagens, telefone mascarado), **task 10** (cobertura ≥90% das regras), **task 12** (ADR 0006 já existe — conferir/adendar se aprovar multipart).
-3. Antes do PR: `/revisar` → `/seguranca` (atenção a upload/arquivo e PII) → `/validar` + suíte de CI no host via Docker.
+1. **Abrir PR de `feat/0002-contatos` → `develop`** (objetivo/risco/plano de teste; linkar ADR 0006). Sem P0/P1 nem CRÍTICO/ALTO em aberto.
+2. Após merge em `develop` → deploy staging → **validar em staging**: importar planilha CSV/XLSX com validação; conferir que nenhum envio ocorre (DoD da spec 0002).
 
-## Fase 2 — progresso (branch `feat/0002-contatos`, a partir da develop atual)
-- **Commitado e verde (65 passed, ruff+mypy limpos):**
-  - `9aa990c` tasks 1/2/3/11: modelo `Contato` (telefone_e164 único, consentimento=false, descadastro soft); migração Alembic aditiva `60e87808c17a` (round-trip OK, AC-19); `core/telefone.py` (E.164 + máscara); deps `phonenumbers`/`openpyxl`.
-  - `3efc02c` tasks 4/5/6: CRUD protegido (`api/contatos.py`), descadastrar, consentimento; schemas com normalização E.164 (inválido→422) e dedup (409). Fixture `auth_headers` no conftest.
-  - `402a9de` task 7: `services/contatos_import.py` — matriz de decisão completa (upsert, não-ressuscita descadastrado, parcial por linha, relatório com telefone mascarado). CSV+XLSX.
-- **Uncommitted (task 8):** endpoint `POST /contatos/importar` (multipart) + limites `import_max_bytes`/`import_max_linhas` no `config.py` e `max_linhas` no serviço. Código correto; 4 testes em `test_contatos_import_endpoint.py` ficam vermelhos **só** por falta de `python-multipart`.
-- ACs provados por teste até aqui: AC-1..AC-16, AC-18, AC-19. Faltam AC-17 (depende do endpoint) e AC-20 (cobertura).
+## Fase 2 — entregue (branch `feat/0002-contatos`, 5 commits a partir da develop)
+- `9aa990c` modelo/migração/`core/telefone.py`/deps · `3efc02c` CRUD+descadastro+consentimento · `402a9de` serviço de import · `f18d72d` endpoint multipart+limites · `80c8017` auditoria sem PII + cobertura.
+- 12 tasks completas (TDD). **78 passed, cobertura 98.06%**, ruff+mypy 0, ciclo Alembic EXIT=0, pip-audit limpo.
+- Deps novas aprovadas (§4): `phonenumbers`, `openpyxl` (ADR 0006) e **`python-multipart`** (adendo ao ADR 0006, 2026-11-03).
+- Revisões pré-PR: `/revisar` → PRONTO PRA PR (3 notas P2); `/seguranca` → sem vulnerabilidade bloqueante (3 notas MEDIO de endurecimento). Detalhe no histórico da sessão.
 
-## Bloqueios/pendências
-- **§4 — dependência nova `python-multipart`** (task 8): não coberta pelo ADR 0006 (só `phonenumbers`/`openpyxl`). FastAPI exige para `UploadFile`/form-data; alternativa nativa = receber corpo bruto (desvia do design "multipart"). **Aguarda aprovação do responsável.** Não instalada.
-- Ambiente de teste: Postgres de dev via `docker compose up -d db` (container `mensageiro-ia-db-1`, porta 5434).
-- (Fase 1, não bloqueiam) **Repoint `production → main`** manual na Railway; endurecimentos: cifrar `totp_secret`, alerta `login_bloqueado`, cookie HttpOnly, contraste WCAG no CI.
-- Mapa do codebase em `docs/CODEBASE_MAP.md` (Cartographer) ficou na branch `docs/codebase-map` (commit, sem PR).
+## Notas P2/MEDIO registradas (não bloqueiam; revisitar quando fizer sentido)
+- Dedup POST/import é SELECT-then-INSERT → corrida concorrente viraria 500 em vez de 409 (1 admin → desprezível; unicidade garantida pelo índice).
+- Upload: cap `read(max+1)` limita memória, mas o ASGI já recebe o corpo (spool em disco) — endurecer com limite de corpo no proxy/Railway. openpyxl em `read_only`/`data_only` + limites de 5 MB/5000 linhas mitigam zip-bomb.
+- Futuro: proteção contra CSV formula-injection quando houver **export** de contatos.
+- Comentário em `api/contatos.py:95` sobre o cap de leitura pode ser suavizado (não impede o recebimento do corpo).
 
-## Infra (Railway — projeto `406f04bb-7659-4366-aea0-f9489dbf0b07` "intuitive-emotion")
-- **staging** 🟢 `api`, `worker`, `frontend`, `Postgres`. Deploy: push em `develop` → staging. (produção ainda segue `develop`.)
+## Fase 1 — entregue (em develop, no ar em staging)
+- Auth senha(scrypt)+2FA TOTP+sessão multi-dispositivo+rate limit; worker heartbeat; frontend Next.js PWA; CI backend+frontend. ADRs 0004/0005/0006.
+
+## Infra (Railway — projeto `406f04bb-7659-4366-aea0-f9489dbf0b07`)
+- **staging** 🟢 `api`/`worker`/`frontend`/`Postgres`. Deploy: push em `develop` → staging. (produção ainda segue `develop`; repoint → `main` é pendência manual da Fase 1.)
+- Dev/testes locais: `docker compose up -d db` (container `mensageiro-ia-db-1`, Postgres 17, porta 5434).
 
 ## Estado do git
-- Branch atual: **`feat/0002-contatos`** (criada da `develop`=`8ee144b`), 3 commits à frente: `9aa990c`, `3efc02c`, `402a9de`.
-- **Não commitado:** task 8 (`config.py`, `services/contatos_import.py`, `api/contatos.py`, `tests/test_contatos_import_endpoint.py`). Suíte vermelha só por causa da dep ausente.
-- Branch antiga `feat/0002-contatos-importacao` (local) estava 33 commits atrás e foi **apagada**; a remota `origin/feat/0002-contatos-importacao` segue obsoleta (sem PR). **Sem PRs abertos.**
-- `docs/codebase-map`: 1 commit (`6f03cdc`, CODEBASE_MAP + ponteiro no CLAUDE.md), sem PR.
+- Branch **`feat/0002-contatos`** (da `develop`=`8ee144b`), 5 commits à frente. **Sem PR aberta.**
+- `docs/codebase-map`: 1 commit `6f03cdc` (CODEBASE_MAP + ponteiro no CLAUDE.md), sem PR.
+- Branch remota obsoleta `origin/feat/0002-contatos-importacao` (sem PR) pode ser apagada quando quiser.
