@@ -5,32 +5,29 @@
 _Atualizado: 2026-11-03_
 
 ## Em andamento
-- **Fase 2 (`specs/0002-contatos-importacao/`) CODE-COMPLETE na branch `feat/0002-contatos`.** Gate pré-PR passado (/revisar, /seguranca, /validar + CI backend). **PR ainda não aberta.**
+- **Nada em implementação.** Fase 2 (contatos + importação) **mergeada em `develop`** (PR #18) e **no ar em staging e produção**. Produção teve os serviços corrigidos nesta sessão (ver Decisões).
 
 ## Próximo passo
-1. **Abrir PR de `feat/0002-contatos` → `develop`** (objetivo/risco/plano de teste; linkar ADR 0006). Sem P0/P1 nem CRÍTICO/ALTO em aberto.
-2. Após merge em `develop` → deploy staging → **validar em staging**: importar planilha CSV/XLSX com validação; conferir que nenhum envio ocorre (DoD da spec 0002).
+1. **Validar a Fase 2 em staging** (DoD pendente da spec 0002): importar planilha CSV/XLSX pela API e conferir que **nenhum envio** ocorre. Precisa de credencial admin + TOTP → melhor você rodar; endpoint `POST /contatos/importar` (multipart, campo `arquivo`).
+2. **Decidir `main` no remoto:** o `origin` **não tem `main`** — a promoção `develop→main` e o repoint de produção para `main` ficam impossíveis até publicar `main`. Opção: `git push origin main` a partir da develop atual (pede ok §4).
+3. `docs/codebase-map` (local) → abrir PR (o CODEBASE_MAP é útil); avaliar descartar a local `chore/railway-procfile`.
 
-## Fase 2 — entregue (branch `feat/0002-contatos`, 5 commits a partir da develop)
-- `9aa990c` modelo/migração/`core/telefone.py`/deps · `3efc02c` CRUD+descadastro+consentimento · `402a9de` serviço de import · `f18d72d` endpoint multipart+limites · `80c8017` auditoria sem PII + cobertura.
-- 12 tasks completas (TDD). **78 passed, cobertura 98.06%**, ruff+mypy 0, ciclo Alembic EXIT=0, pip-audit limpo.
-- Deps novas aprovadas (§4): `phonenumbers`, `openpyxl` (ADR 0006) e **`python-multipart`** (adendo ao ADR 0006, 2026-11-03).
-- Revisões pré-PR: `/revisar` → PRONTO PRA PR (3 notas P2); `/seguranca` → sem vulnerabilidade bloqueante (3 notas MEDIO de endurecimento). Detalhe no histórico da sessão.
+## Decisões desta sessão
+- **Fase 2 entregue** (12 tasks, TDD): modelo `Contato`/migração, `core/telefone.py`, CRUD+descadastro+consentimento, serviço de importação CSV/XLSX (matriz de decisão), endpoint multipart. **78 passed, cobertura 98.06%**, CI #18 verde. ADR 0006 + **adendo `python-multipart`** (2026-11-03, §4).
+- **Produção corrigida na Railway** (§4, autorizado): frontend tinha build FALHO (faltava `rootDirectory=/frontend`, start, healthcheck, var) → config completada + `NEXT_PUBLIC_API_URL=https://menssageiro-ia-backend-production.up.railway.app` → deploy SUCCESS/online. **Worker nunca instanciado em produção** → criado (source `develop`, root `/backend`, `python -m app.worker`, `DATABASE_URL`→Postgres) → SUCCESS/online.
+- **Higiene de branches:** apagadas todas as branches mergeadas (0002 local+remota; 12 locais e 13 remotas da Fase 1). `origin` agora só tem `develop`.
 
-## Notas P2/MEDIO registradas (não bloqueiam; revisitar quando fizer sentido)
-- Dedup POST/import é SELECT-then-INSERT → corrida concorrente viraria 500 em vez de 409 (1 admin → desprezível; unicidade garantida pelo índice).
-- Upload: cap `read(max+1)` limita memória, mas o ASGI já recebe o corpo (spool em disco) — endurecer com limite de corpo no proxy/Railway. openpyxl em `read_only`/`data_only` + limites de 5 MB/5000 linhas mitigam zip-bomb.
-- Futuro: proteção contra CSV formula-injection quando houver **export** de contatos.
-- Comentário em `api/contatos.py:95` sobre o cap de leitura pode ser suavizado (não impede o recebimento do corpo).
-
-## Fase 1 — entregue (em develop, no ar em staging)
-- Auth senha(scrypt)+2FA TOTP+sessão multi-dispositivo+rate limit; worker heartbeat; frontend Next.js PWA; CI backend+frontend. ADRs 0004/0005/0006.
+## Notas da Fase 2 (P2/MEDIO — não bloqueiam; revisitar)
+- Dedup POST/import é SELECT-then-INSERT → corrida viraria 500 em vez de 409 (1 admin → desprezível; índice único garante a invariante).
+- Upload: cap `read(max+1)` limita memória mas o ASGI já recebe o corpo (spool em disco) — endurecer com limite de corpo no proxy. openpyxl `read_only`/`data_only` + limites 5 MB/5000 linhas mitigam zip-bomb.
+- Futuro: CSV formula-injection quando houver **export**. Comentário `api/contatos.py` sobre o cap pode ser suavizado.
 
 ## Infra (Railway — projeto `406f04bb-7659-4366-aea0-f9489dbf0b07`)
-- **staging** 🟢 `api`/`worker`/`frontend`/`Postgres`. Deploy: push em `develop` → staging. (produção ainda segue `develop`; repoint → `main` é pendência manual da Fase 1.)
+- **staging** 🟢 `api`/`worker`/`frontend`/`Postgres` (segue `develop`).
+- **produção** 🟢 `menssageiro-ia-backend`/`worker`/`menssageiro-ia-frontend`/`Postgres` — **todos online após o fix desta sessão**. Backend prod: `menssageiro-ia-backend-production.up.railway.app`. Produção **ainda segue `develop`** (deveria ser `main`; ver Próximo passo #2).
 - Dev/testes locais: `docker compose up -d db` (container `mensageiro-ia-db-1`, Postgres 17, porta 5434).
 
 ## Estado do git
-- Branch **`feat/0002-contatos`** (da `develop`=`8ee144b`), 5 commits à frente. **Sem PR aberta.**
-- `docs/codebase-map`: 1 commit `6f03cdc` (CODEBASE_MAP + ponteiro no CLAUDE.md), sem PR.
-- Branch remota obsoleta `origin/feat/0002-contatos-importacao` (sem PR) pode ser apagada quando quiser.
+- Branch atual: **`develop`** = `f8e0d41` (merge do PR #18). **Sem PRs abertos.**
+- Remoto `origin`: só `develop` (sem `main` — ver Próximo passo #2).
+- Locais preservadas com commit **não** mergeado: `docs/codebase-map` (`6f03cdc`, CODEBASE_MAP) e `chore/railway-procfile` (`879c09a`, task 5b — conteúdo já na develop por outro SHA, provável descarte). `main` existe local, não publicada.
