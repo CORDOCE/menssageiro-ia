@@ -23,12 +23,15 @@ from sqlalchemy.orm import Session
 from app.core.config import get_settings
 from app.db.database import get_db
 from app.models.envio import Envio
+from app.models.modelo import Modelo
 
 router = APIRouter(prefix="/webhook/meta", tags=["webhook"])
 
 # status da Meta → status interno, com rank para monotonicidade/idempotência.
 _STATUS_META = {"sent": "enviado", "delivered": "entregue", "read": "lido"}
 _RANK = {"criado": 0, "enviando": 1, "enviado": 2, "entregue": 3, "lido": 4, "falhou": 5}
+# event do message_template_status_update (doc Meta) → status do modelo.
+_EVENTO_MODELO = {"APPROVED": "aprovado", "REJECTED": "rejeitado", "PAUSED": "pausado", "DISABLED": "pausado"}
 
 
 @router.get("")
@@ -70,10 +73,27 @@ def _processar(db: Session, evento: dict[str, Any]) -> None:
     for entry in evento.get("entry", []):
         for change in entry.get("changes", []):
             value = change.get("value", {})
-            for status in value.get("statuses", []):
-                _aplicar_status(db, status)
+            if value.get("statuses"):
+                for status in value["statuses"]:
+                    _aplicar_status(db, status)
+            elif change.get("field") == "message_template_status_update":
+                _aplicar_template_status(db, value)
             # `messages` recebidas → 200-ack, sem persistir conteúdo (AC-11; conteúdo é Fase 8).
-            # `message_template_status_update` → task 10 (após confirmar o payload na doc).
+
+
+def _aplicar_template_status(db: Session, value: dict[str, Any]) -> None:
+    nome = value.get("message_template_name")
+    novo = _EVENTO_MODELO.get(value.get("event") or "")
+    if not nome or novo is None:
+        return  # evento não mapeado ou sem nome: ignora
+    modelo = db.execute(select(Modelo).where(Modelo.nome == nome)).scalar_one_or_none()
+    if modelo is None:
+        return
+    modelo.status = novo
+    motivo = value.get("reason")
+    if novo == "rejeitado" and motivo and motivo != "NONE":
+        modelo.motivo_rejeicao = str(motivo)
+    db.commit()
 
 
 def _aplicar_status(db: Session, status: dict[str, Any]) -> None:

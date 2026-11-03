@@ -13,6 +13,7 @@ import app.db.database as db_mod
 from app.core.config import get_settings
 from app.models.contato import Contato
 from app.models.envio import Envio
+from app.models.modelo import Modelo
 
 _SECRET = "SEGREDO_TESTE"
 _VERIFY = "VERIFY_TESTE"
@@ -144,6 +145,51 @@ def test_post_wamid_desconhecido_200(client, db, monkeypatch):
     _cfg(monkeypatch)
     r = _post(client, _payload_status("wamid.NAO_EXISTE", "delivered"))
     assert r.status_code == 200  # ignora sem quebrar
+
+
+# --- AC-10: message_template_status_update → modelos ---
+def _criar_modelo(nome: str) -> None:
+    sessao = db_mod.SessionLocal()
+    try:
+        sessao.add(Modelo(id=str(uuid4()), nome=nome, corpo="x", status="pendente"))
+        sessao.commit()
+    finally:
+        sessao.close()
+
+
+def _modelo(nome: str) -> Modelo:
+    sessao = db_mod.SessionLocal()
+    try:
+        return sessao.query(Modelo).filter(Modelo.nome == nome).one()
+    finally:
+        sessao.close()
+
+
+def _payload_template(nome: str, event: str, reason: str = "NONE") -> dict:
+    return {
+        "object": "whatsapp_business_account",
+        "entry": [{"id": "WABA", "time": 1, "changes": [{
+            "field": "message_template_status_update",
+            "value": {"event": event, "message_template_id": 1, "message_template_name": nome,
+                      "message_template_language": "pt_BR", "reason": reason},
+        }]}],
+    }
+
+
+def test_post_template_aprovado(client, db, monkeypatch):
+    _cfg(monkeypatch)
+    _criar_modelo("cobranca")
+    _post(client, _payload_template("cobranca", "APPROVED"))
+    assert _modelo("cobranca").status == "aprovado"
+
+
+def test_post_template_rejeitado_com_motivo(client, db, monkeypatch):
+    _cfg(monkeypatch)
+    _criar_modelo("promo")
+    _post(client, _payload_template("promo", "REJECTED", reason="INVALID_FORMAT"))
+    m = _modelo("promo")
+    assert m.status == "rejeitado"
+    assert m.motivo_rejeicao == "INVALID_FORMAT"
 
 
 # --- AC-11: mensagem recebida não persiste conteúdo ---
