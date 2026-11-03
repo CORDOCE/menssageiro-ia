@@ -10,6 +10,8 @@ from pydantic import BaseModel
 
 from app.api.auth import router as auth_router
 from app.api.contatos import router as contatos_router
+from app.api.modelos import router as modelos_router
+from app.api.webhook_meta import router as webhook_router
 from app.core.config import get_settings
 
 app = FastAPI(title="Mensageiro API", version="0.1.0")
@@ -28,6 +30,8 @@ app.add_middleware(
 
 app.include_router(auth_router)
 app.include_router(contatos_router)
+app.include_router(modelos_router)
+app.include_router(webhook_router)
 
 
 class HealthResponse(BaseModel):
