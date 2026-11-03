@@ -58,7 +58,11 @@ Use a skill **/hipotese** para conduzir esse ciclo.
 2. Branch por tarefa a partir de `develop`; PR para `develop`; `develop` → `main` só após staging validado.
    Push direto em `main` é bloqueado pelo hook `guard-push`.
 3. Commits no padrão Conventional Commits, em português. **Sem co-autoria de IA** (hook `guard-coauthor`).
-4. Antes do PR, nesta ordem: **/revisar** → **/seguranca** → **/validar**. Achado P0/P1 bloqueia o PR.
+4. **Antes de abrir PR de código**, nesta ordem e tudo verde: **/revisar** → **/seguranca** → **/validar**,
+   e rodar a **suíte de CI completa localmente no host via Docker** — os mesmos passos do workflow de CI
+   (`.github/workflows/ci.yml`), com PostgreSQL em container. Achado P0/P1 de **/revisar**, vulnerabilidade
+   explorável de **/seguranca** ou **CI vermelho** bloqueiam o PR. PR só de documentação/texto dispensa a
+   suíte Docker (mas não **/revisar**).
 5. Banco: toda mudança via **Alembic**, com `downgrade` funcional (**/migracao**).
 6. Decisão difícil de reverter → ADR curto em `docs/decisoes/NNNN-titulo.md`.
 7. Ao pausar ou encerrar: **/handoff** (atualiza `STATE.md`).
@@ -74,8 +78,9 @@ Use a skill **/hipotese** para conduzir esse ciclo.
 ## 5. Invariantes do domínio (nunca violar)
 
 1. Só o **worker** inicia mensagens agendadas; a API nunca envia agendamentos diretamente.
-2. **Idempotência**: cada agendamento tem `chave_idempotencia` única; o worker trava com `FOR UPDATE SKIP LOCKED`.
-   Nenhum caminho de código pode enviar a mesma mensagem duas vezes.
+2. **Idempotência**: cada `envio` é único por `(agendamento_id, contato_id)` (constraint no banco); o worker trava
+   agendamentos com `FOR UPDATE SKIP LOCKED` e expande grupos em envios no disparo. Nenhum caminho de código pode
+   enviar a mesma mensagem ao mesmo contato duas vezes — nem após reinício no meio de um lote. (ADR 0005)
 3. Mensagem que inicia conversa é **template aprovado, categoria UTILITY**. Texto livre só com janela de 24 h aberta,
    checada no banco no momento do envio.
 4. Contato descadastrado (SAIR/PARAR) nunca recebe nada; o descadastro é imediato.
@@ -83,6 +88,9 @@ Use a skill **/hipotese** para conduzir esse ciclo.
 6. O interruptor geral de respostas e a pausa de envios são checados **a cada ciclo**.
 7. Testes nunca chamam as APIs reais da Meta/OpenAI: usar mocks ou o número de teste em staging.
 8. Toda ação que muda estado gera registro de auditoria.
+9. **Consentimento**: nenhum contato recebe envio sem opt-in registrado (`consentimento = true` com origem e data),
+   no mesmo nível do descadastro (§5.4). A importação CSV/XLSX **não** concede consentimento automático: linha sem
+   origem+data entra "sem consentimento" e fica bloqueada até o operador registrar a base. (ADR 0005)
 
 ## 6. Segurança (baseline OWASP)
 
@@ -94,6 +102,10 @@ Use a skill **/hipotese** para conduzir esse ciclo.
 - **Texto de contato é dado não confiável** (risco de injeção de instruções na IA): nunca concatenar sem delimitação,
   nunca dar à IA ferramentas ou acesso a dados de outros contatos.
 - Dependências com versão fixada; `pip-audit` e `npm audit` no CI; menor privilégio em tokens e acessos.
+- **Análise estática de segurança (SAST)** sobre o diff no CI (skills `semgrep`/`codeql`); achado de severidade
+  alta bloqueia o PR, junto do `/seguranca`. Nenhum PR deixa ou cria vetor de ataque conhecido.
+- **Revisão explícita da superfície de ataque** em toda feature nova (ex.: upload de arquivo → tamanho/tipo/linhas
+  + conteúdo não confiável; parsing; SSRF em chamadas externas; authz por endpoint). Caso de ataque vira teste.
 
 ## 7. Observabilidade
 
@@ -103,7 +115,7 @@ Use a skill **/hipotese** para conduzir esse ciclo.
 
 ## 8. Qualidade de código
 
-- Python 3.12 com type hints; `ruff` + `mypy` (estrito em `services/`, `worker/` e `respostas/`).
+- Python 3.14 com type hints; `ruff` + `mypy` (estrito em `services/`, `worker/` e `respostas/`). Ver ADR 0003.
 - TypeScript estrito no frontend; `eslint` + `tsc --noEmit`.
 - Testes: pytest (unitários + integração com PostgreSQL real em container). Regras de envio, webhook e
   verificações da IA: cobertura mínima de **90%** de linhas e testes de borda explícitos.

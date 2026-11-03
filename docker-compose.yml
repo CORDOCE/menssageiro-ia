@@ -1,0 +1,24 @@
+# PostgreSQL local para dev, testes de integração e a suíte de CI rodada no host (CLAUDE.md §4.4, §8).
+# Credenciais abaixo são de DESENVOLVIMENTO LOCAL (container efêmero) — nunca usar em staging/produção,
+# onde o banco vem da Railway via DATABASE_URL (RAILWAY.md). Nenhum segredo real entra aqui.
+services:
+  db:
+    image: postgres:17
+    environment:
+      POSTGRES_USER: mensageiro
+      POSTGRES_PASSWORD: mensageiro
+      POSTGRES_DB: mensageiro
+    # Bind só em 127.0.0.1 (não expor o banco de dev na rede) e host 5434 (5432/5433 já ocupadas
+    # por outros Postgres locais). Dentro da rede do compose o serviço segue em 5432.
+    ports:
+      - "127.0.0.1:5434:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U mensageiro -d mensageiro"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  pgdata:
