@@ -22,8 +22,11 @@ class Settings(BaseSettings):
     waba_id: str | None = None
     app_secret: str | None = None
     webhook_verify_token: str | None = None
-    graph_api_version: str | None = None
+    # Versão da Graph API (ADR 0007). Confirmada na doc oficial 2026-11-03 (v26.0); configurável.
+    graph_api_version: str = "v26.0"
     admin_whatsapp_numbers: str | None = None
+    # Número de teste (E.164) — allowlist do POST /modelos/{id}/enviar-teste (§4: nunca número real).
+    whatsapp_test_number: str | None = None
 
     # IA (OpenAI) — opcionais até a fase 6
     openai_api_key: str | None = None
