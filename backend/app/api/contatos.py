@@ -17,6 +17,7 @@ from app.core.auth_deps import usuario_atual
 from app.core.config import get_settings
 from app.db.database import get_db
 from app.models.contato import Contato
+from app.models.usuario import Usuario
 from app.schemas.contato import (
     ContatoCreate,
     ContatoLista,
@@ -86,6 +87,7 @@ def listar(
 async def importar_contatos(
     arquivo: UploadFile = File(...),
     db: Session = Depends(get_db),
+    usuario: Usuario = Depends(usuario_atual),
 ) -> RelatorioImportacao:
     """Importa contatos de CSV/XLSX (multipart). Limites configuráveis (AC-17):
     acima do tamanho → 413; acima do nº de linhas ou arquivo inválido → 422. Nada persiste."""
@@ -95,7 +97,10 @@ async def importar_contatos(
     if len(conteudo) > cfg.import_max_bytes:
         raise HTTPException(status_code=413, detail="arquivo acima do limite de tamanho")
     try:
-        return importar(conteudo, arquivo.filename or "", db, max_linhas=cfg.import_max_linhas)
+        return importar(
+            conteudo, arquivo.filename or "", db,
+            max_linhas=cfg.import_max_linhas, ator_email=usuario.email,
+        )
     except ImportacaoError as exc:
         raise HTTPException(status_code=422, detail=str(exc)) from exc
 

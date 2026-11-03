@@ -17,6 +17,7 @@ from openpyxl import load_workbook
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from app.core.audit import registrar_auditoria
 from app.core.telefone import mascarar_telefone, normalizar_e164
 from app.models.contato import Contato
 from app.schemas.contato import RelatorioImportacao, ResultadoLinha
@@ -39,12 +40,16 @@ class ImportacaoError(Exception):
 
 
 def importar(
-    conteudo: bytes, nome_arquivo: str, db: Session, max_linhas: int | None = None
+    conteudo: bytes,
+    nome_arquivo: str,
+    db: Session,
+    max_linhas: int | None = None,
+    ator_email: str | None = None,
 ) -> RelatorioImportacao:
     """Importa contatos do arquivo e devolve o relatório por linha.
 
     `max_linhas` é checado após o parse e antes de persistir qualquer linha — acima do limite,
-    nada é gravado (AC-17).
+    nada é gravado (AC-17). Registra auditoria com **contagens** (nunca a lista de telefones, §5.8/AC-16).
     """
     linhas = _parse(conteudo, nome_arquivo)
     if max_linhas is not None and len(linhas) > max_linhas:
@@ -52,7 +57,7 @@ def importar(
     resultados: list[ResultadoLinha] = [
         _processar_linha(db, linha, numero) for numero, linha in enumerate(linhas, start=2)
     ]
-    return RelatorioImportacao(
+    relatorio = RelatorioImportacao(
         total=len(resultados),
         criados=sum(1 for r in resultados if r.status == "criado"),
         atualizados=sum(1 for r in resultados if r.status == "atualizado"),
@@ -60,6 +65,19 @@ def importar(
         erros=sum(1 for r in resultados if r.status == "erro"),
         linhas=resultados,
     )
+    registrar_auditoria(
+        operacao="contatos_importados",
+        ator_email=ator_email,
+        alvo_tipo="contato",
+        metadados={
+            "total": relatorio.total,
+            "criados": relatorio.criados,
+            "atualizados": relatorio.atualizados,
+            "ignorados": relatorio.ignorados,
+            "erros": relatorio.erros,
+        },
+    )
+    return relatorio
 
 
 # --------------------------------------------------------------------------- parsing

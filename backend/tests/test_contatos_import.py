@@ -175,3 +175,73 @@ def test_relatorio_mascara_telefone(db):
     assert rel.linhas[0].telefone == mascarar_telefone("+5511987654321")
     assert rel.linhas[0].telefone != "+5511987654321"
     assert "*" in (rel.linhas[0].telefone or "")
+
+
+# --- Matriz linha 3: contato existente ativo ganha consentimento no reimport ---
+def test_reimport_adiciona_consentimento(db):
+    importar(_csv([{"nome": "A", "telefone": "11987654321"}]), "c.csv", db)
+    importar(
+        _csv([{"nome": "A", "telefone": "11987654321",
+               "consentimento_origem": "ligação", "consentimento_data": "2026-10-01"}]),
+        "c.csv", db,
+    )
+    contato = _por_telefone(db, "+5511987654321")
+    assert contato.consentimento is True
+    assert contato.consentimento_origem == "ligação"
+
+
+# --- Borda: consentimento_data inválida/futura → sem opt-in + motivo (nunca auto-consente) ---
+def test_consentimento_data_invalida(db):
+    rel = importar(
+        _csv([{"nome": "A", "telefone": "11987654321",
+               "consentimento_origem": "site", "consentimento_data": "30/10/2026"}]),
+        "c.csv", db,
+    )
+    assert _por_telefone(db, "+5511987654321").consentimento is False
+    assert "inválida" in (rel.linhas[0].motivo or "")
+
+
+def test_consentimento_data_futura(db):
+    rel = importar(
+        _csv([{"nome": "A", "telefone": "11987654321",
+               "consentimento_origem": "site", "consentimento_data": "2099-01-01"}]),
+        "c.csv", db,
+    )
+    assert _por_telefone(db, "+5511987654321").consentimento is False
+    assert "futuro" in (rel.linhas[0].motivo or "")
+
+
+# --- Borda: formato não suportado e arquivos ilegíveis → erro de arquivo inteiro ---
+def test_formato_nao_suportado(db):
+    with pytest.raises(ImportacaoError):
+        importar(b"qualquer", "contatos.txt", db)
+
+
+def test_csv_encoding_invalido(db):
+    with pytest.raises(ImportacaoError):
+        importar(b"\xff\xfe\x00nome,telefone", "c.csv", db)
+
+
+def test_xlsx_corrompido(db):
+    with pytest.raises(ImportacaoError):
+        importar(b"isto nao e um xlsx", "c.xlsx", db)
+
+
+def test_xlsx_vazio(db):
+    wb = Workbook()
+    buf = io.BytesIO()
+    wb.save(buf)
+    with pytest.raises(ImportacaoError):
+        importar(buf.getvalue(), "c.xlsx", db)
+
+
+def test_xlsx_pula_linha_em_branco(db):
+    wb = Workbook()
+    ws = wb.active
+    ws.append(COLS)
+    ws.append([None] * len(COLS))  # linha totalmente vazia → ignorada
+    ws.append(["Z", "11987654321", "", "", "", "", ""])
+    buf = io.BytesIO()
+    wb.save(buf)
+    rel = importar(buf.getvalue(), "c.xlsx", db)
+    assert rel.criados == 1
