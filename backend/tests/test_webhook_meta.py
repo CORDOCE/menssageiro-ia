@@ -11,6 +11,7 @@ from uuid import uuid4
 
 import app.db.database as db_mod
 from app.core.config import get_settings
+from app.models.auditoria import Auditoria
 from app.models.contato import Contato
 from app.models.envio import Envio
 from app.models.modelo import Modelo
@@ -139,6 +140,21 @@ def test_post_idempotente_e_fora_de_ordem(client, db, monkeypatch):
     _post(client, _payload_status("wamid.E", "delivered"))
     _post(client, _payload_status("wamid.E", "read"))
     assert _envio("wamid.E").status == "lido"
+
+
+def test_post_status_gera_auditoria_mascarada(client, db, monkeypatch):
+    _cfg(monkeypatch)
+    _criar_envio("wamid.AUD", "enviado")
+    _post(client, _payload_status("wamid.AUD", "delivered"))
+    sessao = db_mod.SessionLocal()
+    try:
+        regs = sessao.query(Auditoria).filter(Auditoria.operacao == "envio_status").all()
+    finally:
+        sessao.close()
+    assert len(regs) == 1
+    meta = regs[0].metadados or ""
+    assert "5511999990000" not in meta  # recipient_id cheio NÃO vaza
+    assert "*" in meta  # telefone mascarado
 
 
 def test_post_wamid_desconhecido_200(client, db, monkeypatch):

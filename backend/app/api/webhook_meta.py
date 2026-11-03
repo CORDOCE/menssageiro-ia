@@ -20,7 +20,9 @@ from fastapi import APIRouter, Depends, HTTPException, Query, Request, Response
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from app.core.audit import registrar_auditoria
 from app.core.config import get_settings
+from app.core.telefone import mascarar_telefone
 from app.db.database import get_db
 from app.models.envio import Envio
 from app.models.modelo import Modelo
@@ -94,6 +96,12 @@ def _aplicar_template_status(db: Session, value: dict[str, Any]) -> None:
     if novo == "rejeitado" and motivo and motivo != "NONE":
         modelo.motivo_rejeicao = str(motivo)
     db.commit()
+    registrar_auditoria(
+        operacao="template_status",
+        alvo_tipo="modelo",
+        alvo_id=modelo.id,
+        metadados={"status": novo, "template": nome},  # sem PII
+    )
 
 
 def _aplicar_status(db: Session, status: dict[str, Any]) -> None:
@@ -112,6 +120,7 @@ def _aplicar_status(db: Session, status: dict[str, Any]) -> None:
             envio.erro_codigo = str(erros[0].get("code", ""))
             envio.erro_motivo = str(erros[0].get("title") or erros[0].get("message") or "")
         db.commit()
+        _auditar_status(envio, status, "falhou")
         return
 
     novo = _STATUS_META.get(meta_status or "")
@@ -125,3 +134,16 @@ def _aplicar_status(db: Session, status: dict[str, Any]) -> None:
         if "conversation" in status:
             envio.conversation = status["conversation"]
         db.commit()
+        _auditar_status(envio, status, novo)
+
+
+def _auditar_status(envio: Envio, status: dict[str, Any], novo: str) -> None:
+    """Auditoria da mudança de status (§5.8), com o destinatário mascarado (sem PII)."""
+    recipient = str(status.get("recipient_id") or "")
+    mascarado = mascarar_telefone("+" + recipient) if recipient else None
+    registrar_auditoria(
+        operacao="envio_status",
+        alvo_tipo="envio",
+        alvo_id=envio.id,
+        metadados={"status": novo, "telefone": mascarado, "wamid": envio.wamid},
+    )
