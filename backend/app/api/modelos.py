@@ -15,9 +15,10 @@ from pydantic import BaseModel, ConfigDict, Field
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from app.core.audit import registrar_auditoria
 from app.core.auth_deps import usuario_atual
 from app.core.config import get_settings
-from app.core.telefone import normalizar_e164
+from app.core.telefone import mascarar_telefone, normalizar_e164
 from app.db.database import get_db
 from app.models.contato import Contato
 from app.models.envio import Envio
@@ -82,4 +83,13 @@ def enviar_teste(
     envio.status = "enviado"
     db.commit()
     db.refresh(envio)
+
+    # Auditoria sem PII (§5.8 / AC-16-17): telefone mascarado, nunca o número cheio.
+    registrar_auditoria(
+        operacao="envio_teste",
+        ator_email=usuario.email,
+        alvo_tipo="envio",
+        alvo_id=envio.id,
+        metadados={"telefone": mascarar_telefone(telefone), "modelo": modelo.nome, "wamid": wamid},
+    )
     return envio
