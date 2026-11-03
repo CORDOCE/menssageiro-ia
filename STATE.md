@@ -5,18 +5,19 @@
 _Atualizado: 2026-11-03_
 
 ## Em andamento
-- **Fase 3 (`specs/0003-whatsapp-cloud-api/`) CODE-COMPLETE na branch `feat/0003-whatsapp-cloud-api`** (13/13 tasks, TDD). Produção/staging no ar; login staging restaurado (ver incidente 2FA).
+- **Nada em implementação.** Fase 3 (WhatsApp Cloud API) **mergeada** (PR #20) e **no ar em staging** (deploy 863e229 SUCCESS; migração `modelos`/`envios` aplicada). Próxima fase de implementação: **Fase 4** (worker + agendamentos + recorrência).
 
 ## Próximo passo
-1. **Pré-PR da Fase 3:** `/revisar` → `/seguranca` (atenção: webhook público, corpo cru/assinatura, segredos, PII) → `/validar` + CI Docker. Depois abrir PR `feat/0003-whatsapp-cloud-api` → `develop`.
-2. **Fase 0 (responsável) p/ validar a Fase 3 em staging:** configurar credenciais Meta (`WHATSAPP_TOKEN`, `PHONE_NUMBER_ID`, `WABA_ID`, `APP_SECRET`, `WEBHOOK_VERIFY_TOKEN`, `WHATSAPP_TEST_NUMBER`) + template UTILITY aprovado + webhook no painel da Meta. Só então: enviar template ao número de teste e conferir entregue/lido via webhook.
-3. **Validar a Fase 2 em staging** (DoD 0002): rodar o import com o token de sessão (comando pronto no scratchpad `validar_fase2.csv`); esperado total=3/criados=2/erros=1. Desbloqueado (login staging voltou).
+1. **Fase 0 (responsável) p/ ativar o WhatsApp real:** configurar credenciais Meta na Railway (`WHATSAPP_TOKEN`, `PHONE_NUMBER_ID`, `WABA_ID`, `APP_SECRET`, `WEBHOOK_VERIFY_TOKEN`, `WHATSAPP_TEST_NUMBER`) + template UTILITY aprovado + webhook no painel da Meta. **Validação real da Fase 3** (enviar template ao nº de teste; entregue/lido pelo webhook) só depois disso.
+2. **Validar a Fase 2 em staging** (DoD 0002): rodar o import com o token de sessão (comando/CSV prontos no scratchpad `validar_fase2.csv`); esperado total=3/criados=2/erros=1. Desbloqueado (login staging voltou).
+3. **Iniciar a Fase 4** (`/nova-feature`): worker de disparo, agendamentos, recorrência, janela de envio, expansão de grupo (ADR 0005), anexos. É aqui que `envios` ganha a FK `agendamento_id` e o caminho de produção de envio.
 4. `docs/codebase-map` (local) → PR; avaliar descarte da local `chore/railway-procfile`.
 
-## Fase 3 — entregue (branch `feat/0003-whatsapp-cloud-api`, a partir da develop)
-- 13 tasks (TDD): ADR 0007; modelos `Modelo`/`Envio` + migração (índice único parcial); `whatsapp_client` (enviar_template+retry, upload_midia, componente_documento); webhook `/webhook/meta` (GET verify, assinatura HMAC corpo-cru, statuses→envios por wamid com monotonicidade, template_status_update→modelos, recebida=200-ack); `POST /modelos/{id}/enviar-teste` restrito ao número de teste; auditoria sem PII.
-- **101 passed, cobertura 96.71%**, ruff+mypy 0, Alembic round-trip EXIT=0, pip-audit limpo. **Sem dependência nova** (httpx + hmac/hashlib). Fontes Meta citadas (v26.0) no design/ADR.
-- Pendente p/ "pronto": validação real em staging (depende da Fase 0).
+## Fase 3 — entregue (PR #20 em `develop`; specs/0003-whatsapp-cloud-api)
+- 13 tasks (TDD): ADR 0007; modelos `Modelo`/`Envio` + migração `a6c885be3f81` (índice único parcial `(agendamento_id, contato_id) WHERE agendamento_id IS NOT NULL`); `whatsapp_client` (enviar_template+retry, upload_midia, componente_documento); webhook `/webhook/meta` (GET verify, assinatura HMAC corpo-cru, statuses→envios por wamid c/ monotonicidade, template_status_update→modelos, recebida=200-ack, **auditoria com telefone mascarado**); `POST /modelos/{id}/enviar-teste` restrito ao nº de teste; sem dependência nova.
+- **102 passed, cobertura 96.74%**, CI #20 verde. `/revisar` (P1 §5.8 corrigido) e `/seguranca` (sem bloqueio) rodados. Fontes Meta (v26.0) citadas no design/ADR.
+- **Endurecimento anotado (não bloqueia):** rate limit do webhook deve ficar na **borda/Railway** (app-level descartaria rajadas legítimas da Meta) — mitigado pela validação assinatura-primeiro.
+- Pendente p/ "pronto" (DoD): validação real em staging (depende da Fase 0).
 
 ## Incidente resolvido nesta sessão — login staging "credenciais inválidas"
 - Causa (via /hipotese): **dessincronia do TOTP/2FA** no autenticador do responsável, NÃO bug. Código de auth inalterado desde 01/11 (quando funcionava); admin existe/ativo/com TOTP; email correto nas falhas. Resolvido por re-cadastro do mesmo segredo (opção A) — login voltou.
@@ -41,6 +42,7 @@ _Atualizado: 2026-11-03_
 - Dev/testes locais: `docker compose up -d db` (container `mensageiro-ia-db-1`, Postgres 17, porta 5434).
 
 ## Estado do git
-- Branch atual: **`develop`** = `86b203a` (publicada em `origin/develop`). `origin/main` = `9ab9cbd` (merge #19) — `main` e `develop` em sincronia (0 à frente).
-- `origin` só com `develop` e `main`.
-- Locais preservadas com commit **não** mergeado: `docs/codebase-map` (`6f03cdc`, CODEBASE_MAP) e `chore/railway-procfile` (`879c09a`, conteúdo já na develop por outro SHA). `main` local também existe.
+- Branch atual: **`develop`** = `863e229` (merge do PR #20, Fase 3), limpa e sincronizada com `origin/develop`. **Sem PRs abertos.**
+- `origin/main` = `9ab9cbd` (merge #19) — **develop agora está à frente de main** (Fase 3 ainda não promovida; promover só após validar em staging/Fase 0).
+- `origin` com `develop` e `main`. Branch `feat/0003-whatsapp-cloud-api` já mergeada (pode apagar local/remota na próxima higiene).
+- Locais preservadas com commit **não** mergeado: `docs/codebase-map` (`6f03cdc`, CODEBASE_MAP) e `chore/railway-procfile` (`879c09a`). `main` local também existe.
