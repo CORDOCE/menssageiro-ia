@@ -27,7 +27,7 @@ _Atualizado: 2026-11-03_
 
 ## Infra (Railway — projeto `406f04bb-7659-4366-aea0-f9489dbf0b07`)
 - **staging** 🟢 segue `develop` (api/worker/frontend/Postgres).
-- **produção** segue **`main`** (repoint desta sessão): backend `menssageiro-ia-backend-production.up.railway.app` + worker + frontend + Postgres. Deploys de main disparados 18:12 UTC — confirmar verdes.
+- **produção** segue **`main`** (repoint desta sessão), todos online a partir de `main`: api `menssageiro-ia-backend-production.up.railway.app`, frontend `menssageiro-ia-frontend-production.up.railway.app` (domínio gerado nesta sessão), + worker + Postgres. Smoke test OK (`/health` 200; endpoints Fase 2 → 401 sem auth).
 - Dev/testes locais: `docker compose up -d db` (container `mensageiro-ia-db-1`, Postgres 17, porta 5434).
 
 ## Estado do git

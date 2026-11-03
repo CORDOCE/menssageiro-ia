@@ -86,6 +86,12 @@ Regras: nunca colar segredos em código, issues ou PRs; nunca copiar o `.env` do
    - Banco próprio (o duplicado já cria um Postgres separado).
 3. Fluxo: PR → merge em `develop` → valida em staging → merge em `main` → produção.
 
+**Domínios públicos atuais (gerados, 2026-11-03):**
+- **production** (segue `main`): api `menssageiro-ia-backend-production.up.railway.app`, frontend `menssageiro-ia-frontend-production.up.railway.app`.
+- **staging** (segue `develop`): api `menssageiro-ia-backend-staging.up.railway.app`, frontend `menssageiro-ia-frontend-staging.up.railway.app`.
+- `worker` e `Postgres`: **sem** domínio público (correto).
+- Nota: a var do frontend de produção está como **literal** (`NEXT_PUBLIC_API_URL=https://menssageiro-ia-backend-production.up.railway.app`), não como a referência `${{...RAILWAY_PUBLIC_DOMAIN}}` da convenção acima. Funciona (NEXT_PUBLIC_* é inlined no build); trocar pela referência é mais robusto quando sobrar tempo.
+
 ## 10. Conectar a Meta ao webhook [MANUAL]
 No app da Meta (developers.facebook.com) → WhatsApp → Configuration:
 - **Callback URL:** `https://<domínio do api>/api/webhook/meta`
