@@ -20,6 +20,7 @@ import app.db.database as db_mod  # noqa: E402
 from app.core.config import get_settings  # noqa: E402
 from app.db.database import Base  # noqa: E402
 from app.main import app  # noqa: E402
+from app.models.contato import Contato  # noqa: E402, F401 (registra a tabela no create_all)
 from app.models.saude import Saude  # noqa: E402, F401 (registra a tabela no create_all)
 
 
@@ -54,7 +55,9 @@ def _preparar_banco():
 def db():
     """Sessão de teste; limpa as tabelas antes de cada teste para isolamento."""
     sessao = db_mod.SessionLocal()
-    sessao.execute(text("TRUNCATE usuarios, sessoes_usuario, auditoria, saude RESTART IDENTITY CASCADE"))
+    sessao.execute(
+        text("TRUNCATE usuarios, sessoes_usuario, auditoria, saude, contatos RESTART IDENTITY CASCADE")
+    )
     sessao.commit()
     try:
         yield sessao
