@@ -6,7 +6,12 @@ import httpx
 import pytest
 
 from app.core.config import get_settings
-from app.services.whatsapp_client import WhatsappError, enviar_template
+from app.services.whatsapp_client import (
+    WhatsappError,
+    componente_documento,
+    enviar_template,
+    upload_midia,
+)
 
 
 @pytest.fixture
@@ -73,3 +78,21 @@ def test_erro_definitivo_levanta_sem_retry(cfg):
         enviar_template("+5511987654321", "t", "pt_BR", [], client=client)
     assert chamadas["n"] == 1  # 4xx não-retentável: sem retry
     assert exc.value.codigo == 131026
+
+
+# --- AC-4: upload de mídia + cabeçalho DOCUMENT ---
+def test_upload_midia_e_componente_documento(cfg):
+    capturado = {}
+
+    def handler(req: httpx.Request) -> httpx.Response:
+        capturado["path"] = req.url.path
+        return httpx.Response(200, json={"id": "MEDIA123"})
+
+    client = httpx.Client(transport=httpx.MockTransport(handler))
+    media_id = upload_midia(b"%PDF-falso", "application/pdf", client=client)
+
+    assert media_id == "MEDIA123"
+    assert capturado["path"] == "/v26.0/123456/media"
+    comp = componente_documento(media_id)
+    assert comp["type"] == "header"
+    assert comp["parameters"][0]["document"]["id"] == "MEDIA123"

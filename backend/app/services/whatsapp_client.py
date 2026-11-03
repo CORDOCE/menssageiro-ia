@@ -60,6 +60,39 @@ def enviar_template(
     return str(mensagens[0]["id"])
 
 
+def upload_midia(
+    conteudo: bytes, tipo_mime: str, nome_arquivo: str = "arquivo", *, client: httpx.Client | None = None
+) -> str:
+    """Sobe uma mídia (ex.: PDF) e devolve o `id` para usar no cabeçalho DOCUMENT do template."""
+    cfg = get_settings()
+    url = f"https://graph.facebook.com/{cfg.graph_api_version}/{cfg.phone_number_id}/media"
+    headers = {"Authorization": f"Bearer {cfg.whatsapp_token}"}
+    criado = client is None
+    c = client or httpx.Client(timeout=60.0)
+    try:
+        resposta = c.post(
+            url,
+            headers=headers,
+            data={"messaging_product": "whatsapp", "type": tipo_mime},
+            files={"file": (nome_arquivo, conteudo, tipo_mime)},
+        )
+    finally:
+        if criado:
+            c.close()
+    if resposta.status_code >= 400:
+        raise _erro_da_resposta(resposta)
+    dados: dict[str, Any] = resposta.json()
+    media_id = dados.get("id")
+    if not media_id:
+        raise WhatsappError("resposta_invalida", "upload de mídia sem id")
+    return str(media_id)
+
+
+def componente_documento(media_id: str) -> dict[str, Any]:
+    """Monta o componente de cabeçalho DOCUMENT para `enviar_template` (PDF via media id)."""
+    return {"type": "header", "parameters": [{"type": "document", "document": {"id": media_id}}]}
+
+
 def _post_com_retry(
     client: httpx.Client, url: str, corpo: dict[str, Any], headers: dict[str, str]
 ) -> dict[str, Any]:
