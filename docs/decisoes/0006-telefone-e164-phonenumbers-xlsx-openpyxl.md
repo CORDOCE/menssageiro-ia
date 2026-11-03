@@ -25,3 +25,10 @@ formatação) e comprometeria a chave de deduplicação. Ler `.xlsx` não tem al
   da planilha tratado como não confiável (BRIEFING §6 / spec 0002).
 - Implementação dessas tasks (`[dep]` no tasks.md da 0002) fica liberada; permanece a dependência de ordem da
   task 5 (auth) em `develop`.
+
+## Adendo (2026-11-03) — `python-multipart`
+O endpoint de importação (`POST /contatos/importar`, task 8) recebe o arquivo por `multipart/form-data`, que o
+FastAPI só parseia com **`python-multipart`** — não há alternativa nativa (a única forma de evitá-lo seria mudar o
+contrato para corpo bruto, desviando do design). **Aprovada por Jefferson em 2026-11-03 (§4).** Versão **fixada**
+(`python-multipart>=0.0.33`), licença **Apache-2.0**, parser em *streaming* (não carrega o corpo inteiro na
+memória — ajuda na superfície de ataque do upload); entra no `pip-audit` do CI.

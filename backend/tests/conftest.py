@@ -20,6 +20,7 @@ import app.db.database as db_mod  # noqa: E402
 from app.core.config import get_settings  # noqa: E402
 from app.db.database import Base  # noqa: E402
 from app.main import app  # noqa: E402
+from app.models.contato import Contato  # noqa: E402, F401 (registra a tabela no create_all)
 from app.models.saude import Saude  # noqa: E402, F401 (registra a tabela no create_all)
 
 
@@ -54,7 +55,9 @@ def _preparar_banco():
 def db():
     """Sessão de teste; limpa as tabelas antes de cada teste para isolamento."""
     sessao = db_mod.SessionLocal()
-    sessao.execute(text("TRUNCATE usuarios, sessoes_usuario, auditoria, saude RESTART IDENTITY CASCADE"))
+    sessao.execute(
+        text("TRUNCATE usuarios, sessoes_usuario, auditoria, saude, contatos RESTART IDENTITY CASCADE")
+    )
     sessao.commit()
     try:
         yield sessao
@@ -65,3 +68,27 @@ def db():
 @pytest.fixture
 def client():
     return TestClient(app)
+
+
+@pytest.fixture
+def auth_headers(db):
+    """Cria um admin + sessão válida no banco e devolve o header Bearer (rota protegida)."""
+    import uuid
+    from datetime import UTC, datetime, timedelta
+
+    from app.core.security import gerar_token_sessao
+    from app.models.usuario import SessaoUsuario, Usuario
+
+    usuario_id = str(uuid.uuid4())
+    token = gerar_token_sessao()
+    db.add(Usuario(id=usuario_id, nome="Admin", email="admin@teste.com", senha_hash="x", ativo=True))
+    db.add(
+        SessaoUsuario(
+            id=str(uuid.uuid4()),
+            usuario_id=usuario_id,
+            token=token,
+            expira_em=datetime.now(UTC) + timedelta(days=7),
+        )
+    )
+    db.commit()
+    return {"Authorization": f"Bearer {token}"}
