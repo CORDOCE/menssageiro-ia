@@ -28,7 +28,7 @@ _Atualizado: 2026-11-04_
 - Pendência de segurança herdada: **cifrar `totp_secret` em repouso**.
 
 ## Estado do git
-- Branch atual: **`feat/0004-worker-agendamentos`** (a partir de `develop`), com commits: `d12d8c6` (spec SDD), `1c7def2` (ADR 0008), `35dc4d6` (tasks 2–4), `e52d352` (tasks 5–6). **Árvore limpa, nada por commitar.** Ainda **sem PR** (abrir só após tasks 7–11 + gates).
+- Branch atual: **`feat/0004-worker-agendamentos`** (a partir de `develop`), **pushada para `origin`** (rastreando `origin/feat/0004-worker-agendamentos`), com commits: `d12d8c6` (spec SDD), `1c7def2` (ADR 0008), `35dc4d6` (tasks 2–4), `e52d352` (tasks 5–6), `81076ff` (STATE). **Árvore limpa.** Ainda **sem PR** (abrir só após tasks 7–11 + gates).
 - **PR #21 aberto** (doc, Fase 0) da branch `docs/fase0-webhook-callback-e-test-number` → `develop`.
 - `develop` segue à frente de `origin/main` (Fase 3 ainda não promovida; promover só após staging/Fase 0).
 - Locais não mergeadas: `docs/codebase-map` (`6f03cdc`), `chore/railway-procfile` (`879c09a`), `feat/0003-whatsapp-cloud-api` (mergeada, pode apagar).
