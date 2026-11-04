@@ -8,7 +8,9 @@ import json
 import uuid
 from datetime import UTC, datetime, timedelta
 
+import pytest
 from sqlalchemy import select
+from sqlalchemy.exc import IntegrityError
 
 from app.models.agendamento import Agendamento
 from app.models.auditoria import Auditoria
@@ -238,6 +240,26 @@ def test_ac21_auditoria_sem_pii(db):
 
 def _filhas(db, raiz_id):
     return db.query(Agendamento).filter(Agendamento.agendamento_pai_id == raiz_id).all()
+
+
+def test_ac1_indice_parcial_dedup_ocorrencia(db):
+    # 2ª ocorrência na mesma (raiz, executar_em) viola o índice único parcial.
+    mid, cid = _modelo(db), _contato(db)
+    raiz = _agendamento(db, mid, contato_id=cid, recorrencia="FREQ=DAILY", status="enviado")
+    quando = AGORA + timedelta(days=1)
+    _agendamento(db, mid, contato_id=cid, agendamento_pai_id=raiz, executar_em=quando)
+    with pytest.raises(IntegrityError):
+        _agendamento(db, mid, contato_id=cid, agendamento_pai_id=raiz, executar_em=quando)
+    db.rollback()
+
+
+def test_ac1_avulsos_null_pai_nao_conflitam(db):
+    # Índice é PARCIAL (WHERE pai_id IS NOT NULL): dois avulsos com mesmo executar_em coexistem.
+    mid, c1, c2 = _modelo(db), _contato(db), _contato(db)
+    quando = AGORA + timedelta(days=2)
+    _agendamento(db, mid, contato_id=c1, executar_em=quando)
+    _agendamento(db, mid, contato_id=c2, executar_em=quando)  # pai_id NULL → não conflita
+    assert db.query(Agendamento).filter(Agendamento.executar_em == quando).count() == 2
 
 
 def test_ac6_recorrencia_cria_proxima_ocorrencia(db):
