@@ -5,13 +5,15 @@
 _Atualizado: 2026-11-04_
 
 ## Em andamento
-- **Fase 4 — núcleo do disparo** (spec `specs/0004-worker-agendamentos/`): **implementação 11/11 completa e em PR**. **PR #22** aberto (`feat/0004-worker-agendamentos` → `develop`): https://github.com/CORDOCE/menssageiro-ia/pull/22. Gates todos verdes: `/revisar` (sem P0/P1), `/seguranca` (sem bloqueio), `/validar` (22/22 AC; CI local: ruff+mypy+alembic+pytest cobertura global **97%**).
+- **Nada em implementação.** **Fase 4 (núcleo do disparo) MERGEADA** em `develop` (PR #22, merge `c46bc89`; CI verde backend+frontend). Staging (segue `develop`) redeploya com o worker; a migração `5d75fec0aa05` (agendamentos/configuracoes + FK) é aplicada pela **api** no start. Próxima implementação: **Fase 4b** (recorrência) ou **anexos**.
 
 ## Próximo passo (retomar aqui)
-1. **Aguardando review/merge do PR #22** em `develop`. Após merge, staging (segue `develop`) recebe o worker — **validação real só quando a Fase 0 (Meta 131031) desbloquear**.
-2. **Pendências registradas no PR** (não bloqueiam develop): alerta de observabilidade §12 (worker parado/falhas — follow-up); validação real staging (Fase 0). P2: limite diário por-agendamento (grupo grande pode exceder), N+1 contagem por contato, `contato_id` inexistente→500 em vez de 422, cap em `variaveis`.
-3. **Próximas specs:** recorrência (RRULE, 0005) e anexos (DOCUMENT) — colunas inertes já no schema.
-4. ⚠️ **Flakiness local:** `localhost`→IPv6(`::1`) falha; container em `127.0.0.1`. Rodar testes com `DATABASE_URL=postgresql+psycopg://mensageiro:mensageiro@127.0.0.1:5434/mensageiro`. (CI usa Postgres próprio.)
+1. **Confirmar o deploy da Fase 4 em staging** (api aplicou a migração; worker online). Smoke: `GET /agendamentos` autenticado → 200; criar um agendamento via API.
+2. **Validação REAL do envio** (DoD Fase 3 e 4): **bloqueada pela Fase 0** (Meta 131031 — desbloqueio depende da análise da Meta: Business Info + site + "Solicitar análise"). Gap: sem CRUD de `Modelo` (insert manual até uma spec futura).
+3. **Promover `develop`→`main`** só após staging validado de verdade (§4.2) — hoje `develop` à frente de `main` (Fases 3 e 4 não promovidas).
+4. **Follow-ups registrados no PR #22** (não bloqueiam): alerta de observabilidade §12; P2 (limite diário por-agendamento, N+1, `contato_id` inexistente→500, cap em `variaveis`).
+5. **Próximas specs:** recorrência (RRULE/`python-dateutil`, spec 0005) e anexos (DOCUMENT) — colunas inertes já no schema.
+6. ⚠️ **Flakiness local:** `localhost`→IPv6(`::1`) falha; container em `127.0.0.1`. Testes locais com `DATABASE_URL=...@127.0.0.1:5434/mensageiro`. (CI usa Postgres próprio.)
 
 ## Decisões/trabalho desta sessão (2026-11-04)
 - **Spec 0004 + ADR 0008** (config runtime em `configuracoes`; idempotência **at-most-once por (agendamento, contato)** com reserva-antes-de-enviar; janela JSONB em America/Sao_Paulo). `/clarificar` fechou: `limite_diario` na tabela (env só semeia), `limite_por_contato_dia` default NULL (sem limite), `aguardando_decisao` detectado **e** resolvível por API (`reenviar`/`cancelar`), reagenda→próximo início/adia→dia seguinte, colunas inertes de recorrência já na migração.
@@ -27,7 +29,9 @@ _Atualizado: 2026-11-04_
 - Pendência de segurança herdada: **cifrar `totp_secret` em repouso**.
 
 ## Estado do git
-- Branch atual: **`feat/0004-worker-agendamentos`** (de `develop`), **pushada e sincronizada com `origin`**. 8 commits: spec SDD (`d12d8c6`), ADR 0008 (`1c7def2`), tasks 2–4 (`35dc4d6`), tasks 5–6 (`e52d352`), STATE (`81076ff`/`6cee175`), task 7 (`f750f97`), tasks 8–11 (`f7f511a`). **Árvore limpa.** **Implementação 11/11 completa.** Ainda **sem PR** (abrir após `/seguranca` + `/validar` + CI Docker).
+- Branch atual: **`develop`** = `c46bc89` (merge do PR #22, Fase 4), sincronizada com `origin`. **Sem PRs abertos.** Branch `feat/0004-worker-agendamentos` **apagada** (local+remota) no merge.
+- `develop` está **à frente de `origin/main`** (Fases 3 e 4 não promovidas — promover só após validação real em staging/Fase 0).
+- Locais não mergeadas preservadas: `docs/codebase-map` (`6f03cdc`), `chore/railway-procfile` (`879c09a`). `feat/0003` já pode ser apagada se ainda existir.
 - **PR #21 aberto** (doc, Fase 0) da branch `docs/fase0-webhook-callback-e-test-number` → `develop`.
 - `develop` segue à frente de `origin/main` (Fase 3 ainda não promovida; promover só após staging/Fase 0).
 - Locais não mergeadas: `docs/codebase-map` (`6f03cdc`), `chore/railway-procfile` (`879c09a`), `feat/0003-whatsapp-cloud-api` (mergeada, pode apagar).
