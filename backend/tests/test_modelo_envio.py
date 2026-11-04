@@ -1,10 +1,12 @@
-"""Modelos `Modelo` e `Envio` (task 2 / AC-12, AC-13): defaults e unicidade parcial de envios."""
+"""Modelos `Modelo` e `Envio` (Fase 3 + FK da Fase 4): defaults e unicidade parcial de envios."""
 
+from datetime import UTC, datetime
 from uuid import uuid4
 
 import pytest
 from sqlalchemy.exc import IntegrityError
 
+from app.models.agendamento import Agendamento
 from app.models.contato import Contato
 from app.models.envio import Envio
 from app.models.modelo import Modelo
@@ -15,6 +17,17 @@ def _contato(db) -> str:
     db.add(Contato(id=cid, nome="Fulano", telefone_e164="+5511987654321"))
     db.commit()
     return cid
+
+
+def _agendamento(db, contato_id: str) -> str:
+    """Agendamento real (spec 0004): necessário desde que `envios.agendamento_id` virou FK (AC-2)."""
+    mid = str(uuid4())
+    db.add(Modelo(id=mid, nome=f"m_{mid[:8]}", corpo="oi"))
+    db.commit()  # modelo antes do agendamento (FK; sem relationship p/ ordenar o flush)
+    aid = str(uuid4())
+    db.add(Agendamento(id=aid, contato_id=contato_id, modelo_id=mid, executar_em=datetime.now(UTC)))
+    db.commit()
+    return aid
 
 
 def _envio(db, contato_id: str, **kw) -> None:
@@ -59,6 +72,7 @@ def test_envio_unicidade_parcial_agendamento(db):
     _envio(db, cid)
     _envio(db, cid)
     # Mesmo (agendamento_id não-nulo, contato_id) → viola o índice único parcial (idempotência do worker).
-    _envio(db, cid, agendamento_id="ag-1")
+    aid = _agendamento(db, cid)
+    _envio(db, cid, agendamento_id=aid)
     with pytest.raises(IntegrityError):
-        _envio(db, cid, agendamento_id="ag-1")
+        _envio(db, cid, agendamento_id=aid)
