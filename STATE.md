@@ -34,8 +34,8 @@ _Atualizado: 2026-11-04_
 
 ## Estado do git
 - Branch atual: **`feat/0005-recorrencia`** (de `develop`), **pushada e sincronizada** com `origin` (só spec 0005 product+design; sem código ainda).
-- `develop` = `c46bc89` (merge do PR #22, Fase 4). PR #22 (Fase 4) **mergeado**; branch `feat/0004` apagada.
-- ⚠️ **PR #21 ABERTO, pendente de merge** (doc Fase 0, `docs/fase0-webhook-callback-e-test-number` → `develop`): corrige callback do webhook p/ `/webhook/meta` + documenta `WHATSAPP_TEST_NUMBER`/`GRAPH_API_VERSION`. `/revisar` limpo. **Ação: revisar e mergear** (independente da 0005).
+- `develop` = `54bc911` (merge do PR #21). **PR #22 (Fase 4) e PR #21 (doc Fase 0) mergeados.** `feat/0004` apagada; branch `docs/fase0-webhook-callback-e-test-number` **mergeada, pode apagar** (merge foi sem `--delete-branch`).
+- *(Nota: a branch `feat/0005-recorrencia` saiu de `develop` ANTES do #21; não tem as correções de doc, mas também não toca nesses arquivos → merge limpo depois.)*
 - `develop` está **à frente de `origin/main`** (Fases 3 e 4 não promovidas — promover só após validação real/Fase 0).
 - Locais não mergeadas: `docs/codebase-map` (`6f03cdc`), `chore/railway-procfile` (`879c09a`), `feat/0003` (mergeada, pode apagar).
 
