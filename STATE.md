@@ -4,14 +4,14 @@
 
 _Atualizado: 2026-11-04_
 
-## Em andamento (spec 0005 — recorrência: IMPLEMENTADA, gates verdes, FALTA commit+PR)
+## Em andamento (spec 0005 — recorrência: IMPLEMENTADA, PR #23 aberto p/ develop)
 - **Spec 0005 — recorrência** (branch **`feat/0005-recorrencia`**). Esteira SDD completa: product+design (commitados) + **`spec.md`/`tasks.md`/ADR 0009 escritos** + **código implementado (TDD)**. Implementa ADR 0005 (ocorrência = nova linha; `agendamento_pai_id`; dedup por `UNIQUE(agendamento_pai_id, executar_em)`).
 - ✅ **/clarificar fechado (2026-11-04, aprovado por Jefferson):** (1) aceitar qualquer RRULE válida, núcleo garantido por teste; (2) `cancelar-serie` = só futuras pendentes; (3) criação **lazy**. `python-dateutil` aprovado (resolveu `4.0.0`).
 - ✅ **Implementado + gates executáveis verdes (CI backend reproduzido local, 127.0.0.1):** ruff + mypy limpos; ciclo de migração ok; **166 passed, cobertura 97.2%** (recorrencia.py 100%, worker 98%); pip-audit sem vulns. **/revisar** e **/seguranca**: sem P0/P1 (P2 catch-up registrado; hardening `max_length=500` em `recorrencia` aplicado). **/validar**: AC-1..AC-13 todos cobertos.
 - Arquivos: `services/recorrencia.py` (novo), migração `4ff11dacdb87` (índice parcial), `models/agendamento.py` (índice no `__table_args__`), `worker/disparo.py` (`_criar_proxima_ocorrencia` + auditoria `agendamento.ocorrencia_criada`), `api/agendamentos.py` (recorrencia no criar + `POST /{id}/cancelar-serie`), `schemas/agendamento.py`. **Nada commitado ainda.**
 
 ## Próximo passo (retomar aqui — spec 0005)
-1. **Commit** (Conventional Commits, sem co-autoria de IA) do diff da 0005 → **abrir PR para `develop`** (depende de aprovação explícita do Jefferson — §4.2 / git).
+1. **Acompanhar o CI do PR #23** (https://github.com/CORDOCE/menssageiro-ia/pull/23) → se verde, **mergear** para `develop` (merge depende de aprovação explícita). Commits locais: `75ebcd6` (feat) + `d2e6064`/STATE (pushados).
 2. **Observação P2 (não bloqueia):** worker usa `apos=executar_em` (não `max(..., agora)`) → série diária atrasada recupera 1 ocorrência/ciclo (burst), estrangulado por janela/limite. Avaliar "pular para agora" em spec futura.
 3. Envio real à Meta segue adiado (número +55) — AC passam com mock + Postgres real.
 
