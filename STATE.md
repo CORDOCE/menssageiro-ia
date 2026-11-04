@@ -33,12 +33,11 @@ _Atualizado: 2026-11-04_
 - Pendência de segurança herdada: **cifrar `totp_secret` em repouso**.
 
 ## Estado do git
-- Branch atual: **`develop`** = `c46bc89` (merge do PR #22, Fase 4), sincronizada com `origin`. **Sem PRs abertos.** Branch `feat/0004-worker-agendamentos` **apagada** (local+remota) no merge.
-- `develop` está **à frente de `origin/main`** (Fases 3 e 4 não promovidas — promover só após validação real em staging/Fase 0).
-- Locais não mergeadas preservadas: `docs/codebase-map` (`6f03cdc`), `chore/railway-procfile` (`879c09a`). `feat/0003` já pode ser apagada se ainda existir.
-- **PR #21 aberto** (doc, Fase 0) da branch `docs/fase0-webhook-callback-e-test-number` → `develop`.
-- `develop` segue à frente de `origin/main` (Fase 3 ainda não promovida; promover só após staging/Fase 0).
-- Locais não mergeadas: `docs/codebase-map` (`6f03cdc`), `chore/railway-procfile` (`879c09a`), `feat/0003-whatsapp-cloud-api` (mergeada, pode apagar).
+- Branch atual: **`feat/0005-recorrencia`** (de `develop`), **pushada e sincronizada** com `origin` (só spec 0005 product+design; sem código ainda).
+- `develop` = `c46bc89` (merge do PR #22, Fase 4). PR #22 (Fase 4) **mergeado**; branch `feat/0004` apagada.
+- ⚠️ **PR #21 ABERTO, pendente de merge** (doc Fase 0, `docs/fase0-webhook-callback-e-test-number` → `develop`): corrige callback do webhook p/ `/webhook/meta` + documenta `WHATSAPP_TEST_NUMBER`/`GRAPH_API_VERSION`. `/revisar` limpo. **Ação: revisar e mergear** (independente da 0005).
+- `develop` está **à frente de `origin/main`** (Fases 3 e 4 não promovidas — promover só após validação real/Fase 0).
+- Locais não mergeadas: `docs/codebase-map` (`6f03cdc`), `chore/railway-procfile` (`879c09a`), `feat/0003` (mergeada, pode apagar).
 
 ## Infra (Railway — projeto `406f04bb-7659-4366-aea0-f9489dbf0b07`)
 - **staging** 🟢 segue `develop`; **produção** segue `main`. Dev/testes locais: `docker compose up -d db` (container `mensageiro-ia-db-1`, Postgres 17, porta 5434) — **está de pé** (healthy).
