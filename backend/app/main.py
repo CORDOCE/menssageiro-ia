@@ -8,6 +8,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
+from app.api.agendamentos import router as agendamentos_router
 from app.api.auth import router as auth_router
 from app.api.contatos import router as contatos_router
 from app.api.modelos import router as modelos_router
@@ -31,6 +32,7 @@ app.add_middleware(
 app.include_router(auth_router)
 app.include_router(contatos_router)
 app.include_router(modelos_router)
+app.include_router(agendamentos_router)
 app.include_router(webhook_router)
 
 

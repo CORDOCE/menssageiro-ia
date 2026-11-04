@@ -1,6 +1,9 @@
-"""Testes do worker (task 8, AC-9): heartbeat por ciclo, sem envio."""
+"""Testes do heartbeat do worker. O disparo (spec 0004) é coberto em `test_worker_disparo.py`.
 
-import inspect
+Nota (§1.7): o antigo `test_worker_fase1_nao_envia_nada` (que proibia o worker de enviar) foi removido —
+a Fase 4 (spec 0004) reverte esse non-goal da Fase 1: o worker agora dispara agendamentos.
+"""
+
 import time
 from datetime import datetime
 
@@ -39,11 +42,3 @@ def test_main_chama_executar(monkeypatch):
     monkeypatch.setattr(worker, "executar", lambda: chamado.setdefault("ok", True))
     worker.main()
     assert chamado.get("ok") is True
-
-
-def test_worker_fase1_nao_envia_nada():
-    # AC-9 / non-goal: na Fase 1 o worker não integra nada de envio (sem cliente WhatsApp/Meta).
-    fonte = inspect.getsource(worker).lower()
-    assert "whatsapp" not in fonte
-    assert "whatsapp_client" not in fonte
-    assert "graph.facebook" not in fonte
