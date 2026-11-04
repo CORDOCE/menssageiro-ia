@@ -4,12 +4,14 @@
 
 _Atualizado: 2026-11-04_
 
-## Em andamento
-- **Spec 0005 — recorrência** (branch **`feat/0005-recorrencia`**, de `develop`). Esteira SDD iniciada: **`product.md` escrito**; tier **Arquitetural**. Implementa o modelo de recorrência já decidido no **ADR 0005** (cada ocorrência = nova linha de agendamento; `agendamento_pai_id`; dedup por `UNIQUE(agendamento_pai_id, executar_em)`; colunas já existem desde a 0004).
-- ⏸️ **BLOQUEADO numa decisão §4 (aguardando Jefferson):** qual biblioteca para computar RRULE — **recomendado `python-dateutil`** (casa com BRIEFING §9; Apache/BSD; maduro) vs implementar subconjunto à mão (sem dep). **Resolver isso ANTES do `design.md`.** (Fase 4 segue mergeada e em staging; envio real adiado — ver Bloqueios.)
+## Em andamento (PAUSADO — /handoff)
+- **Spec 0005 — recorrência** (branch **`feat/0005-recorrencia`**, de `develop`; **commits locais, não pushados**). Esteira SDD: **`product.md` + `design.md` escritos e commitados**; tier **Arquitetural**. Implementa ADR 0005 (ocorrência = nova linha; `agendamento_pai_id`; dedup por `UNIQUE(agendamento_pai_id, executar_em)`).
+- ✅ **Decisão §4 tomada:** usar **`python-dateutil`** (RRULE) — aprovado por Jefferson 2026-11-04. (Fase 4 mergeada/em staging; envio real adiado — ver Bloqueios.)
 
-## Próximo passo (retomar aqui)
-0. **Decidir a dependência RRULE (§4)** → depois `design.md` → `spec.md` (+ `/clarificar` as 3 questões do product.md) → `tasks.md` → implementar (TDD) → gates → PR. ADR 0009 proposto para a dependência.
+## Próximo passo (retomar aqui — spec 0005)
+1. **`/clarificar`** as 3 questões do design (opções de RRULE na v1; `cancelar-serie` = só futuras pendentes; confirmar criação lazy) → escrever **`spec.md`** (AC + tabela/bordas).
+2. **`tasks.md`** (TDD) → implementar: add `python-dateutil` ao `pyproject` (`uv sync`); `services/recorrencia.py` (`proxima_ocorrencia`/`validar_regra`); migração do índice parcial `UNIQUE(agendamento_pai_id, executar_em) WHERE agendamento_pai_id IS NOT NULL`; worker cria próxima ocorrência (ON CONFLICT); API (`recorrencia` no criar + `cancelar-serie`). **ADR 0009**.
+3. Gates (/revisar→/seguranca→/validar + CI local IPv4) → PR para `develop`.
 1. ✅ **Deploy da Fase 4 em staging CONFIRMADO + write path validado** (2026-11-04): backend+worker `SUCCESS` no commit `c46bc89`; migração `5d75fec0aa05` aplicada (visto no log do deploy). **Smoke E2E autenticado** (via `railway ssh` no container, hitando o uvicorn deployado): seed Modelo `teste_fase4` → `POST /agendamentos` **201** → `GET` 200. Sessão+agendamento de teste limpos; **Modelo `teste_fase4` (aprovado) mantido** em staging p/ futuros testes. *(O erro "Railpack/start.sh" do painel era log antigo de 01/11, já resolvido.)* **Falta só o envio REAL (worker→Meta), que depende da Fase 0.**
 2. **Validação REAL do envio: ADIADA para o go-live** (precisa de número +55 real — ver Bloqueios). Não é frente ativa. Próxima frente de implementação a escolher: **recorrência (spec 0005)**, **anexos (DOCUMENT)**, ou **telas do PWA (Fase 5)**. Follow-ups P2/§12 do PR #22 também abertos. Gap: sem CRUD de `Modelo`.
 3. **Promover `develop`→`main`** só após staging validado de verdade (§4.2) — hoje `develop` à frente de `main` (Fases 3 e 4 não promovidas).
