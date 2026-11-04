@@ -5,14 +5,13 @@
 _Atualizado: 2026-11-04_
 
 ## Em andamento
-- **Fase 4 — núcleo do disparo** (spec `specs/0004-worker-agendamentos/`), branch **`feat/0004-worker-agendamentos`** (pushada).
-  **Implementação COMPLETA: 11/11 tasks**, 144 passed, ruff+mypy(estrito) limpos, cobertura dos módulos de envio **98%**. **`/revisar` rodado: PRONTO PRA PR** (sem P0/P1; só P2 de follow-up).
+- **Fase 4 — núcleo do disparo** (spec `specs/0004-worker-agendamentos/`): **implementação 11/11 completa e em PR**. **PR #22** aberto (`feat/0004-worker-agendamentos` → `develop`): https://github.com/CORDOCE/menssageiro-ia/pull/22. Gates todos verdes: `/revisar` (sem P0/P1), `/seguranca` (sem bloqueio), `/validar` (22/22 AC; CI local: ruff+mypy+alembic+pytest cobertura global **97%**).
 
 ## Próximo passo (retomar aqui)
-1. **`/seguranca`** sobre o diff da Fase 4 (review de segurança) → depois **`/validar`** (DoD + AC→teste) → **suíte CI completa via Docker** (§4.4) → **PR para `develop`**.
-2. ⚠️ **Flakiness local:** `localhost`→IPv6(`::1`) falha; o container escuta em `127.0.0.1`. Rodar testes com `DATABASE_URL=postgresql+psycopg://mensageiro:mensageiro@127.0.0.1:5434/mensageiro`. (CI usa PostgreSQL próprio, não afeta.)
-3. **P2 de follow-up** (não bloqueiam, anotados no `/revisar`): limite diário é por-agendamento (grupo grande pode exceder); N+1 na contagem por contato; at-most-once pode perder msg em crash inesperado (por design).
-4. Validação **real** em staging só quando a Fase 0 (Meta) desbloquear.
+1. **Aguardando review/merge do PR #22** em `develop`. Após merge, staging (segue `develop`) recebe o worker — **validação real só quando a Fase 0 (Meta 131031) desbloquear**.
+2. **Pendências registradas no PR** (não bloqueiam develop): alerta de observabilidade §12 (worker parado/falhas — follow-up); validação real staging (Fase 0). P2: limite diário por-agendamento (grupo grande pode exceder), N+1 contagem por contato, `contato_id` inexistente→500 em vez de 422, cap em `variaveis`.
+3. **Próximas specs:** recorrência (RRULE, 0005) e anexos (DOCUMENT) — colunas inertes já no schema.
+4. ⚠️ **Flakiness local:** `localhost`→IPv6(`::1`) falha; container em `127.0.0.1`. Rodar testes com `DATABASE_URL=postgresql+psycopg://mensageiro:mensageiro@127.0.0.1:5434/mensageiro`. (CI usa Postgres próprio.)
 
 ## Decisões/trabalho desta sessão (2026-11-04)
 - **Spec 0004 + ADR 0008** (config runtime em `configuracoes`; idempotência **at-most-once por (agendamento, contato)** com reserva-antes-de-enviar; janela JSONB em America/Sao_Paulo). `/clarificar` fechou: `limite_diario` na tabela (env só semeia), `limite_por_contato_dia` default NULL (sem limite), `aguardando_decisao` detectado **e** resolvível por API (`reenviar`/`cancelar`), reagenda→próximo início/adia→dia seguinte, colunas inertes de recorrência já na migração.
