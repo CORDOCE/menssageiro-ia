@@ -38,6 +38,7 @@ from app.services.janela import (
     obter_configuracao,
     proximo_inicio,
 )
+from app.services.recorrencia import proxima_ocorrencia
 from app.services.whatsapp_client import WhatsappError, enviar_template
 
 _LOTE = 100
@@ -174,6 +175,9 @@ def _processar_agendamento(
             return
 
         nome, idioma, modelo_id, variaveis = modelo.nome, modelo.idioma, ag.modelo_id, list(ag.variaveis)
+        # Campos para encadear a próxima ocorrência (capturados antes do commit que expira `ag`).
+        recorrencia, pai_id, executar_em = ag.recorrencia, ag.agendamento_pai_id, ag.executar_em
+        contato_id, grupo, origem = ag.contato_id, ag.grupo, ag.origem
         contatos = _destinatarios(sess, ag)
         ag.status = "enviando"
         sess.commit()  # libera o FOR UPDATE antes de inserir envios (FK envios→agendamentos)
@@ -188,6 +192,13 @@ def _processar_agendamento(
                 sess, aid, modelo_id, nome, idioma, componentes, contato, agora, limite_contato, enviar
             )
 
+        # Recorrência (spec 0005, ADR 0005/0009): cria a próxima ocorrência (lazy) junto de marcar
+        # `enviado`, no mesmo commit (atômico). ON CONFLICT torna o reprocesso idempotente (§5.2).
+        if recorrencia is not None:
+            _criar_proxima_ocorrencia(
+                sess, aid=aid, pai_id=pai_id, executar_em=executar_em, recorrencia=recorrencia,
+                contato_id=contato_id, grupo=grupo, modelo_id=modelo_id, variaveis=variaveis, origem=origem,
+            )
         sess.execute(
             update(Agendamento)
             .where(Agendamento.id == aid)
@@ -196,6 +207,53 @@ def _processar_agendamento(
         sess.commit()
     finally:
         sess.close()
+
+
+def _criar_proxima_ocorrencia(
+    sess: Session,
+    *,
+    aid: str,
+    pai_id: str | None,
+    executar_em: datetime,
+    recorrencia: str,
+    contato_id: str | None,
+    grupo: str | None,
+    modelo_id: str,
+    variaveis: list[str],
+    origem: str,
+) -> None:
+    """Insere a próxima ocorrência da série, ou nada se a regra esgotou. Idempotente (ON CONFLICT)."""
+    raiz = pai_id or aid
+    dtstart = (
+        executar_em
+        if pai_id is None
+        else sess.execute(
+            select(Agendamento.executar_em).where(Agendamento.id == raiz)
+        ).scalar_one()
+    )
+    proxima = proxima_ocorrencia(recorrencia, dtstart, executar_em)
+    if proxima is None:
+        return
+    novo_id = str(uuid.uuid4())
+    criado = sess.execute(
+        pg_insert(Agendamento)
+        .values(
+            id=novo_id, modelo_id=modelo_id, contato_id=contato_id, grupo=grupo,
+            variaveis=variaveis, executar_em=proxima, status="aprovado", origem=origem,
+            agendamento_pai_id=raiz, recorrencia=recorrencia,
+        )
+        .on_conflict_do_nothing(
+            index_elements=["agendamento_pai_id", "executar_em"],
+            index_where=text("agendamento_pai_id IS NOT NULL"),
+        )
+        .returning(Agendamento.id)
+    ).scalar_one_or_none()
+    # Audita só quando a linha foi de fato criada (ON CONFLICT → None → reprocesso não re-audita); §5.8.
+    if criado is not None:
+        registrar_auditoria(
+            "agendamento.ocorrencia_criada", alvo_tipo="agendamento", alvo_id=novo_id,
+            metadados={"serie": raiz, "executar_em": proxima.isoformat()}, correlation_id=raiz,
+        )
 
 
 def _processar_contato(

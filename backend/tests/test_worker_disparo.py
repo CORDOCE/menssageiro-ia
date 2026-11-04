@@ -64,13 +64,15 @@ def _contato(db, *, consentimento=True, descadastrado=False, grupo=None) -> str:
 
 
 def _agendamento(db, modelo_id, *, contato_id=None, grupo=None, executar_em=None,
-                 status="aprovado", variaveis=None) -> str:
+                 status="aprovado", variaveis=None, recorrencia=None,
+                 agendamento_pai_id=None) -> str:
     aid = str(uuid.uuid4())
     db.add(
         Agendamento(
             id=aid, modelo_id=modelo_id, contato_id=contato_id, grupo=grupo,
             executar_em=executar_em or (AGORA - timedelta(minutes=1)),
             status=status, variaveis=variaveis or [],
+            recorrencia=recorrencia, agendamento_pai_id=agendamento_pai_id,
         )
     )
     db.commit()
@@ -232,6 +234,75 @@ def test_ac21_auditoria_sem_pii(db):
     meta = json.loads(aud.metadados)
     assert meta["telefone"] == mascarar_telefone(tel) and meta["telefone"] != tel
     assert aud.correlation_id == aid
+
+
+def _filhas(db, raiz_id):
+    return db.query(Agendamento).filter(Agendamento.agendamento_pai_id == raiz_id).all()
+
+
+def test_ac6_recorrencia_cria_proxima_ocorrencia(db):
+    # Mãe diária (agendamento_pai_id NULL) dispara e cria 1 ocorrência-filha.
+    mid, cid = _modelo(db), _contato(db)
+    aid = _agendamento(db, mid, contato_id=cid, recorrencia="FREQ=DAILY")
+    processar_ciclo(enviar=FakeEnviar(), agora=AGORA)
+    db.expire_all()
+    filhas = _filhas(db, aid)
+    assert db.get(Agendamento, aid).status == "enviado"
+    assert len(filhas) == 1
+    f = filhas[0]
+    assert f.status == "aprovado" and f.agendamento_pai_id == aid
+    assert f.contato_id == cid and f.recorrencia == "FREQ=DAILY"
+    assert f.executar_em > db.get(Agendamento, aid).executar_em
+    # §5.8: a criação da ocorrência gera auditoria.
+    assert db.query(Auditoria).filter(Auditoria.operacao == "agendamento.ocorrencia_criada").count() == 1
+
+
+def test_ac7_recorrencia_idempotente_no_reprocesso(db):
+    # Reprocessar a mãe (simula crash: volta a 'enviando' <= agora) não duplica a ocorrência.
+    mid, cid = _modelo(db), _contato(db)
+    aid = _agendamento(db, mid, contato_id=cid, recorrencia="FREQ=DAILY")
+    processar_ciclo(enviar=FakeEnviar(), agora=AGORA)
+    db.expire_all()
+    mae = db.get(Agendamento, aid)
+    mae.status = "enviando"  # finge o lote interrompido antes de criar a próxima
+    db.commit()
+    processar_ciclo(enviar=FakeEnviar(), agora=AGORA)
+    db.expire_all()
+    assert len(_filhas(db, aid)) == 1  # ON CONFLICT DO NOTHING no índice parcial
+    # auditoria também idempotente: reprocesso não re-audita (ON CONFLICT → None).
+    assert db.query(Auditoria).filter(Auditoria.operacao == "agendamento.ocorrencia_criada").count() == 1
+
+
+def test_ac8_filha_encadeia_na_raiz_nao_nela_mesma(db):
+    # Uma filha vencida cria a próxima apontando para a MESMA raiz (não para a filha).
+    mid, cid = _modelo(db), _contato(db)
+    raiz = _agendamento(db, mid, contato_id=cid, recorrencia="FREQ=DAILY",
+                        executar_em=AGORA - timedelta(days=1), status="enviado")
+    filha = _agendamento(db, mid, contato_id=cid, recorrencia="FREQ=DAILY",
+                         agendamento_pai_id=raiz, executar_em=AGORA - timedelta(minutes=1))
+    processar_ciclo(enviar=FakeEnviar(), agora=AGORA)
+    db.expire_all()
+    netas = [f for f in _filhas(db, raiz) if f.id != filha]
+    assert len(netas) == 1 and netas[0].agendamento_pai_id == raiz
+
+
+def test_ac9_serie_esgotada_nao_cria(db):
+    # COUNT=1: só a mãe; depois dela a série esgota → nenhuma filha.
+    mid, cid = _modelo(db), _contato(db)
+    aid = _agendamento(db, mid, contato_id=cid, recorrencia="FREQ=DAILY;COUNT=1")
+    processar_ciclo(enviar=FakeEnviar(), agora=AGORA)
+    db.expire_all()
+    assert db.get(Agendamento, aid).status == "enviado" and _filhas(db, aid) == []
+
+
+def test_ac10_avulso_nao_cria_ocorrencia(db):
+    # Sem recorrência: nenhum agendamento novo é criado.
+    mid, cid = _modelo(db), _contato(db)
+    antes = db.query(Agendamento).count()
+    _agendamento(db, mid, contato_id=cid)
+    processar_ciclo(enviar=FakeEnviar(), agora=AGORA)
+    db.expire_all()
+    assert db.query(Agendamento).count() == antes + 1  # só o avulso criado no teste
 
 
 def test_ac22_skip_locked_nao_processa_travado(db):

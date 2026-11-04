@@ -4,7 +4,7 @@ A API só registra (§5.1): nenhum caminho chama a Meta.
 """
 
 import uuid
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 
 from app.models.agendamento import Agendamento
 from app.models.contato import Contato
@@ -115,3 +115,73 @@ def test_reenviar_status_invalido_409(client, auth_headers, db):
     aid = client.post("/agendamentos", json=_payload(mid, grupo="g"), headers=auth_headers).json()["id"]
     r = client.post(f"/agendamentos/{aid}/reenviar", headers=auth_headers)  # status aprovado
     assert r.status_code == 409
+
+
+# --- recorrência (spec 0005) ---
+def test_criar_com_recorrencia_valida_201(client, auth_headers, db):  # AC-11
+    mid, cid = _modelo(db), _contato(db)
+    r = client.post(
+        "/agendamentos",
+        json=_payload(mid, contato_id=cid, recorrencia="FREQ=WEEKLY;BYDAY=MO"),
+        headers=auth_headers,
+    )
+    assert r.status_code == 201
+    assert r.json()["recorrencia"] == "FREQ=WEEKLY;BYDAY=MO"
+    ag = db.get(Agendamento, r.json()["id"])
+    assert ag.recorrencia == "FREQ=WEEKLY;BYDAY=MO" and ag.agendamento_pai_id is None  # nasce raiz
+
+
+def test_criar_com_recorrencia_invalida_422(client, auth_headers, db):  # AC-12
+    mid, cid = _modelo(db), _contato(db)
+    r = client.post(
+        "/agendamentos",
+        json=_payload(mid, contato_id=cid, recorrencia="FREQ=BANANA"),
+        headers=auth_headers,
+    )
+    assert r.status_code == 422
+
+
+def test_criar_recorrencia_longa_demais_422(client, auth_headers, db):  # §6 endurecimento
+    mid, cid = _modelo(db), _contato(db)
+    r = client.post(
+        "/agendamentos",
+        json=_payload(mid, contato_id=cid, recorrencia="FREQ=DAILY;" + "X" * 600),
+        headers=auth_headers,
+    )
+    assert r.status_code == 422
+
+
+def _ocorrencia(db, mid, cid, raiz_id, *, executar_em, status) -> str:
+    oid = str(uuid.uuid4())
+    db.add(
+        Agendamento(
+            id=oid, modelo_id=mid, contato_id=cid, recorrencia="FREQ=DAILY",
+            agendamento_pai_id=raiz_id, executar_em=executar_em, status=status,
+        )
+    )
+    db.commit()
+    return oid
+
+
+def test_cancelar_serie_so_futuras_pendentes(client, auth_headers, db):  # AC-13
+    mid, cid = _modelo(db), _contato(db)
+    agora = datetime.now(UTC)
+    raiz = str(uuid.uuid4())
+    db.add(Agendamento(id=raiz, modelo_id=mid, contato_id=cid, recorrencia="FREQ=DAILY",
+                       executar_em=agora - timedelta(days=1), status="enviado"))
+    db.commit()
+    fut1 = _ocorrencia(db, mid, cid, raiz, executar_em=agora + timedelta(days=1), status="aprovado")
+    fut2 = _ocorrencia(db, mid, cid, raiz, executar_em=agora + timedelta(days=2), status="aprovado")
+    enviada = _ocorrencia(db, mid, cid, raiz, executar_em=agora - timedelta(hours=1), status="enviado")
+    # passar o id de uma FILHA deve resolver a raiz e cancelar a série inteira (futuras pendentes).
+    r = client.post(f"/agendamentos/{fut1}/cancelar-serie", headers=auth_headers)
+    assert r.status_code == 200
+    db.expire_all()
+    assert db.get(Agendamento, fut1).status == "cancelado"
+    assert db.get(Agendamento, fut2).status == "cancelado"
+    assert db.get(Agendamento, enviada).status == "enviado"  # enviada fica intacta
+
+
+def test_cancelar_serie_inexistente_404(client, auth_headers, db):
+    r = client.post("/agendamentos/nao-existe/cancelar-serie", headers=auth_headers)
+    assert r.status_code == 404

@@ -10,7 +10,7 @@ from __future__ import annotations
 
 from datetime import datetime
 
-from sqlalchemy import CheckConstraint, DateTime, ForeignKey, Integer, String, Text, func
+from sqlalchemy import CheckConstraint, DateTime, ForeignKey, Index, Integer, String, Text, func, text
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -23,6 +23,15 @@ class Agendamento(Base):
         CheckConstraint(
             "(contato_id IS NOT NULL) <> (grupo IS NOT NULL)",
             name="ck_agendamentos_contato_xor_grupo",
+        ),
+        # Dedup das ocorrências de uma série recorrente (spec 0005, ADR 0005/0009): uma só ocorrência
+        # por (raiz, horário). Parcial: mães/avulsos (agendamento_pai_id NULL) não conflitam entre si.
+        Index(
+            "uq_agendamentos_serie_ocorrencia",
+            "agendamento_pai_id",
+            "executar_em",
+            unique=True,
+            postgresql_where=text("agendamento_pai_id IS NOT NULL"),
         ),
     )
 
@@ -38,7 +47,8 @@ class Agendamento(Base):
     aprovado_por: Mapped[str | None] = mapped_column(ForeignKey("usuarios.id"), nullable=True)
     motivo_ultima_transicao: Mapped[str | None] = mapped_column(Text, nullable=True)
     reagendamentos: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
-    # Inertes até a spec 0005 (recorrência) — ADR 0008.
+    # Recorrência (spec 0005, ADR 0005/0009): `recorrencia` = string RRULE (NULL = avulso);
+    # `agendamento_pai_id` aponta para a raiz da série (a mãe tem NULL). Dedup pelo índice parcial acima.
     agendamento_pai_id: Mapped[str | None] = mapped_column(String(36), nullable=True)
     recorrencia: Mapped[str | None] = mapped_column(Text, nullable=True)
     criado_em: Mapped[datetime] = mapped_column(
