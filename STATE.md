@@ -5,7 +5,7 @@
 _Atualizado: 2026-11-04_
 
 ## Em andamento (PAUSADO — /handoff)
-- **Spec 0005 — recorrência** (branch **`feat/0005-recorrencia`**, de `develop`; **commits locais, não pushados**). Esteira SDD: **`product.md` + `design.md` escritos e commitados**; tier **Arquitetural**. Implementa ADR 0005 (ocorrência = nova linha; `agendamento_pai_id`; dedup por `UNIQUE(agendamento_pai_id, executar_em)`).
+- **Spec 0005 — recorrência** (branch **`feat/0005-recorrencia`**, de `develop`; **pushada para `origin`**). Esteira SDD: **`product.md` + `design.md` escritos e commitados**; tier **Arquitetural**. Implementa ADR 0005 (ocorrência = nova linha; `agendamento_pai_id`; dedup por `UNIQUE(agendamento_pai_id, executar_em)`).
 - ✅ **Decisão §4 tomada:** usar **`python-dateutil`** (RRULE) — aprovado por Jefferson 2026-11-04. (Fase 4 mergeada/em staging; envio real adiado — ver Bloqueios.)
 
 ## Próximo passo (retomar aqui — spec 0005)
