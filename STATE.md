@@ -5,14 +5,14 @@
 _Atualizado: 2026-11-04_
 
 ## Em andamento
-- **Fase 4 — núcleo do disparo** (spec `specs/0004-worker-agendamentos/`), na branch **`feat/0004-worker-agendamentos`**.
-  Esteira SDD completa (product/design/spec/tasks) + **tasks 1–6 implementadas, testadas e commitadas** (119 passed, ruff+mypy limpos). **Faltam tasks 7–11.**
+- **Fase 4 — núcleo do disparo** (spec `specs/0004-worker-agendamentos/`), branch **`feat/0004-worker-agendamentos`** (pushada).
+  **Implementação COMPLETA: 11/11 tasks**, 144 passed, ruff+mypy(estrito) limpos, cobertura dos módulos de envio **98%**. **`/revisar` rodado: PRONTO PRA PR** (sem P0/P1; só P2 de follow-up).
 
 ## Próximo passo (retomar aqui)
-1. **Task 7** — `services/janela.py`: `dentro_da_janela`/`proximo_inicio`/`inicio_dia_seguinte` (fuso America/Sao_Paulo via `zoneinfo`; sem dep nova) + helper singleton de `configuracoes` (create-if-missing usando `settings.limite_diario_default`). Testes de borda: 20:00 exato, domingo fora, próximo início, dia seguinte.
-2. **Tasks 8–10** — worker `worker/disparo.py` (TDD, PostgreSQL real): decisão por agendamento (SKIP LOCKED → pausa/janela/modelo/limite) → expansão de grupo + checagens por contato + **reserva `ON CONFLICT DO NOTHING`** → `enviar_template` (mock) → `wamid`/auditoria; detecção de `aguardando_decisao`. ⚠️ **Trocar o teste `tests/test_worker.py::test_worker_fase1_nao_envia_nada`** (ele asserta que o worker NÃO menciona "whatsapp" — a Fase 4 faz o worker enviar; requisito mudou pela spec 0004, §1.7).
-3. **Task 11** — cobertura ≥90% das regras de envio; `pytest --cov`.
-4. Antes do PR: **/revisar → /seguranca → /validar** + suíte CI completa via Docker (§4.4). PR para `develop`.
+1. **`/seguranca`** sobre o diff da Fase 4 (review de segurança) → depois **`/validar`** (DoD + AC→teste) → **suíte CI completa via Docker** (§4.4) → **PR para `develop`**.
+2. ⚠️ **Flakiness local:** `localhost`→IPv6(`::1`) falha; o container escuta em `127.0.0.1`. Rodar testes com `DATABASE_URL=postgresql+psycopg://mensageiro:mensageiro@127.0.0.1:5434/mensageiro`. (CI usa PostgreSQL próprio, não afeta.)
+3. **P2 de follow-up** (não bloqueiam, anotados no `/revisar`): limite diário é por-agendamento (grupo grande pode exceder); N+1 na contagem por contato; at-most-once pode perder msg em crash inesperado (por design).
+4. Validação **real** em staging só quando a Fase 0 (Meta) desbloquear.
 
 ## Decisões/trabalho desta sessão (2026-11-04)
 - **Spec 0004 + ADR 0008** (config runtime em `configuracoes`; idempotência **at-most-once por (agendamento, contato)** com reserva-antes-de-enviar; janela JSONB em America/Sao_Paulo). `/clarificar` fechou: `limite_diario` na tabela (env só semeia), `limite_por_contato_dia` default NULL (sem limite), `aguardando_decisao` detectado **e** resolvível por API (`reenviar`/`cancelar`), reagenda→próximo início/adia→dia seguinte, colunas inertes de recorrência já na migração.
@@ -28,7 +28,7 @@ _Atualizado: 2026-11-04_
 - Pendência de segurança herdada: **cifrar `totp_secret` em repouso**.
 
 ## Estado do git
-- Branch atual: **`feat/0004-worker-agendamentos`** (a partir de `develop`), **pushada para `origin`** (rastreando `origin/feat/0004-worker-agendamentos`), com commits: `d12d8c6` (spec SDD), `1c7def2` (ADR 0008), `35dc4d6` (tasks 2–4), `e52d352` (tasks 5–6), `81076ff` (STATE). **Árvore limpa.** Ainda **sem PR** (abrir só após tasks 7–11 + gates).
+- Branch atual: **`feat/0004-worker-agendamentos`** (de `develop`), **pushada e sincronizada com `origin`**. 8 commits: spec SDD (`d12d8c6`), ADR 0008 (`1c7def2`), tasks 2–4 (`35dc4d6`), tasks 5–6 (`e52d352`), STATE (`81076ff`/`6cee175`), task 7 (`f750f97`), tasks 8–11 (`f7f511a`). **Árvore limpa.** **Implementação 11/11 completa.** Ainda **sem PR** (abrir após `/seguranca` + `/validar` + CI Docker).
 - **PR #21 aberto** (doc, Fase 0) da branch `docs/fase0-webhook-callback-e-test-number` → `develop`.
 - `develop` segue à frente de `origin/main` (Fase 3 ainda não promovida; promover só após staging/Fase 0).
 - Locais não mergeadas: `docs/codebase-map` (`6f03cdc`), `chore/railway-procfile` (`879c09a`), `feat/0003-whatsapp-cloud-api` (mergeada, pode apagar).
