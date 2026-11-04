@@ -6,6 +6,7 @@ As variáveis da Meta/OpenAI são opcionais nesta fase: a API precisa subir e re
 
 from functools import lru_cache
 
+from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -22,8 +23,11 @@ class Settings(BaseSettings):
     waba_id: str | None = None
     app_secret: str | None = None
     webhook_verify_token: str | None = None
-    graph_api_version: str | None = None
+    # Versão da Graph API (ADR 0007). Confirmada na doc oficial 2026-11-03 (v26.0); configurável.
+    graph_api_version: str = "v26.0"
     admin_whatsapp_numbers: str | None = None
+    # Número de teste (E.164) — allowlist do POST /modelos/{id}/enviar-teste (§4: nunca número real).
+    whatsapp_test_number: str | None = None
 
     # IA (OpenAI) — opcionais até a fase 6
     openai_api_key: str | None = None
@@ -52,6 +56,10 @@ class Settings(BaseSettings):
 
     # Worker (task 8): intervalo do loop de heartbeat.
     worker_intervalo_s: int = 60
+
+    # Disparo (spec 0004 / ADR 0008): a env `LIMITE_DIARIO` é só a **semente** do `limite_diario`
+    # inicial da linha de `configuracoes`. A fonte runtime é a tabela (operador muda sem redeploy).
+    limite_diario_default: int = Field(default=200, validation_alias="LIMITE_DIARIO")
 
     # Importação de contatos (spec 0002): limites configuráveis do upload (AC-17).
     import_max_bytes: int = 5 * 1024 * 1024  # 5 MB
