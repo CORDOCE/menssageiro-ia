@@ -68,11 +68,12 @@ Settings:
 ## 8. Variáveis [MANUAL]
 
 **Compartilhadas (Project → Variables → Shared), usadas por `api` e `worker`:**
-`WHATSAPP_TOKEN`, `PHONE_NUMBER_ID`, `WABA_ID`, `APP_SECRET`, `WEBHOOK_VERIFY_TOKEN`, `GRAPH_API_VERSION`,
+`WHATSAPP_TOKEN`, `PHONE_NUMBER_ID`, `WABA_ID`, `APP_SECRET`, `WEBHOOK_VERIFY_TOKEN`, `GRAPH_API_VERSION=v26.0`,
 `ADMIN_WHATSAPP_NUMBERS`, `OPENAI_API_KEY` (copiar o valor do projeto antigo), `OPENAI_MODEL=gpt-6-luna`,
 `RESEND_API_KEY`, `EMAIL_FROM`, `EMAIL_ALERTAS`, `SENTRY_DSN`, `VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY`, `TZ=America/Sao_Paulo`.
 
-**Só no `api`:** `FRONTEND_URL=https://${{frontend.RAILWAY_PUBLIC_DOMAIN}}`, `ADMIN_EMAIL`, `ADMIN_PASSWORD` (remover após o primeiro acesso).
+**Só no `api`:** `FRONTEND_URL=https://${{frontend.RAILWAY_PUBLIC_DOMAIN}}`, `ADMIN_EMAIL`, `ADMIN_PASSWORD` (remover após o primeiro acesso),
+`WHATSAPP_TEST_NUMBER` (E.164 do número de teste; allowlist obrigatória do `POST /modelos/{id}/enviar-teste` — sem ela o endpoint rejeita todo envio com 403. Definir **só em staging**; §4: nunca número real).
 
 **Só no `frontend`:** `NEXT_PUBLIC_API_URL=https://${{api.RAILWAY_PUBLIC_DOMAIN}}`, `NEXT_PUBLIC_VAPID_PUBLIC_KEY`, `NEXT_PUBLIC_SENTRY_DSN`.
 
@@ -94,7 +95,7 @@ Regras: nunca colar segredos em código, issues ou PRs; nunca copiar o `.env` do
 
 ## 10. Conectar a Meta ao webhook [MANUAL]
 No app da Meta (developers.facebook.com) → WhatsApp → Configuration:
-- **Callback URL:** `https://<domínio do api>/api/webhook/meta`
+- **Callback URL:** `https://<domínio do api>/webhook/meta` (sem `/api` — a API é servida na raiz; staging: `https://menssageiro-ia-backend-staging.up.railway.app/webhook/meta`)
 - **Verify token:** o mesmo valor de `WEBHOOK_VERIFY_TOKEN`
 - **Campos assinados:** `messages`, `message_template_status_update`, `account_update`
 Repetir para staging com o app/número de teste.
