@@ -8,7 +8,7 @@ _Atualizado: 2026-11-04_
 - **Nada em implementação.** **Fase 4 (núcleo do disparo) MERGEADA** em `develop` (PR #22, merge `c46bc89`; CI verde backend+frontend). Staging (segue `develop`) redeploya com o worker; a migração `5d75fec0aa05` (agendamentos/configuracoes + FK) é aplicada pela **api** no start. Próxima implementação: **Fase 4b** (recorrência) ou **anexos**.
 
 ## Próximo passo (retomar aqui)
-1. **Confirmar o deploy da Fase 4 em staging** (api aplicou a migração; worker online). Smoke: `GET /agendamentos` autenticado → 200; criar um agendamento via API.
+1. ✅ **Deploy da Fase 4 em staging CONFIRMADO** (2026-11-04 17:50, commit `c46bc89`): backend+worker `SUCCESS`; migração `5d75fec0aa05` aplicada (start `alembic upgrade head` ok); smoke `GET /agendamentos` sem auth → 401 (endpoint no ar), `/health` → 200. *(Nota: o erro de build "Railpack/start.sh" que apareceu no painel era um log antigo de 01/11, já resolvido — rootDirectory.)* Falta criar um agendamento autenticado via API como smoke adicional.
 2. **Validação REAL do envio** (DoD Fase 3 e 4): **bloqueada pela Fase 0** (Meta 131031 — desbloqueio depende da análise da Meta: Business Info + site + "Solicitar análise"). Gap: sem CRUD de `Modelo` (insert manual até uma spec futura).
 3. **Promover `develop`→`main`** só após staging validado de verdade (§4.2) — hoje `develop` à frente de `main` (Fases 3 e 4 não promovidas).
 4. **Follow-ups registrados no PR #22** (não bloqueiam): alerta de observabilidade §12; P2 (limite diário por-agendamento, N+1, `contato_id` inexistente→500, cap em `variaveis`).
