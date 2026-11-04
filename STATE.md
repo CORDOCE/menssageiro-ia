@@ -4,10 +4,18 @@
 
 _Atualizado: 2026-11-04_
 
-## Em andamento
-- **Nada em implementação.** **Fase 4 (núcleo do disparo) MERGEADA** em `develop` (PR #22, merge `c46bc89`; CI verde backend+frontend). Staging (segue `develop`) redeploya com o worker; a migração `5d75fec0aa05` (agendamentos/configuracoes + FK) é aplicada pela **api** no start. Próxima implementação: **Fase 4b** (recorrência) ou **anexos**.
+## Em andamento (spec 0005 — recorrência: IMPLEMENTADA, PR #23 aberto p/ develop)
+- **Spec 0005 — recorrência** (branch **`feat/0005-recorrencia`**). Esteira SDD completa: product+design (commitados) + **`spec.md`/`tasks.md`/ADR 0009 escritos** + **código implementado (TDD)**. Implementa ADR 0005 (ocorrência = nova linha; `agendamento_pai_id`; dedup por `UNIQUE(agendamento_pai_id, executar_em)`).
+- ✅ **/clarificar fechado (2026-11-04, aprovado por Jefferson):** (1) aceitar qualquer RRULE válida, núcleo garantido por teste; (2) `cancelar-serie` = só futuras pendentes; (3) criação **lazy**. `python-dateutil` aprovado (resolveu `4.0.0`).
+- ✅ **Implementado + gates executáveis verdes (CI backend reproduzido local, 127.0.0.1):** ruff + mypy limpos; ciclo de migração ok; **166 passed, cobertura 97.2%** (recorrencia.py 100%, worker 98%); pip-audit sem vulns. **/revisar** e **/seguranca**: sem P0/P1 (P2 catch-up registrado; hardening `max_length=500` em `recorrencia` aplicado). **/validar**: AC-1..AC-13 todos cobertos.
+- Arquivos: `services/recorrencia.py` (novo), migração `4ff11dacdb87` (índice parcial), `models/agendamento.py` (índice no `__table_args__`), `worker/disparo.py` (`_criar_proxima_ocorrencia` + auditoria `agendamento.ocorrencia_criada`), `api/agendamentos.py` (recorrencia no criar + `POST /{id}/cancelar-serie`), `schemas/agendamento.py`. **Nada commitado ainda.**
 
-## Próximo passo (retomar aqui)
+## Próximo passo (retomar aqui — spec 0005)
+1. **Acompanhar o CI do PR #23** (https://github.com/CORDOCE/menssageiro-ia/pull/23) → se verde, **mergear** para `develop` (merge depende de aprovação explícita). Commits locais: `75ebcd6` (feat) + `d2e6064`/STATE (pushados).
+2. **Observação P2 (não bloqueia):** worker usa `apos=executar_em` (não `max(..., agora)`) → série diária atrasada recupera 1 ocorrência/ciclo (burst), estrangulado por janela/limite. Avaliar "pular para agora" em spec futura.
+3. Envio real à Meta segue adiado (número +55) — AC passam com mock + Postgres real.
+
+## Contexto de fundo (não é a frente ativa)
 1. ✅ **Deploy da Fase 4 em staging CONFIRMADO + write path validado** (2026-11-04): backend+worker `SUCCESS` no commit `c46bc89`; migração `5d75fec0aa05` aplicada (visto no log do deploy). **Smoke E2E autenticado** (via `railway ssh` no container, hitando o uvicorn deployado): seed Modelo `teste_fase4` → `POST /agendamentos` **201** → `GET` 200. Sessão+agendamento de teste limpos; **Modelo `teste_fase4` (aprovado) mantido** em staging p/ futuros testes. *(O erro "Railpack/start.sh" do painel era log antigo de 01/11, já resolvido.)* **Falta só o envio REAL (worker→Meta), que depende da Fase 0.**
 2. **Validação REAL do envio: ADIADA para o go-live** (precisa de número +55 real — ver Bloqueios). Não é frente ativa. Próxima frente de implementação a escolher: **recorrência (spec 0005)**, **anexos (DOCUMENT)**, ou **telas do PWA (Fase 5)**. Follow-ups P2/§12 do PR #22 também abertos. Gap: sem CRUD de `Modelo`.
 3. **Promover `develop`→`main`** só após staging validado de verdade (§4.2) — hoje `develop` à frente de `main` (Fases 3 e 4 não promovidas).
@@ -29,12 +37,11 @@ _Atualizado: 2026-11-04_
 - Pendência de segurança herdada: **cifrar `totp_secret` em repouso**.
 
 ## Estado do git
-- Branch atual: **`develop`** = `c46bc89` (merge do PR #22, Fase 4), sincronizada com `origin`. **Sem PRs abertos.** Branch `feat/0004-worker-agendamentos` **apagada** (local+remota) no merge.
-- `develop` está **à frente de `origin/main`** (Fases 3 e 4 não promovidas — promover só após validação real em staging/Fase 0).
-- Locais não mergeadas preservadas: `docs/codebase-map` (`6f03cdc`), `chore/railway-procfile` (`879c09a`). `feat/0003` já pode ser apagada se ainda existir.
-- **PR #21 aberto** (doc, Fase 0) da branch `docs/fase0-webhook-callback-e-test-number` → `develop`.
-- `develop` segue à frente de `origin/main` (Fase 3 ainda não promovida; promover só após staging/Fase 0).
-- Locais não mergeadas: `docs/codebase-map` (`6f03cdc`), `chore/railway-procfile` (`879c09a`), `feat/0003-whatsapp-cloud-api` (mergeada, pode apagar).
+- Branch atual: **`feat/0005-recorrencia`** (de `develop`). Remoto tem só product+design; **local tem o diff completo da 0005 NÃO COMMITADO** (spec.md/tasks.md/ADR 0009 + código + testes). Falta `git add`/commit/push/PR.
+- `develop` = `54bc911` (merge do PR #21). **PR #22 (Fase 4) e PR #21 (doc Fase 0) mergeados.** Branches `feat/0004` e `docs/fase0-webhook-callback-e-test-number` **apagadas**. Remotas vivas: `develop`, `main`, `feat/0005-recorrencia`, e `feat/0003` (mergeada há tempos — pode apagar).
+- *(Nota: a branch `feat/0005-recorrencia` saiu de `develop` ANTES do #21; não tem as correções de doc, mas também não toca nesses arquivos → merge limpo depois.)*
+- `develop` está **à frente de `origin/main`** (Fases 3 e 4 não promovidas — promover só após validação real/Fase 0).
+- Locais não mergeadas: `docs/codebase-map` (`6f03cdc`), `chore/railway-procfile` (`879c09a`), `feat/0003` (mergeada, pode apagar).
 
 ## Infra (Railway — projeto `406f04bb-7659-4366-aea0-f9489dbf0b07`)
 - **staging** 🟢 segue `develop`; **produção** segue `main`. Dev/testes locais: `docker compose up -d db` (container `mensageiro-ia-db-1`, Postgres 17, porta 5434) — **está de pé** (healthy).

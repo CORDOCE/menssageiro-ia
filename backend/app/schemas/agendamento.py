@@ -18,6 +18,8 @@ class AgendamentoCriar(BaseModel):
     variaveis: list[str] = Field(default_factory=list)
     executar_em: datetime
     origem: str = "operador"
+    # string RRULE (spec 0005); None = avulso. Cap defensivo (§6): RRULE é curta.
+    recorrencia: str | None = Field(default=None, max_length=500)
 
     @model_validator(mode="after")
     def _contato_xor_grupo(self) -> AgendamentoCriar:
@@ -37,6 +39,8 @@ class AgendamentoRead(BaseModel):
     executar_em: datetime
     status: str
     origem: str
+    recorrencia: str | None
+    agendamento_pai_id: str | None
     reagendamentos: int
     motivo_ultima_transicao: str | None
     criado_em: datetime

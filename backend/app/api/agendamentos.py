@@ -11,7 +11,7 @@ import uuid
 from datetime import UTC, datetime
 
 from fastapi import APIRouter, Depends, HTTPException, Query
-from sqlalchemy import select
+from sqlalchemy import or_, select, update
 from sqlalchemy.orm import Session
 
 from app.core.audit import registrar_auditoria
@@ -21,6 +21,7 @@ from app.models.agendamento import Agendamento
 from app.models.modelo import Modelo
 from app.models.usuario import Usuario
 from app.schemas.agendamento import AgendamentoCriar, AgendamentoRead
+from app.services.recorrencia import validar_regra
 
 router = APIRouter(
     prefix="/agendamentos", tags=["agendamentos"], dependencies=[Depends(usuario_atual)]
@@ -37,6 +38,11 @@ def criar(
 ) -> Agendamento:
     if db.get(Modelo, payload.modelo_id) is None:
         raise HTTPException(status_code=404, detail="Modelo não encontrado")
+    if payload.recorrencia is not None:
+        try:
+            validar_regra(payload.recorrencia)
+        except (ValueError, TypeError) as exc:
+            raise HTTPException(status_code=422, detail="recorrencia (RRULE) inválida") from exc
     ag = Agendamento(
         id=str(uuid.uuid4()),
         contato_id=payload.contato_id,
@@ -45,6 +51,7 @@ def criar(
         variaveis=payload.variaveis,
         executar_em=payload.executar_em,
         origem=payload.origem,
+        recorrencia=payload.recorrencia,
         criado_por=usuario.id,
     )
     db.add(ag)
@@ -118,3 +125,37 @@ def reenviar(
         "agendamento.reenviar", ator_email=usuario.email, alvo_tipo="agendamento", alvo_id=ag.id
     )
     return ag
+
+
+@router.post("/{agendamento_id}/cancelar-serie")
+def cancelar_serie(
+    agendamento_id: str,
+    db: Session = Depends(get_db),
+    usuario: Usuario = Depends(usuario_atual),
+) -> dict[str, int]:
+    """Cancela as ocorrências **futuras pendentes** da série (spec 0005, AC-13).
+
+    Aceita o id da raiz **ou** de qualquer ocorrência-filha. Só afeta `status='aprovado'` com
+    `executar_em > agora`; as já enviadas ficam. Cancelar uma ocorrência isolada = `/cancelar` (0004).
+    """
+    ag = _buscar(db, agendamento_id)
+    raiz = ag.agendamento_pai_id or ag.id
+    agora = datetime.now(UTC)
+    cancelados = len(
+        db.execute(
+            update(Agendamento)
+            .where(
+                or_(Agendamento.id == raiz, Agendamento.agendamento_pai_id == raiz),
+                Agendamento.status == "aprovado",
+                Agendamento.executar_em > agora,
+            )
+            .values(status="cancelado", motivo_ultima_transicao="série cancelada pelo operador")
+            .returning(Agendamento.id)
+        ).all()
+    )
+    db.commit()
+    registrar_auditoria(
+        "agendamento.cancelar_serie", ator_email=usuario.email, alvo_tipo="agendamento",
+        alvo_id=raiz, metadados={"cancelados": cancelados},
+    )
+    return {"cancelados": cancelados}
