@@ -2,10 +2,11 @@
 
 > Memória volátil do trabalho. Histórico vive no git/ADR. Atualize ao pausar (`/handoff`).
 
-_Atualizado: 2026-11-04_
+_Atualizado: 2026-11-05_
 
-## Última frente concluída (spec 0006 — PWA telas v1: MERGEADA #25 + VALIDADA na UI de staging)
-- **Spec 0006 — PWA telas v1 MERGEADA** (PR **#25** → `develop` = `9ca49d7`; CI backend+frontend SUCCESS). **Frontend deployado em staging** (reconstruiu — `frontend/` mudou) e **validado na UI por Jefferson** (login real; Hoje/Contatos/tema ok). DoD completo. Tier Arquitetural; **ADR 0010** (tema/tokens/shell). Escopo: **Fundação + Hoje + Contatos** (Nova mensagem → 0007, depende de GET /modelos).
+## Última frente concluída (spec 0006 — PWA telas v1: MERGEADA #25 + EM PRODUÇÃO #26)
+- **Spec 0006 — PWA telas v1 EM PRODUÇÃO** (promovida `develop`→`main` via PR **#26**, 2026-11-05, `main = 8b1d43f`). Deploy de produção: **frontend `SUCCESS`** (reconstruiu — `frontend/` mudou; commit `8b1d43f`); **backend/worker `SKIPPED`** (inalterados). Head Alembic de produção `4ff11dacdb87` inalterado. URL: `https://menssageiro-ia-frontend-production.up.railway.app`. ⏳ **Validação visual da UI de produção pendente com Jefferson** (staging já validado no #25).
+- **Spec 0006 MERGEADA em develop** (PR **#25** → `develop` = `9ca49d7`; CI backend+frontend SUCCESS). **Validado na UI de staging por Jefferson** (login real; Hoje/Contatos/tema ok). DoD completo. Tier Arquitetural; **ADR 0010** (tema/tokens/shell). Escopo: **Fundação + Hoje + Contatos** (Nova mensagem → 0007, depende de GET /modelos).
 - ✅ **Fundação:** tokens claro+escuro (variáveis) + selos; tema claro/escuro/sistema (`data-theme` + script pré-pintura, sem flash); shell responsivo (lateral ≥1024 / barra inferior <640); Inter (next/font); guarda de auth; esqueletos. **Sem dep nova.**
 - ✅ **Hoje** (indicador Programadas + envios programados via GET /agendamentos, contato resolvido, selo, recorrência, limite 8; demais indicadores stub) e **Contatos** (lista tabela/cartões, criar/editar, consentimento, descadastro, import CSV/XLSX).
 - ✅ **Gates:** tsc+eslint+build verdes; smoke SSR (login/tema/hoje/contatos/painel); /revisar+/seguranca sem P0/P1. Arquivos: `frontend/app/(app)/{hoje,contatos}`, `components/*`, `lib/{api,tema}.ts`, `globals.css`, `layout.tsx`.
@@ -17,8 +18,8 @@ _Atualizado: 2026-11-04_
 - Arquivos: `services/recorrencia.py`, migração `4ff11dacdb87`, `models/agendamento.py` (índice no `__table_args__`), `worker/disparo.py` (`_criar_proxima_ocorrencia` + auditoria `agendamento.ocorrencia_criada`), `api/agendamentos.py` (recorrencia no criar + `cancelar-serie`), `schemas/agendamento.py`. Head Alembic em develop: `4ff11dacdb87` (único).
 
 ## Próximo passo (retomar aqui — NADA em andamento; escolher a frente)
-1. **Escolher a próxima frente** e abrir com `/nova-feature`. Candidata natural: **Nova mensagem (spec 0007)** — criar agendamento pela UI; **pré-requisito: criar `GET /modelos` no backend** (hoje só existe `enviar-teste`). Alternativas: mais telas do PWA (Agenda/Modelos/Histórico), anexos (DOCUMENT).
-2. **Promover `develop`→`main`** (0006 para produção) é opcional e deliberado — `develop` está **7 commits à frente de `main`** (0006 só em staging). Promover só quando quiser (via PR, como o #24).
+1. **Validar visualmente a UI de produção** (0006): login + Hoje/Contatos/tema em `https://menssageiro-ia-frontend-production.up.railway.app` — pendente com Jefferson.
+2. **Escolher a próxima frente** e abrir com `/nova-feature`. Candidata natural: **Nova mensagem (spec 0007)** — criar agendamento pela UI; **pré-requisito: criar `GET /modelos` no backend** (hoje só existe `enviar-teste`). Alternativas: mais telas do PWA (Agenda/Modelos/Histórico), anexos (DOCUMENT).
 3. **Observação P2 da 0005 (não bloqueia):** worker usa `apos=executar_em` → série atrasada recupera 1 ocorrência/ciclo. Envio real à Meta segue adiado (número +55).
 
 ## Contexto de fundo (não é a frente ativa)
@@ -43,11 +44,11 @@ _Atualizado: 2026-11-04_
 - Pendência de segurança herdada: **cifrar `totp_secret` em repouso**.
 
 ## Estado do git
-- Branch atual: **`develop`** = `18b3697`, limpo, sincronizado com `origin`. **Sem PR aberta.**
-- `main` = `d43fc8f` (release #24, Fases 3/4/5 — recorrência em produção). **`develop` está 7 commits à frente de `main`** (a 0006/telas só em staging; promover p/ produção é passo deliberado via PR).
-- Branches `feat/0005-recorrencia` e `feat/0006-pwa-telas` **apagadas** (mergeadas). Remotas vivas: `develop`, `main`, `feat/0003` (mergeada há tempos — pode apagar).
+- Branch atual: **`develop`** = `4ce95dd` (+ commit de STATE desta sessão), limpo. **Sem PR aberta** (o #26 foi mergeado).
+- `main` = `8b1d43f` (release #26, spec 0006 — PWA telas em produção). **`develop` = `main` em conteúdo** (0 commits à frente; o merge commit vive só em `main`).
+- **Higiene feita (2026-11-05):** apagadas remotas mergeadas `feat/0003` (local+remota), `feat/0004`/`feat/0005` já tinham sido podadas. Remotas vivas: só `develop` e `main`. `main` local atualizado p/ `8b1d43f`.
 - Head Alembic: `4ff11dacdb87` (único) — a 0006 não mexeu em schema.
-- Locais não mergeadas: `docs/codebase-map` (`6f03cdc`), `chore/railway-procfile` (`879c09a`).
+- Locais não mergeadas (mantidas): `docs/codebase-map` (`6f03cdc`), `chore/railway-procfile` (`879c09a`, trabalho não integrado).
 
 ## Infra (Railway — projeto `406f04bb-7659-4366-aea0-f9489dbf0b07`)
 - **staging** 🟢 segue `develop`; **produção** segue `main`. Dev/testes locais: `docker compose up -d db` (container `mensageiro-ia-db-1`, Postgres 17, porta 5434) — **está de pé** (healthy).
