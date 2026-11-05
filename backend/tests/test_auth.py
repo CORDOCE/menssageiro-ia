@@ -90,7 +90,7 @@ def test_rota_protegida_sem_token_401(client, db):
 
 
 def test_rota_protegida_token_invalido_401(client, db):
-    r = client.get("/auth/me", headers={"Authorization": "Bearer nao-existe"})
+    r = client.get("/auth/me", headers={"Cookie": "sessao=nao-existe"})
     assert r.status_code == 401
 
 
@@ -98,7 +98,7 @@ def test_login_valido_emite_token_e_acessa_rota_protegida(client, db):
     # AC-7: login válido (senha + TOTP) → credencial → rota protegida 200
     _criar_usuario()
     token = _login(client)
-    r2 = client.get("/auth/me", headers={"Authorization": f"Bearer {token}"})
+    r2 = client.get("/auth/me", headers={"Cookie": f"sessao={token}"})
     assert r2.status_code == 200
     assert r2.json()["email"] == EMAIL
 
@@ -211,17 +211,6 @@ def test_rota_protegida_via_cookie_sem_authorization(client, db):
     assert r.json()["email"] == EMAIL
 
 
-def test_cookie_tem_precedencia_sobre_bearer(client, db):
-    """Caso de borda: com cookie válido e Bearer inválido, o cookie vence."""
-    _criar_usuario()
-    token = _post_login(client).json()["token"]
-    r = client.get(
-        "/auth/me",
-        headers={"Cookie": f"sessao={token}", "Authorization": "Bearer invalido"},
-    )
-    assert r.status_code == 200
-
-
 def test_logout_expira_cookie(client, db):
     """AC-4: logout expira o cookie `sessao` (Max-Age=0)."""
     _criar_usuario()
@@ -262,7 +251,7 @@ def test_auditoria_nunca_levanta(monkeypatch):
 def test_logout_revoga_sessao(client, db):
     _criar_usuario()
     token = _login(client)
-    headers = {"Authorization": f"Bearer {token}"}
+    headers = {"Cookie": f"sessao={token}"}
     assert client.post("/auth/logout", headers=headers).status_code == 200
     assert client.get("/auth/me", headers=headers).status_code == 401
 
@@ -272,8 +261,8 @@ def test_login_multi_dispositivo_duas_sessoes_validas(client, db):
     _criar_usuario()
     t1, t2 = _login(client), _login(client)
     assert t1 != t2
-    assert client.get("/auth/me", headers={"Authorization": f"Bearer {t1}"}).status_code == 200
-    assert client.get("/auth/me", headers={"Authorization": f"Bearer {t2}"}).status_code == 200
+    assert client.get("/auth/me", headers={"Cookie": f"sessao={t1}"}).status_code == 200
+    assert client.get("/auth/me", headers={"Cookie": f"sessao={t2}"}).status_code == 200
 
 
 def test_sessao_persistida_no_banco(client, db):
@@ -298,26 +287,26 @@ def test_sessao_valida_usuario_inativado_depois_401(client, db):
         sessao.commit()
     finally:
         sessao.close()
-    assert client.get("/auth/me", headers={"Authorization": f"Bearer {token}"}).status_code == 401
+    assert client.get("/auth/me", headers={"Cookie": f"sessao={token}"}).status_code == 401
 
 
 def test_logout_isola_dispositivo_atual(client, db):
     # AC-14: logout revoga só a sessão do token usado; a outra continua válida.
     _criar_usuario()
     t1, t2 = _login(client), _login(client)
-    assert client.post("/auth/logout", headers={"Authorization": f"Bearer {t1}"}).status_code == 200
-    assert client.get("/auth/me", headers={"Authorization": f"Bearer {t1}"}).status_code == 401
-    assert client.get("/auth/me", headers={"Authorization": f"Bearer {t2}"}).status_code == 200
+    assert client.post("/auth/logout", headers={"Cookie": f"sessao={t1}"}).status_code == 200
+    assert client.get("/auth/me", headers={"Cookie": f"sessao={t1}"}).status_code == 401
+    assert client.get("/auth/me", headers={"Cookie": f"sessao={t2}"}).status_code == 200
 
 
 def test_logout_todos_revoga_todas_as_sessoes(client, db):
     # AC-14: logout-todos derruba todas as sessões do usuário.
     _criar_usuario()
     t1, t2 = _login(client), _login(client)
-    r = client.post("/auth/logout-todos", headers={"Authorization": f"Bearer {t1}"})
+    r = client.post("/auth/logout-todos", headers={"Cookie": f"sessao={t1}"})
     assert r.status_code == 200
-    assert client.get("/auth/me", headers={"Authorization": f"Bearer {t1}"}).status_code == 401
-    assert client.get("/auth/me", headers={"Authorization": f"Bearer {t2}"}).status_code == 401
+    assert client.get("/auth/me", headers={"Cookie": f"sessao={t1}"}).status_code == 401
+    assert client.get("/auth/me", headers={"Cookie": f"sessao={t2}"}).status_code == 401
 
 
 def test_user_agent_persistido_na_sessao(client, db):
@@ -350,7 +339,7 @@ def test_sessao_expira_por_inatividade_401(client, db):
     _criar_usuario()
     token = _login(client)
     _ajustar_sessao(token, expira_em=datetime.now(UTC) - timedelta(minutes=1))
-    assert client.get("/auth/me", headers={"Authorization": f"Bearer {token}"}).status_code == 401
+    assert client.get("/auth/me", headers={"Cookie": f"sessao={token}"}).status_code == 401
 
 
 def test_teto_absoluto_401_mesmo_com_uso_recente(client, db):
@@ -363,7 +352,7 @@ def test_teto_absoluto_401_mesmo_com_uso_recente(client, db):
         expira_em=datetime.now(UTC) + timedelta(days=1),
         ultimo_uso_em=datetime.now(UTC),
     )
-    assert client.get("/auth/me", headers={"Authorization": f"Bearer {token}"}).status_code == 401
+    assert client.get("/auth/me", headers={"Cookie": f"sessao={token}"}).status_code == 401
 
 
 def test_renovacao_desliza_expira_em(client, db):
@@ -375,7 +364,7 @@ def test_renovacao_desliza_expira_em(client, db):
         ultimo_uso_em=datetime.now(UTC) - timedelta(hours=1),
         expira_em=datetime.now(UTC) + timedelta(minutes=10),
     )
-    assert client.get("/auth/me", headers={"Authorization": f"Bearer {token}"}).status_code == 200
+    assert client.get("/auth/me", headers={"Cookie": f"sessao={token}"}).status_code == 200
     sessao = db_mod.SessionLocal()
     try:
         s = sessao.query(SessaoUsuario).filter_by(token=token).one()
