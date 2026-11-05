@@ -4,12 +4,13 @@
 
 _Atualizado: 2026-11-05_
 
-## EM ANDAMENTO — spec 0007 (cifrar `totp_secret` em repouso / dívida S1)
-- **Implementada na branch `feat/0007-cifrar-totp-secret` (`a53fdb3`)** — tier Arquitetural, **ADR 0011** (Fernet app-level, `TOTP_ENC_KEY`, rotação MultiFernet; dep `cryptography` aprovada por Jefferson 2026-11-05). Fonte do plano: `docs/divida-tecnica.md` §S1.
-- **Gates verdes:** `/revisar` sem P0/P1 (1 P2 consciente); `/seguranca` sem vuln bloqueante (1 MÉDIO: tolerância de claro temporária); **CI completo** (backend ruff/mypy/ciclo-migração/cobertura **97,25%**/pip-audit + frontend eslint/tsc/build/audit). `/validar`: AC-1..AC-7 cobertos.
-- Arquivos: `core/security.py` (`cifrar_segredo`/`decifrar_segredo` MultiFernet lazy), `core/config.py` (`totp_enc_key`), `models/usuario.py` (`totp_secret`→`String(255)`), `api/auth.py` (decifra no `_totp_confere`), `criar_admin.py` (cifra), migração **`c4c7ff4e9646`** (cifra condicional a linhas), testes `test_cifra_totp.py` + seed cifrado em `test_auth.py`.
-- 🚨 **ORDEM DE DEPLOY CRÍTICA:** staging e produção **já têm o admin** (1 linha) → o `upgrade` desta migração **exige `TOTP_ENC_KEY`**. **Setar a chave na Railway (staging e produção) ANTES de deployar**, senão a migração quebra o deploy. Gerar com `python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"` (uma por ambiente; aprovação §4).
-- **Falta p/ fechar:** (1) setar `TOTP_ENC_KEY` na Railway; (2) validar login 2FA em staging; (3) PR→develop; (4) follow-up: remover a tolerância de claro após prod cifrada.
+## spec 0007 (cifrar `totp_secret`/dívida S1) — MERGEADA (#27) + EM STAGING; falta validar login + produção
+- **MERGEADA em `develop`** (PR **#27** = merge `7685b19`, 2026-11-05) — tier Arquitetural, **ADR 0011** (Fernet app-level, `TOTP_ENC_KEY`, rotação MultiFernet; dep `cryptography` aprovada por Jefferson). Plano: `docs/divida-tecnica.md` §S1.
+- **Gates verdes:** `/revisar` (1 P2 consciente: chave errada→500), `/seguranca` (1 MÉDIO: tolerância de claro temporária), CI completo (cobertura **97,25%**), `/validar` AC-1..AC-7.
+- **Staging deployado + verificado:** `TOTP_ENC_KEY` setada no staging ANTES do merge; deploy backend/worker `SUCCESS`; migração `c4c7ff4e9646` aplicada; `totp_secret` do admin agora **cifrado** e decifrável (checado read-only). ⏳ **Falta Jefferson validar o login 2FA real em staging** (autenticador atual segue válido — segredo inalterado, só cifrado em repouso).
+- Arquivos: `core/security.py` (`cifrar_segredo`/`decifrar_segredo` MultiFernet lazy), `core/config.py` (`totp_enc_key`), `models/usuario.py` (`String(255)`), `api/auth.py` (decifra no `_totp_confere`), `criar_admin.py` (cifra), migração `c4c7ff4e9646`, testes `test_cifra_totp.py` + seed cifrado em `test_auth.py`.
+- 🚨 **PRODUÇÃO — ordem crítica:** prod **tem o admin** → ao promover `develop`→`main`, **setar `TOTP_ENC_KEY` em produção ANTES** (senão a migração quebra o deploy). Gerar: `python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"` (chave própria por ambiente; aprovação §4). Branch `feat/0007` mergeada (pode apagar).
+- **Falta p/ fechar:** (1) validar login 2FA em staging; (2) promover p/ produção (setar chave antes); (3) follow-up: remover a tolerância de claro após prod cifrada.
 
 ## Última frente concluída (spec 0006 — PWA telas v1: MERGEADA #25 + EM PRODUÇÃO #26)
 - **Spec 0006 — PWA telas v1 EM PRODUÇÃO** (promovida `develop`→`main` via PR **#26**, 2026-11-05, `main = 8b1d43f`). Deploy de produção: **frontend `SUCCESS`** (reconstruiu — `frontend/` mudou; commit `8b1d43f`); **backend/worker `SKIPPED`** (inalterados). Head Alembic de produção `4ff11dacdb87` inalterado. URL: `https://menssageiro-ia-frontend-production.up.railway.app`.
