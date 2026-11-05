@@ -8,9 +8,9 @@ WhatsApp. O caminho de produção (disparo em escala) é do worker, na Fase 4.
 from __future__ import annotations
 
 import uuid
-from typing import Any
+from typing import Any, Literal
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel, ConfigDict, Field
 from sqlalchemy import select
 from sqlalchemy.orm import Session
@@ -27,6 +27,36 @@ from app.models.usuario import Usuario
 from app.services.whatsapp_client import enviar_template
 
 router = APIRouter(prefix="/modelos", tags=["modelos"])
+
+# Status possíveis do template (espelham a Meta; ver models/modelo.py).
+StatusModelo = Literal["rascunho", "pendente", "aprovado", "rejeitado", "pausado"]
+
+
+class ModeloRead(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: str
+    nome: str
+    idioma: str
+    categoria: str
+    status: str
+    corpo: str
+    cabecalho_tipo: str | None
+    variaveis: list[str]
+
+
+@router.get("", response_model=list[ModeloRead])
+def listar_modelos(
+    status: StatusModelo | None = Query(default=None),
+    db: Session = Depends(get_db),
+    usuario: Usuario = Depends(usuario_atual),
+) -> list[Modelo]:
+    """Lista os modelos (templates), opcionalmente filtrando por `status` (ex.: `aprovado` para a
+    tela Nova mensagem). Ordena por nome. Protegido por sessão (spec 0010)."""
+    stmt = select(Modelo).order_by(Modelo.nome)
+    if status is not None:
+        stmt = stmt.where(Modelo.status == status)
+    return list(db.execute(stmt).scalars().all())
 
 
 class EnviarTeste(BaseModel):

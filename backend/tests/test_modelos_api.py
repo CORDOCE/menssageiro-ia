@@ -25,6 +25,51 @@ def _modelo() -> str:
         sessao.close()
 
 
+def _seed_modelo(nome: str, status: str = "aprovado") -> None:
+    sessao = db_mod.SessionLocal()
+    try:
+        sessao.add(Modelo(id=str(uuid4()), nome=nome, corpo=f"Corpo {nome}", status=status))
+        sessao.commit()
+    finally:
+        sessao.close()
+
+
+# --- GET /modelos (spec 0010) ---------------------------------------------------------------------
+def test_listar_modelos_sem_auth_401(client, db):
+    r = client.get("/modelos")
+    assert r.status_code == 401
+
+
+def test_listar_modelos_ordenado_por_nome(client, db, auth_headers):
+    _seed_modelo("banana")
+    _seed_modelo("abacaxi")
+    r = client.get("/modelos", headers=auth_headers)
+    assert r.status_code == 200
+    nomes = [m["nome"] for m in r.json()]
+    assert nomes == ["abacaxi", "banana"]
+    assert r.json()[0]["variaveis"] == []  # default
+
+
+def test_listar_modelos_filtra_por_status(client, db, auth_headers):
+    _seed_modelo("aprovado1", status="aprovado")
+    _seed_modelo("rascunho1", status="rascunho")
+    r = client.get("/modelos?status=aprovado", headers=auth_headers)
+    assert r.status_code == 200
+    nomes = [m["nome"] for m in r.json()]
+    assert nomes == ["aprovado1"]
+
+
+def test_listar_modelos_status_invalido_422(client, db, auth_headers):
+    r = client.get("/modelos?status=xpto", headers=auth_headers)
+    assert r.status_code == 422
+
+
+def test_listar_modelos_vazio(client, db, auth_headers):
+    r = client.get("/modelos", headers=auth_headers)
+    assert r.status_code == 200
+    assert r.json() == []
+
+
 def test_enviar_teste_sem_auth_401(client, db):
     mid = _modelo()
     r = client.post(f"/modelos/{mid}/enviar-teste", json={"telefone": _TESTE})
