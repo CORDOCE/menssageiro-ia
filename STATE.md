@@ -2,10 +2,26 @@
 
 > Memória volátil do trabalho. Histórico vive no git/ADR. Atualize ao pausar (`/handoff`).
 
-_Atualizado: 2026-11-04_
+_Atualizado: 2026-11-05_
 
-## Última frente concluída (spec 0006 — PWA telas v1: MERGEADA #25 + VALIDADA na UI de staging)
-- **Spec 0006 — PWA telas v1 MERGEADA** (PR **#25** → `develop` = `9ca49d7`; CI backend+frontend SUCCESS). **Frontend deployado em staging** (reconstruiu — `frontend/` mudou) e **validado na UI por Jefferson** (login real; Hoje/Contatos/tema ok). DoD completo. Tier Arquitetural; **ADR 0010** (tema/tokens/shell). Escopo: **Fundação + Hoje + Contatos** (Nova mensagem → 0007, depende de GET /modelos).
+## spec 0007 (cifrar `totp_secret`/dívida S1) — MERGEADA (#27) + EM STAGING; falta validar login + produção
+- **MERGEADA em `develop`** (PR **#27** = merge `7685b19`, 2026-11-05) — tier Arquitetural, **ADR 0011** (Fernet app-level, `TOTP_ENC_KEY`, rotação MultiFernet; dep `cryptography` aprovada por Jefferson). Plano: `docs/divida-tecnica.md` §S1.
+- **Gates verdes:** `/revisar` (1 P2 consciente: chave errada→500), `/seguranca` (1 MÉDIO: tolerância de claro temporária), CI completo (cobertura **97,25%**), `/validar` AC-1..AC-7.
+- **Staging deployado + VALIDADO:** `TOTP_ENC_KEY` setada antes do merge; deploy `SUCCESS`; migração `c4c7ff4e9646` aplicada; `totp_secret` cifrado em repouso; **login 2FA validado por Jefferson (2026-11-05)**. DoD da 0007 cumprido.
+- **Admin por ambiente (anotar — evita colisão no autenticador):** **produção = `jeffersonsilvaluiz26@gmail.com`**; **staging = `digital@cordoce.com.br`** (criado no reset). Bancos/segredos/senhas são por ambiente. O `criar_admin` usa `issuer="Mensageiro"` fixo → entradas colidiam quando o e-mail era igual; e-mails distintos resolvem.
+- ⚠️ **Hygiene pendente no staging:** o reset criou um 2º admin em vez de trocar → staging com **2 admins** (`jeffersonsilvaluiz26@gmail.com` antigo + `digital@cordoce.com.br` novo). Apagar o antigo **no staging** (`DELETE ... WHERE email='jeffersonsilvaluiz26@gmail.com'`, `--environment staging`) p/ voltar a 1 admin (ADR 0001).
+- Arquivos: `core/security.py` (`cifrar_segredo`/`decifrar_segredo` MultiFernet lazy), `core/config.py` (`totp_enc_key`), `models/usuario.py` (`String(255)`), `api/auth.py` (decifra no `_totp_confere`), `criar_admin.py` (cifra), migração `c4c7ff4e9646`, testes `test_cifra_totp.py` + seed cifrado em `test_auth.py`.
+- 🚨 **PRODUÇÃO — ordem crítica:** prod **tem o admin** → ao promover `develop`→`main`, **setar `TOTP_ENC_KEY` em produção ANTES** (senão a migração quebra o deploy). Gerar: `python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"` (chave própria por ambiente; aprovação §4). Branch `feat/0007` mergeada (pode apagar).
+- **Progresso (2026-11-05):** ✅ staging limpo (1 admin: `digital@cordoce.com.br`); ✅ branch `feat/0007` apagada; ✅ `TOTP_ENC_KEY` **setada em produção** (chave própria); ✅ **release PR #28 (`develop`→`main`) aberto, CI verde**.
+- **Falta:** (1) **mergear o PR #28** — bloqueado p/ autorização explícita (merge em main = deploy de produção); (2) pós-merge: verificar deploy prod + `totp_secret` cifrado; (3) follow-up: remover a tolerância de claro (tornar `decifrar_segredo` estrito) agora que prod+staging ficam cifrados; (4) opcional: `criar_admin` com `issuer` por ambiente.
+
+## Última frente concluída (spec 0006 — PWA telas v1: MERGEADA #25 + EM PRODUÇÃO #26)
+- **Spec 0006 — PWA telas v1 EM PRODUÇÃO** (promovida `develop`→`main` via PR **#26**, 2026-11-05, `main = 8b1d43f`). Deploy de produção: **frontend `SUCCESS`** (reconstruiu — `frontend/` mudou; commit `8b1d43f`); **backend/worker `SKIPPED`** (inalterados). Head Alembic de produção `4ff11dacdb87` inalterado. URL: `https://menssageiro-ia-frontend-production.up.railway.app`.
+  - ⚠️ **Login em produção exigiu 2 ajustes de config (2026-11-05)** — produção nunca tinha sido logada antes; o deploy da 0006 expôs isso:
+    1. **CORS**: backend de produção estava **sem `FRONTEND_URL`** → `_origens=[]` (ver `main.py:23`) → preflight do login bloqueado → "NetworkError". **Corrigido**: setada `FRONTEND_URL=https://menssageiro-ia-frontend-production.up.railway.app` no backend de produção + redeploy. Preflight CORS verificado (200 + `access-control-allow-origin`).
+    2. **Admin não semeado**: banco de produção tinha **0 usuários** → 401. Admin criado por **Jefferson** via `python -m app.criar_admin` (vars `ADMIN_EMAIL`/`ADMIN_PASSWORD` **inline** por `railway ssh` — nada gravado na Railway). Precisou de **reset** (apagar + recriar): a 1ª senha tinha caractere mexido pelo shell e o TOTP exigia recadastro; recriado com **senha só alfanumérica** (imune a shell). Verificado: `usuarios=1`.
+  - ✅ **Login + UI de produção VALIDADOS por Jefferson (2026-11-05)**. Go-live das telas (0006) concluído. Nota: prod backend ainda **sem `OPENAI_MODEL`/`TZ`** que o staging tem (relevante só ao ligar IA/envios em produção; `FRONTEND_URL` reconciliada).
+- **Spec 0006 MERGEADA em develop** (PR **#25** → `develop` = `9ca49d7`; CI backend+frontend SUCCESS). **Validado na UI de staging por Jefferson** (login real; Hoje/Contatos/tema ok). DoD completo. Tier Arquitetural; **ADR 0010** (tema/tokens/shell). Escopo: **Fundação + Hoje + Contatos** (Nova mensagem → 0007, depende de GET /modelos).
 - ✅ **Fundação:** tokens claro+escuro (variáveis) + selos; tema claro/escuro/sistema (`data-theme` + script pré-pintura, sem flash); shell responsivo (lateral ≥1024 / barra inferior <640); Inter (next/font); guarda de auth; esqueletos. **Sem dep nova.**
 - ✅ **Hoje** (indicador Programadas + envios programados via GET /agendamentos, contato resolvido, selo, recorrência, limite 8; demais indicadores stub) e **Contatos** (lista tabela/cartões, criar/editar, consentimento, descadastro, import CSV/XLSX).
 - ✅ **Gates:** tsc+eslint+build verdes; smoke SSR (login/tema/hoje/contatos/painel); /revisar+/seguranca sem P0/P1. Arquivos: `frontend/app/(app)/{hoje,contatos}`, `components/*`, `lib/{api,tema}.ts`, `globals.css`, `layout.tsx`.
@@ -18,8 +34,7 @@ _Atualizado: 2026-11-04_
 
 ## Próximo passo (retomar aqui — NADA em andamento; escolher a frente)
 1. **Escolher a próxima frente** e abrir com `/nova-feature`. Candidata natural: **Nova mensagem (spec 0007)** — criar agendamento pela UI; **pré-requisito: criar `GET /modelos` no backend** (hoje só existe `enviar-teste`). Alternativas: mais telas do PWA (Agenda/Modelos/Histórico), anexos (DOCUMENT).
-2. **Promover `develop`→`main`** (0006 para produção) é opcional e deliberado — `develop` está **7 commits à frente de `main`** (0006 só em staging). Promover só quando quiser (via PR, como o #24).
-3. **Observação P2 da 0005 (não bloqueia):** worker usa `apos=executar_em` → série atrasada recupera 1 ocorrência/ciclo. Envio real à Meta segue adiado (número +55).
+2. **Observação P2 da 0005 (não bloqueia):** worker usa `apos=executar_em` → série atrasada recupera 1 ocorrência/ciclo. Envio real à Meta segue adiado (número +55).
 
 ## Contexto de fundo (não é a frente ativa)
 1. ✅ **Deploy da Fase 4 em staging CONFIRMADO + write path validado** (2026-11-04): backend+worker `SUCCESS` no commit `c46bc89`; migração `5d75fec0aa05` aplicada (visto no log do deploy). **Smoke E2E autenticado** (via `railway ssh` no container, hitando o uvicorn deployado): seed Modelo `teste_fase4` → `POST /agendamentos` **201** → `GET` 200. Sessão+agendamento de teste limpos; **Modelo `teste_fase4` (aprovado) mantido** em staging p/ futuros testes. *(O erro "Railpack/start.sh" do painel era log antigo de 01/11, já resolvido.)* **Falta só o envio REAL (worker→Meta), que depende da Fase 0.**
@@ -43,11 +58,11 @@ _Atualizado: 2026-11-04_
 - Pendência de segurança herdada: **cifrar `totp_secret` em repouso**.
 
 ## Estado do git
-- Branch atual: **`develop`** = `18b3697`, limpo, sincronizado com `origin`. **Sem PR aberta.**
-- `main` = `d43fc8f` (release #24, Fases 3/4/5 — recorrência em produção). **`develop` está 7 commits à frente de `main`** (a 0006/telas só em staging; promover p/ produção é passo deliberado via PR).
-- Branches `feat/0005-recorrencia` e `feat/0006-pwa-telas` **apagadas** (mergeadas). Remotas vivas: `develop`, `main`, `feat/0003` (mergeada há tempos — pode apagar).
+- Branch atual: **`develop`** = `4ce95dd` (+ commit de STATE desta sessão), limpo. **Sem PR aberta** (o #26 foi mergeado).
+- `main` = `8b1d43f` (release #26, spec 0006 — PWA telas em produção). **`develop` = `main` em conteúdo** (0 commits à frente; o merge commit vive só em `main`).
+- **Higiene feita (2026-11-05):** apagadas remotas mergeadas `feat/0003` (local+remota), `feat/0004`/`feat/0005` já tinham sido podadas. Remotas vivas: só `develop` e `main`. `main` local atualizado p/ `8b1d43f`.
 - Head Alembic: `4ff11dacdb87` (único) — a 0006 não mexeu em schema.
-- Locais não mergeadas: `docs/codebase-map` (`6f03cdc`), `chore/railway-procfile` (`879c09a`).
+- Locais não mergeadas (mantidas): `docs/codebase-map` (`6f03cdc`), `chore/railway-procfile` (`879c09a`, trabalho não integrado).
 
 ## Infra (Railway — projeto `406f04bb-7659-4366-aea0-f9489dbf0b07`)
 - **staging** 🟢 segue `develop`; **produção** segue `main`. Dev/testes locais: `docker compose up -d db` (container `mensageiro-ia-db-1`, Postgres 17, porta 5434) — **está de pé** (healthy).

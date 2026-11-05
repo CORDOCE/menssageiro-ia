@@ -11,7 +11,7 @@ import pyotp
 from sqlalchemy import select
 
 from app.core.config import get_settings
-from app.core.security import hash_password
+from app.core.security import cifrar_segredo, hash_password
 from app.db.database import SessionLocal
 from app.models.usuario import Usuario
 
@@ -36,7 +36,7 @@ def main() -> int:
                 nome="Admin",
                 email=s.admin_email,
                 senha_hash=hash_password(s.admin_password),
-                totp_secret=totp_secret,
+                totp_secret=cifrar_segredo(totp_secret),  # cifrado em repouso (ADR 0011)
             )
         )
         db.commit()

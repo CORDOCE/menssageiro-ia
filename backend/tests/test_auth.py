@@ -9,7 +9,13 @@ import pyotp
 
 import app.db.database as db_mod
 from app.core.audit import registrar_auditoria
-from app.core.security import gerar_token_sessao, hash_password, verify_password
+from app.core.security import (
+    cifrar_segredo,
+    decifrar_segredo,
+    gerar_token_sessao,
+    hash_password,
+    verify_password,
+)
 from app.models.auditoria import Auditoria
 from app.models.usuario import SessaoUsuario, Usuario
 
@@ -36,7 +42,7 @@ def _criar_usuario(
                 email=email,
                 senha_hash=hash_password(senha),
                 ativo=ativo,
-                totp_secret=totp_secret,
+                totp_secret=cifrar_segredo(totp_secret),  # repouso cifrado (ADR 0011)
             )
         )
         sessao.commit()
@@ -166,6 +172,18 @@ def test_senha_guardada_com_hash_nao_texto_plano(client, db):
         u = sessao.query(Usuario).filter_by(email=EMAIL).one()
         assert u.senha_hash != SENHA
         assert ":" in u.senha_hash  # formato salt:derivada
+    finally:
+        sessao.close()
+
+
+def test_totp_secret_guardado_cifrado_nao_texto_plano(client, db):
+    """AC-1: o segredo TOTP repousa cifrado (token Fernet), decifrável para o original."""
+    _criar_usuario()
+    sessao = db_mod.SessionLocal()
+    try:
+        u = sessao.query(Usuario).filter_by(email=EMAIL).one()
+        assert u.totp_secret != TOTP_SECRET
+        assert decifrar_segredo(u.totp_secret) == TOTP_SECRET
     finally:
         sessao.close()
 
