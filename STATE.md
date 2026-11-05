@@ -4,8 +4,8 @@
 
 _Atualizado: 2026-11-04_
 
-## Em andamento (spec 0006 — PWA telas v1: PR #25 aberto, CI verde)
-- **Spec 0006 — PWA telas v1** (branch `feat/0006-pwa-telas`, de `develop`; **PR #25** p/ develop, CI backend+frontend **SUCCESS**, MERGEABLE). Tier Arquitetural; **ADR 0010** (tema/tokens/shell). Escopo: **Fundação + Hoje + Contatos** (Nova mensagem → 0007, depende de GET /modelos).
+## Última frente concluída (spec 0006 — PWA telas v1: MERGEADA #25 + VALIDADA na UI de staging)
+- **Spec 0006 — PWA telas v1 MERGEADA** (PR **#25** → `develop` = `9ca49d7`; CI backend+frontend SUCCESS). **Frontend deployado em staging** (reconstruiu — `frontend/` mudou) e **validado na UI por Jefferson** (login real; Hoje/Contatos/tema ok). DoD completo. Tier Arquitetural; **ADR 0010** (tema/tokens/shell). Escopo: **Fundação + Hoje + Contatos** (Nova mensagem → 0007, depende de GET /modelos).
 - ✅ **Fundação:** tokens claro+escuro (variáveis) + selos; tema claro/escuro/sistema (`data-theme` + script pré-pintura, sem flash); shell responsivo (lateral ≥1024 / barra inferior <640); Inter (next/font); guarda de auth; esqueletos. **Sem dep nova.**
 - ✅ **Hoje** (indicador Programadas + envios programados via GET /agendamentos, contato resolvido, selo, recorrência, limite 8; demais indicadores stub) e **Contatos** (lista tabela/cartões, criar/editar, consentimento, descadastro, import CSV/XLSX).
 - ✅ **Gates:** tsc+eslint+build verdes; smoke SSR (login/tema/hoje/contatos/painel); /revisar+/seguranca sem P0/P1. Arquivos: `frontend/app/(app)/{hoje,contatos}`, `components/*`, `lib/{api,tema}.ts`, `globals.css`, `layout.tsx`.
