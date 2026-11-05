@@ -88,6 +88,33 @@ def upload_midia(
     return str(media_id)
 
 
+def listar_templates(*, client: httpx.Client | None = None) -> list[dict[str, Any]]:
+    """Lê os message templates da WABA (`GET /{WABA_ID}/message_templates`), seguindo a paginação
+    (`paging.next`). Só leitura — não envia nem cria nada. Versão via `GRAPH_API_VERSION`.
+    Doc: developers.facebook.com/docs/graph-api/reference/whats-app-business-account/message_templates/
+    (consultada 2026-11-05)."""
+    cfg = get_settings()
+    url: str | None = (
+        f"https://graph.facebook.com/{cfg.graph_api_version}/{cfg.waba_id}/message_templates?limit=100"
+    )
+    headers = {"Authorization": f"Bearer {cfg.whatsapp_token}"}
+    criado = client is None
+    c = client or httpx.Client(timeout=30.0)
+    templates: list[dict[str, Any]] = []
+    try:
+        while url:
+            resposta = c.get(url, headers=headers)
+            if resposta.status_code >= 400:
+                raise _erro_da_resposta(resposta)
+            dados: dict[str, Any] = resposta.json()
+            templates.extend(dados.get("data", []))
+            url = (dados.get("paging") or {}).get("next")
+    finally:
+        if criado:
+            c.close()
+    return templates
+
+
 def componente_documento(media_id: str) -> dict[str, Any]:
     """Monta o componente de cabeçalho DOCUMENT para `enviar_template` (PDF via media id)."""
     return {"type": "header", "parameters": [{"type": "document", "document": {"id": media_id}}]}

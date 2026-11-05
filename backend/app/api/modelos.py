@@ -7,6 +7,7 @@ WhatsApp. O caminho de produção (disparo em escala) é do worker, na Fase 4.
 
 from __future__ import annotations
 
+import re
 import uuid
 from typing import Any, Literal
 
@@ -24,12 +25,93 @@ from app.models.contato import Contato
 from app.models.envio import Envio
 from app.models.modelo import Modelo
 from app.models.usuario import Usuario
-from app.services.whatsapp_client import enviar_template
+from app.services.whatsapp_client import enviar_template, listar_templates
 
 router = APIRouter(prefix="/modelos", tags=["modelos"])
 
 # Status possíveis do template (espelham a Meta; ver models/modelo.py).
 StatusModelo = Literal["rascunho", "pendente", "aprovado", "rejeitado", "pausado"]
+
+# Mapa status da Meta → nosso status. Fonte: enum oficial de message_templates (consultada 2026-11-05).
+# Tudo que não for claramente APPROVED fica != "aprovado" (invariante §5.3: só aprovado inicia conversa).
+_STATUS_META: dict[str, str] = {
+    "APPROVED": "aprovado",
+    "REJECTED": "rejeitado",
+    "PENDING": "pendente",
+    "IN_APPEAL": "pendente",
+    "PENDING_DELETION": "pausado",
+    "DELETED": "pausado",
+    "DISABLED": "pausado",
+    "PAUSED": "pausado",
+    "LIMIT_EXCEEDED": "pausado",
+    "ARCHIVED": "pausado",
+}
+_PLACEHOLDER = re.compile(r"\{\{(\d+)\}\}")
+
+
+def _extrair_componentes(components: list[dict[str, Any]] | None) -> tuple[str, str | None, list[str]]:
+    """De `components` da Meta extrai (corpo BODY, formato do HEADER, variáveis {{n}} do corpo)."""
+    corpo = ""
+    cabecalho_tipo: str | None = None
+    for comp in components or []:
+        tipo = str(comp.get("type") or "").upper()
+        if tipo == "BODY":
+            corpo = str(comp.get("text") or "")
+        elif tipo == "HEADER":
+            cabecalho_tipo = comp.get("format")
+    variaveis = sorted({m for m in _PLACEHOLDER.findall(corpo)}, key=int)
+    return corpo, cabecalho_tipo, variaveis
+
+
+class SincronizarResultado(BaseModel):
+    total: int
+    criados: int
+    atualizados: int
+
+
+@router.post("/sincronizar", response_model=SincronizarResultado)
+def sincronizar(
+    db: Session = Depends(get_db),
+    usuario: Usuario = Depends(usuario_atual),
+) -> SincronizarResultado:
+    """Lê os templates da Meta (Cloud API, só leitura) e faz upsert em `modelos` por (nome, idioma).
+    A Meta é a fonte da verdade do status/categoria (§5.3). Protegido por sessão (spec 0010)."""
+    templates = listar_templates()
+    criados = 0
+    atualizados = 0
+    for t in templates:
+        nome = t.get("name")
+        idioma = t.get("language")
+        if not nome or not idioma:
+            continue
+        corpo, cabecalho_tipo, variaveis = _extrair_componentes(t.get("components"))
+        status = _STATUS_META.get(str(t.get("status") or "").upper(), "pendente")
+        categoria = str(t.get("category") or "UTILITY")
+        existente = db.execute(
+            select(Modelo).where(Modelo.nome == nome, Modelo.idioma == idioma)
+        ).scalar_one_or_none()
+        if existente is None:
+            db.add(
+                Modelo(
+                    id=str(uuid.uuid4()), nome=nome, idioma=idioma, categoria=categoria,
+                    status=status, corpo=corpo, cabecalho_tipo=cabecalho_tipo, variaveis=variaveis,
+                )
+            )
+            criados += 1
+        else:
+            existente.categoria = categoria
+            existente.status = status
+            existente.corpo = corpo
+            existente.cabecalho_tipo = cabecalho_tipo
+            existente.variaveis = variaveis
+            atualizados += 1
+    db.commit()
+    registrar_auditoria(
+        operacao="modelos_sincronizados",
+        ator_email=usuario.email,
+        metadados={"total": len(templates), "criados": criados, "atualizados": atualizados},
+    )
+    return SincronizarResultado(total=len(templates), criados=criados, atualizados=atualizados)
 
 
 class ModeloRead(BaseModel):

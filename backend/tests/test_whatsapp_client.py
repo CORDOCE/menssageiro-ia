@@ -10,6 +10,7 @@ from app.services.whatsapp_client import (
     WhatsappError,
     componente_documento,
     enviar_template,
+    listar_templates,
     upload_midia,
 )
 
@@ -96,3 +97,29 @@ def test_upload_midia_e_componente_documento(cfg):
     comp = componente_documento(media_id)
     assert comp["type"] == "header"
     assert comp["parameters"][0]["document"]["id"] == "MEDIA123"
+
+
+def test_listar_templates_segue_paginacao(cfg, monkeypatch):
+    """listar_templates faz GET em /{WABA_ID}/message_templates e segue paging.next (2 páginas)."""
+    monkeypatch.setattr(cfg, "waba_id", "WABA1")
+    pag2 = "https://graph.facebook.com/v26.0/WABA1/message_templates?after=CUR2"
+
+    def handler(req: httpx.Request) -> httpx.Response:
+        assert req.method == "GET"
+        assert req.headers["Authorization"] == "Bearer TESTTOKEN"
+        if "after=CUR2" in str(req.url):
+            return httpx.Response(
+                200, json={"data": [{"name": "t2", "language": "pt_BR", "status": "PENDING"}]}
+            )
+        return httpx.Response(
+            200,
+            json={
+                "data": [{"name": "t1", "language": "pt_BR", "status": "APPROVED",
+                          "components": [{"type": "BODY", "text": "Oi {{1}}"}]}],
+                "paging": {"next": pag2},
+            },
+        )
+
+    client = httpx.Client(transport=httpx.MockTransport(handler))
+    templates = listar_templates(client=client)
+    assert [t["name"] for t in templates] == ["t1", "t2"]

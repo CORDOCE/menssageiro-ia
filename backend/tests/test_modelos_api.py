@@ -122,3 +122,46 @@ def test_enviar_teste_audita_sem_pii(client, db, auth_headers, monkeypatch):
     meta = regs[0].metadados or ""
     assert "5511999990000" not in meta  # telefone cheio NÃO aparece
     assert mascarar_telefone(_TESTE) in meta  # máscara presente
+
+
+# --- POST /modelos/sincronizar (spec 0010) --------------------------------------------------------
+_TEMPLATES_META = [
+    {"name": "cobranca", "language": "pt_BR", "category": "UTILITY", "status": "APPROVED",
+     "components": [
+         {"type": "HEADER", "format": "TEXT"},
+         {"type": "BODY", "text": "Olá {{1}}, fatura {{2}}"},
+     ]},
+    {"name": "promo", "language": "pt_BR", "category": "MARKETING", "status": "REJECTED",
+     "components": [{"type": "BODY", "text": "Oferta"}]},
+    {"name": "aviso", "language": "pt_BR", "category": "UTILITY", "status": "PAUSED", "components": []},
+]
+
+
+def test_sincronizar_sem_auth_401(client, db):
+    r = client.post("/modelos/sincronizar")
+    assert r.status_code == 401
+
+
+def test_sincronizar_cria_e_mapeia_status(client, db, auth_headers, monkeypatch):
+    monkeypatch.setattr("app.api.modelos.listar_templates", lambda: _TEMPLATES_META)
+    r = client.post("/modelos/sincronizar", headers=auth_headers)
+    assert r.status_code == 200
+    assert r.json() == {"total": 3, "criados": 3, "atualizados": 0}
+    cob = db.query(Modelo).filter_by(nome="cobranca").one()
+    assert cob.status == "aprovado"
+    assert cob.variaveis == ["1", "2"]
+    assert cob.cabecalho_tipo == "TEXT"
+    assert db.query(Modelo).filter_by(nome="promo").one().status == "rejeitado"
+    assert db.query(Modelo).filter_by(nome="aviso").one().status == "pausado"
+
+
+def test_sincronizar_atualiza_existente(client, db, auth_headers, monkeypatch):
+    _seed_modelo("cobranca", status="pendente")
+    monkeypatch.setattr(
+        "app.api.modelos.listar_templates",
+        lambda: [{"name": "cobranca", "language": "pt_BR", "category": "UTILITY",
+                  "status": "APPROVED", "components": [{"type": "BODY", "text": "Oi"}]}],
+    )
+    r = client.post("/modelos/sincronizar", headers=auth_headers)
+    assert r.json() == {"total": 1, "criados": 0, "atualizados": 1}
+    assert db.query(Modelo).filter_by(nome="cobranca").one().status == "aprovado"

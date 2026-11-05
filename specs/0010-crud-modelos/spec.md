@@ -1,12 +1,9 @@
-# Spec — 0010 Listagem de Modelos (`GET /modelos`) — parte da dívida F1
+# Spec — 0010 Listagem + sincronização de Modelos — dívida F1
 
-Tier Pequeno. Primeiro passo da F1: expõe a **leitura** de modelos (templates) para destravar a UI
-"Nova mensagem" (escolher um template aprovado). Protegido por sessão.
-
-> **Decisão de escopo PENDENTE (Jefferson):** o **povoamento** dos modelos — `POST /modelos/sincronizar`
-> (ler templates da Meta via Graph API e fazer upsert) **vs** criação/submissão de template na Meta — fica
-> **fora desta spec**, aguardando escolha (toca a Cloud API → `/meta-whatsapp`, §4/§5.3). Sem povoamento,
-> o GET reflete o que já existir no banco.
+Tier Pequeno. Destrava a UI "Nova mensagem": **`GET /modelos`** (listar/escolher template) e
+**`POST /modelos/sincronizar`** (povoar o banco lendo os templates da Meta — Cloud API, só leitura;
+a Meta é a **fonte da verdade** do status/categoria, §5.3). Ambos protegidos por sessão.
+Escopo escolhido por Jefferson (2026-11-05): GET + sincronizar (criação de template na Meta = spec futura).
 
 ## Critérios de aceite (Given/When/Then)
 
@@ -22,16 +19,30 @@ Then retorna **apenas** os de status `aprovado`.
 
 **AC-3 — Exige autenticação.**
 Given sem sessão (nem cookie nem Bearer),
-When `GET /modelos`,
+When `GET /modelos` ou `POST /modelos/sincronizar`,
 Then 401.
 
+**AC-4 — Sincronizar faz upsert dos templates da Meta.**
+Given a Meta retorna N templates (Cloud API, mockada nos testes),
+When `POST /modelos/sincronizar`,
+Then cada template vira/atualiza um `Modelo` por `(nome, idioma)`; o status é mapeado da Meta
+(`APPROVED→aprovado`, `REJECTED→rejeitado`, `PENDING→pendente`, `PAUSED/DISABLED/...→pausado`);
+retorna `{total, criados, atualizados}`.
+
+**AC-5 — Sincronizar é idempotente/atualiza.**
+Given um template já sincronizado,
+When a Meta muda seu status e `sincronizar` roda de novo,
+Then o `Modelo` existente é **atualizado** (não duplicado) e reflete o novo status.
+
 ## Casos de borda
-- Sem modelos → 200 com lista vazia.
-- `status` inválido (fora do conjunto conhecido) → 422 (validação).
+- Sem modelos → 200 com lista vazia; sem templates na Meta → `{total:0}`.
+- `status` inválido no GET → 422.
+- Template sem BODY → `corpo` vazio; variáveis `{{n}}` extraídas do corpo.
+- Testes **nunca** chamam a Meta real (mock; §5.7).
 
 ## Fora de escopo
-- **Povoamento** (sincronizar da Meta / criar template) — decisão pendente, spec/parte seguinte.
-- Editar/apagar modelo; paginação (lista pequena nesta fase).
+- **Criar/submeter** template na Meta (aprovação assíncrona) — spec futura (ADR).
+- Editar/apagar modelo; paginação do GET (lista pequena nesta fase).
 
 ## Definition of Ready
 - [x] AC testáveis (pytest + mock quando houver Meta — aqui GET é só banco, sem Meta). Non-goals explícitos.
