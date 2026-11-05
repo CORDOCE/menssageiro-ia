@@ -4,15 +4,22 @@
 
 _Atualizado: 2026-11-04_
 
-## Em andamento (spec 0005 — recorrência: MERGEADA (#23) e EM PRODUÇÃO (#24))
+## Em andamento (spec 0006 — PWA telas v1: PR #25 aberto, CI verde)
+- **Spec 0006 — PWA telas v1** (branch `feat/0006-pwa-telas`, de `develop`; **PR #25** p/ develop, CI backend+frontend **SUCCESS**, MERGEABLE). Tier Arquitetural; **ADR 0010** (tema/tokens/shell). Escopo: **Fundação + Hoje + Contatos** (Nova mensagem → 0007, depende de GET /modelos).
+- ✅ **Fundação:** tokens claro+escuro (variáveis) + selos; tema claro/escuro/sistema (`data-theme` + script pré-pintura, sem flash); shell responsivo (lateral ≥1024 / barra inferior <640); Inter (next/font); guarda de auth; esqueletos. **Sem dep nova.**
+- ✅ **Hoje** (indicador Programadas + envios programados via GET /agendamentos, contato resolvido, selo, recorrência, limite 8; demais indicadores stub) e **Contatos** (lista tabela/cartões, criar/editar, consentimento, descadastro, import CSV/XLSX).
+- ✅ **Gates:** tsc+eslint+build verdes; smoke SSR (login/tema/hoje/contatos/painel); /revisar+/seguranca sem P0/P1. Arquivos: `frontend/app/(app)/{hoje,contatos}`, `components/*`, `lib/{api,tema}.ts`, `globals.css`, `layout.tsx`.
+- ⏳ **Falta:** validação **visual autenticada** (login 2FA) das telas com dados → fazer em **staging após o merge** (agora `frontend/` muda → deploy não será SKIPPED).
+
+## Frente anterior (concluída): spec 0005 — recorrência MERGEADA (#23) e EM PRODUÇÃO (#24)
 - **Spec 0005 — recorrência MERGEADA** (PR **#23** → `develop` = `07eb60e`, 2026-11-04; branch `feat/0005-recorrencia` apagada). Esteira SDD completa + código TDD. Implementa ADR 0005/0009 (ocorrência = nova linha; `agendamento_pai_id`; dedup por índice único parcial `UNIQUE(agendamento_pai_id, executar_em) WHERE agendamento_pai_id IS NOT NULL`; criação lazy via RRULE/`python-dateutil`).
 - ✅ **/clarificar (aprovado por Jefferson):** aceitar qualquer RRULE válida (núcleo testado); `cancelar-serie` só futuras pendentes; criação **lazy**. `UNTIL` exigido em UTC.
 - ✅ **Gates verdes (CI do PR #23: backend+frontend SUCCESS):** ruff/mypy limpos; ciclo de migração ok; **168 passed, cobertura 97.2%**; pip-audit sem vulns. **/revisar**+**/seguranca** sem P0/P1 (hardening `max_length=500`). **/validar** AC-1..AC-13 cobertos (double-check adicionou guarda explícita do índice parcial).
 - Arquivos: `services/recorrencia.py`, migração `4ff11dacdb87`, `models/agendamento.py` (índice no `__table_args__`), `worker/disparo.py` (`_criar_proxima_ocorrencia` + auditoria `agendamento.ocorrencia_criada`), `api/agendamentos.py` (recorrencia no criar + `cancelar-serie`), `schemas/agendamento.py`. Head Alembic em develop: `4ff11dacdb87` (único).
 
 ## Próximo passo (retomar aqui)
-1. **Escolher próxima frente:** anexos (DOCUMENT), telas do PWA (Fase 5), ou CRUD de `Modelo` (gap para validação real).
-2. **Observação P2 da 0005 (não bloqueia):** worker usa `apos=executar_em` (não `max(..., agora)`) → série atrasada recupera 1 ocorrência/ciclo. Avaliar "pular para agora" em spec futura.
+1. **Mergear PR #25** (0006) → `develop` → validar as telas no **staging** (login real; ver Hoje/Contatos/tema). Depois escolher próxima frente: **Nova mensagem (0007, precisa de GET /modelos)**, anexos (DOCUMENT), ou mais telas.
+2. **Observação P2 da 0005 (não bloqueia):** worker usa `apos=executar_em` → série atrasada recupera 1 ocorrência/ciclo.
 3. Envio real à Meta segue adiado (número +55) — AC passam com mock + Postgres real.
 
 ## Contexto de fundo (não é a frente ativa)
