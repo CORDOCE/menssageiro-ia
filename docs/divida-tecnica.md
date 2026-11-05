@@ -27,6 +27,7 @@ Ordem recomendada de ataque: **Segurança (S1–S3)** → gaps que destravam pro
   7. Validar em **staging** (toca auth) antes do PR. Rodar `/seguranca`.
 
 ### S2 — Endurecer o armazenamento do token (cookie HttpOnly)
+> **✅ FEITO e EM PRODUÇÃO** (2026-11-05, spec 0008 / ADR 0012, proxy same-origin; PRs #31→develop, #32→main). Login validado em staging. Follow-up: remover fallback Bearer.
 - **Problema:** token de sessão em `localStorage` (`frontend/lib/auth.ts:1-27`) → exposto a **XSS**. ADR 0010 já marcou como adiado. [verificado]
 - **Natureza:** mexe em autenticação/sessão → **ADR** (estende ADR 0001/0004) e **validação em staging** obrigatórias.
 - **Passos:**
@@ -38,6 +39,7 @@ Ordem recomendada de ataque: **Segurança (S1–S3)** → gaps que destravam pro
   6. Validar em **staging** (login real + 2FA) antes do PR. `/seguranca`.
 
 ### S3 — Inicializar o Sentry (erros não estão sendo enviados)
+> **✅ FEITO e EM PRODUÇÃO** (2026-11-05, spec 0009; PRs #30→develop, #32→main). Inerte até setar `SENTRY_DSN` na Railway.
 - **Problema:** existe `sentry_dsn` (`core/config.py:42`) mas **nenhum `sentry_sdk.init()`** no backend nem no worker → o §7 do CLAUDE.md ("todo erro vai ao Sentry") **não está cumprido**. `sentry-sdk` **não é dependência**. [verificado]
 - **Passos:**
   1. Aprovar a dep `sentry-sdk` (§4: necessidade = observabilidade exigida pelo §7; manutenção ativa; licença MIT). Fixar versão em `backend/pyproject.toml`.
