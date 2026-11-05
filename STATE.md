@@ -38,7 +38,8 @@ _Atualizado: 2026-11-05_
 - Arquivos: `services/recorrencia.py`, migração `4ff11dacdb87`, `models/agendamento.py` (índice no `__table_args__`), `worker/disparo.py` (`_criar_proxima_ocorrencia` + auditoria `agendamento.ocorrencia_criada`), `api/agendamentos.py` (recorrencia no criar + `cancelar-serie`), `schemas/agendamento.py`. Head Alembic em develop: `4ff11dacdb87` (único).
 
 ## Próximo passo (retomar aqui — NADA em andamento; escolher a frente)
-1. **Escolher a próxima frente** e abrir com `/nova-feature`. Candidata natural: **Nova mensagem (spec 0007)** — criar agendamento pela UI; **pré-requisito: criar `GET /modelos` no backend** (hoje só existe `enviar-teste`). Alternativas: mais telas do PWA (Agenda/Modelos/Histórico), anexos (DOCUMENT).
+0. **F1 (CRUD de Modelo) FEITO em develop** (spec 0010, PR #33): `GET /modelos` + `POST /modelos/sincronizar` (lê templates da Meta, upsert; §5.3). Pré-requisito da "Nova mensagem" resolvido. ⏳ Validar o `sincronizar` em **staging** (WABA real, só leitura) e promover a produção numa próxima release. Criar/submeter template na Meta = spec futura.
+1. **Escolher a próxima frente** e abrir com `/nova-feature`. Candidata natural: **Nova mensagem** (criar agendamento pela UI; agora com `GET /modelos` disponível). Alternativas: mais telas do PWA (Agenda/Modelos/Histórico), anexos (DOCUMENT), ou dívidas (R1 hardening de agendamentos, O1 alerta §12).
 2. **Observação P2 da 0005 (não bloqueia):** worker usa `apos=executar_em` → série atrasada recupera 1 ocorrência/ciclo. Envio real à Meta segue adiado (número +55).
 
 ## Contexto de fundo (não é a frente ativa)

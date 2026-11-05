@@ -53,6 +53,7 @@ Ordem recomendada de ataque: **Segurança (S1–S3)** → gaps que destravam pro
 ## 🟠 GAPS FUNCIONAIS
 
 ### F1 — CRUD de `Modelo` (`GET/POST /modelos`)
+> **✅ FEITO (GET + sincronizar)** — spec 0010, PR #33 → develop (2026-11-05). `GET /modelos` + `POST /modelos/sincronizar` (lê templates da Meta, upsert). Validar sync em staging. Criar/submeter template na Meta = spec futura.
 - **Problema:** `api/modelos.py` só tem `POST /{id}/enviar-teste`; sem listar/criar modelo. Bloqueia **spec 0007 (Nova mensagem)** e exige insert manual para o worker enviar. [verificado]
 - **Passos:** `/nova-feature` → `GET /modelos` (lista; usado pela UI de Nova mensagem) e `POST /modelos` (criar/sincronizar com a Meta — usar `/meta-whatsapp`); authz em todo endpoint; testes de contrato; cobertura. Pré-requisito explícito da spec 0007.
 
