@@ -4,7 +4,6 @@ Cobre os AC de cifra isolada; AC-2/AC-3 (login 2FA com segredo cifrado) ficam em
 e AC-4/AC-7 (migração) no ciclo Alembic do CI.
 """
 
-import logging
 import os
 
 import pyotp
@@ -12,15 +11,15 @@ import pytest
 from cryptography.fernet import Fernet, InvalidToken, MultiFernet
 
 from app.core.config import get_settings
-from app.core.security import _BASE32, cifrar_segredo, decifrar_segredo
+from app.core.security import cifrar_segredo, decifrar_segredo
 
 
-def test_round_trip_e_valor_nao_e_base32():
-    """AC-1: o valor cifrado difere do original, não parece base32, e decifra de volta."""
+def test_round_trip_e_valor_cifrado():
+    """AC-1: o valor cifrado difere do original (token Fernet) e decifra de volta."""
     segredo = pyotp.random_base32()
     cifra = cifrar_segredo(segredo)
     assert cifra != segredo
-    assert not _BASE32.match(cifra)  # token Fernet (base64url) não é base32
+    assert cifra.startswith("gAAAA")  # assinatura do token Fernet (base64url)
     assert decifrar_segredo(cifra) == segredo
 
 
@@ -61,12 +60,12 @@ def test_rotacao_multifernet():
         get_settings.cache_clear()
 
 
-def test_legado_em_claro_tolerado(caplog):
-    """Tolerância de corte (ADR 0011): segredo legado em claro decifra como ele mesmo, com WARN."""
+def test_legado_em_claro_agora_levanta():
+    """Follow-up S1: após prod+staging cifrados, `decifrar_segredo` é estrito — valor legado em
+    claro (base32, não-Fernet) levanta InvalidToken (não é mais tolerado)."""
     segredo = pyotp.random_base32()
-    with caplog.at_level(logging.WARNING):
-        assert decifrar_segredo(segredo) == segredo
-    assert any("legado" in r.message for r in caplog.records)
+    with pytest.raises(InvalidToken):
+        decifrar_segredo(segredo)
 
 
 def test_token_adulterado_levanta():

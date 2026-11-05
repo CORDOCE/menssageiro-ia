@@ -4,7 +4,7 @@ import { useRouter } from "next/navigation";
 import { useEffect, useState, type FormEvent } from "react";
 
 import { login } from "@/lib/api";
-import { lerEmail, lerSenha, limparSenha, salvarEmail, salvarSenha, salvarToken } from "@/lib/auth";
+import { lerEmail, lerSenha, limparSenha, salvarEmail, salvarSenha } from "@/lib/auth";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -34,8 +34,7 @@ export default function LoginPage() {
     setErro(null);
     setCarregando(true);
     try {
-      const r = await login(email, senha, totp);
-      salvarToken(r.token);
+      await login(email, senha, totp); // sessão vai no cookie HttpOnly (ADR 0012)
       salvarEmail(email);
       if (lembrarSenha) {
         salvarSenha(senha);
