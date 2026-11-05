@@ -6,7 +6,7 @@ revoga as outras); renovação deslizante por inatividade com throttle e teto ab
 
 from datetime import UTC, datetime, timedelta
 
-from fastapi import Depends, Header, HTTPException
+from fastapi import Cookie, Depends, Header, HTTPException
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
@@ -17,13 +17,17 @@ from app.models.usuario import SessaoUsuario, Usuario
 
 def sessao_atual(
     authorization: str | None = Header(default=None),
+    sessao_cookie: str | None = Cookie(default=None, alias="sessao"),
     db: Session = Depends(get_db),
 ) -> SessaoUsuario:
-    """Resolve a sessão do `Authorization: Bearer <token>`, aplicando janela deslizante e
-    teto absoluto; 401 se ausente, inválida, expirada por inatividade ou além do teto."""
-    if not authorization or not authorization.startswith("Bearer "):
+    """Resolve a sessão a partir do cookie `sessao` **ou** do `Authorization: Bearer <token>`
+    (cookie tem precedência; ADR 0012 — transição). Aplica janela deslizante e teto absoluto;
+    401 se ausente, inválida, expirada por inatividade ou além do teto."""
+    token = sessao_cookie
+    if not token and authorization and authorization.startswith("Bearer "):
+        token = authorization.removeprefix("Bearer ")
+    if not token:
         raise HTTPException(status_code=401, detail="Não autenticado")
-    token = authorization.removeprefix("Bearer ")
 
     sessao = db.execute(
         select(SessaoUsuario).where(
