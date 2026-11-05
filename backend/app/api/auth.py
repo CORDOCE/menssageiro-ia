@@ -11,7 +11,7 @@ import uuid
 from datetime import UTC, datetime, timedelta
 
 import pyotp
-from fastapi import APIRouter, Depends, Header, HTTPException
+from fastapi import APIRouter, Depends, Header, HTTPException, Response
 from sqlalchemy import func, select, update
 from sqlalchemy.orm import Session
 
@@ -25,6 +25,25 @@ from app.models.usuario import SessaoUsuario, Usuario
 from app.schemas.auth import LoginRequest, LoginResponse, UsuarioRead
 
 router = APIRouter(prefix="/auth", tags=["auth"])
+
+# Cookie de sessão (ADR 0012): HttpOnly/Secure/SameSite=Strict, first-party via proxy same-origin.
+_COOKIE_SESSAO = "sessao"
+
+
+def _set_cookie_sessao(response: Response, token: str) -> None:
+    response.set_cookie(
+        key=_COOKIE_SESSAO,
+        value=token,
+        httponly=True,
+        secure=True,
+        samesite="strict",
+        path="/",
+        max_age=get_settings().session_max_dias * 86400,
+    )
+
+
+def _limpar_cookie_sessao(response: Response) -> None:
+    response.delete_cookie(key=_COOKIE_SESSAO, path="/")
 
 # Hash fictício para igualar o custo de tempo quando o e-mail não existe (spec: casos de borda,
 # "mesmo custo de tempo"): sempre rodamos scrypt, exista o usuário ou não (anti-enumeração por timing).
@@ -61,6 +80,7 @@ def _bloqueado_por_rate_limit(db: Session, email: str, agora: datetime) -> bool:
 @router.post("/login", response_model=LoginResponse)
 def login(
     payload: LoginRequest,
+    response: Response,
     user_agent: str | None = Header(default=None),
     db: Session = Depends(get_db),
 ) -> LoginResponse:
@@ -99,12 +119,15 @@ def login(
     )
     db.commit()
 
+    _set_cookie_sessao(response, token)  # sessão via cookie HttpOnly (ADR 0012)
     registrar_auditoria(operacao="login", ator_email=usuario.email, alvo_tipo="usuario", alvo_id=usuario.id)
+    # `token` ainda no corpo durante a transição (frontend migra p/ cookie); removê-lo é follow-up.
     return LoginResponse(token=token, nome=usuario.nome, email=usuario.email)
 
 
 @router.post("/logout")
 def logout(
+    response: Response,
     sessao: SessaoUsuario = Depends(sessao_atual),
     usuario: Usuario = Depends(usuario_atual),
     db: Session = Depends(get_db),
@@ -112,16 +135,19 @@ def logout(
     """Encerra apenas a sessão do dispositivo atual (ADR 0004)."""
     sessao.revogada = True
     db.commit()
+    _limpar_cookie_sessao(response)
     registrar_auditoria(operacao="logout", ator_email=usuario.email, alvo_tipo="usuario", alvo_id=usuario.id)
     return {"ok": True}
 
 
 @router.post("/logout-todos")
 def logout_todos(
+    response: Response,
     usuario: Usuario = Depends(usuario_atual),
     db: Session = Depends(get_db),
 ) -> dict[str, bool]:
     """Encerra todas as sessões do usuário, em todos os dispositivos (ADR 0004)."""
+    _limpar_cookie_sessao(response)
     db.execute(
         update(SessaoUsuario)
         .where(SessaoUsuario.usuario_id == usuario.id, SessaoUsuario.revogada.is_(False))

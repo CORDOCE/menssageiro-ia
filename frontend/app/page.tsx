@@ -3,13 +3,12 @@
 import { useRouter } from "next/navigation";
 import { useEffect } from "react";
 
-import { lerToken } from "@/lib/auth";
-
-// Raiz: encaminha para a tela inicial (Hoje, se já tem token) ou para o login.
+// Raiz: encaminha para Hoje; a GuardaAuth (via cookie) redireciona ao /login se não autenticado.
+// O token é cookie HttpOnly (ADR 0012) — não dá para checar sessão em JS aqui.
 export default function Home(): null {
   const router = useRouter();
   useEffect(() => {
-    router.replace(lerToken() ? "/hoje" : "/login");
+    router.replace("/hoje");
   }, [router]);
   return null;
 }

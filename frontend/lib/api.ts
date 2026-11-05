@@ -1,7 +1,7 @@
-// Cliente da API do backend (FastAPI). Base em NEXT_PUBLIC_API_URL (definida na Railway).
-import { lerToken } from "./auth";
+// Cliente da API (FastAPI) via proxy same-origin do Next (ADR 0012): caminhos sob /api; a sessão
+// vai por cookie HttpOnly, não por token em JS. Toda chamada usa credentials:"include".
 
-const BASE = process.env.NEXT_PUBLIC_API_URL ?? "";
+const BASE = "/api";
 
 export interface LoginResposta {
   token: string;
@@ -21,6 +21,7 @@ export async function login(email: string, senha: string, totp: string): Promise
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ email, senha, totp }),
+    credentials: "include",
   });
   if (!r.ok) {
     const corpo: { detail?: string } = await r.json().catch(() => ({}));
@@ -30,9 +31,7 @@ export async function login(email: string, senha: string, totp: string): Promise
 }
 
 export async function me(): Promise<Usuario> {
-  const r = await fetch(`${BASE}/auth/me`, {
-    headers: { Authorization: `Bearer ${lerToken() ?? ""}` },
-  });
+  const r = await fetch(`${BASE}/auth/me`, { credentials: "include" });
   if (!r.ok) {
     throw new Error("Não autenticado");
   }
@@ -42,20 +41,17 @@ export async function me(): Promise<Usuario> {
 export async function logout(): Promise<void> {
   await fetch(`${BASE}/auth/logout`, {
     method: "POST",
-    headers: { Authorization: `Bearer ${lerToken() ?? ""}` },
+    credentials: "include",
   }).catch(() => undefined);
 }
 
-// ---- Helper autenticado --------------------------------------------------------------------
-
-function autorizacao(): Record<string, string> {
-  return { Authorization: `Bearer ${lerToken() ?? ""}` };
-}
+// ---- Helper autenticado (sessão via cookie; credentials:"include") -------------------------
 
 async function pedir<T>(caminho: string, init: RequestInit = {}): Promise<T> {
   const r = await fetch(`${BASE}${caminho}`, {
     ...init,
-    headers: { ...autorizacao(), ...(init.headers ?? {}) },
+    credentials: "include",
+    headers: { ...(init.headers ?? {}) },
   });
   if (!r.ok) {
     const corpo: { detail?: unknown } = await r.json().catch(() => ({}));

@@ -188,6 +188,49 @@ def test_totp_secret_guardado_cifrado_nao_texto_plano(client, db):
         sessao.close()
 
 
+# --- Sessão em cookie HttpOnly (spec 0008 / ADR 0012) ---------------------------------------------
+def test_login_seta_cookie_sessao_seguro(client, db):
+    """AC-1: login emite Set-Cookie `sessao` com HttpOnly/Secure/SameSite=Strict/Path=/."""
+    _criar_usuario()
+    r = _post_login(client)
+    assert r.status_code == 200
+    sc = r.headers.get("set-cookie", "").lower()
+    assert "sessao=" in sc
+    assert "httponly" in sc
+    assert "secure" in sc
+    assert "samesite=strict" in sc
+    assert "path=/" in sc
+
+
+def test_rota_protegida_via_cookie_sem_authorization(client, db):
+    """AC-2: cookie `sessao` autentica a rota protegida sem header Authorization."""
+    _criar_usuario()
+    token = _post_login(client).json()["token"]
+    r = client.get("/auth/me", headers={"Cookie": f"sessao={token}"})
+    assert r.status_code == 200
+    assert r.json()["email"] == EMAIL
+
+
+def test_cookie_tem_precedencia_sobre_bearer(client, db):
+    """Caso de borda: com cookie válido e Bearer inválido, o cookie vence."""
+    _criar_usuario()
+    token = _post_login(client).json()["token"]
+    r = client.get(
+        "/auth/me",
+        headers={"Cookie": f"sessao={token}", "Authorization": "Bearer invalido"},
+    )
+    assert r.status_code == 200
+
+
+def test_logout_expira_cookie(client, db):
+    """AC-4: logout expira o cookie `sessao` (Max-Age=0)."""
+    _criar_usuario()
+    token = _post_login(client).json()["token"]
+    r = client.post("/auth/logout", headers={"Cookie": f"sessao={token}"})
+    assert r.status_code == 200
+    assert "max-age=0" in r.headers.get("set-cookie", "").lower()
+
+
 def test_verify_password_hash_malformado_retorna_false():
     assert verify_password("x", "sem-dois-pontos") is False
     assert verify_password("x", "zz:zz") is False
