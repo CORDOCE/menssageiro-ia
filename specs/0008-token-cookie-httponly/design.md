@@ -1,6 +1,9 @@
 # Design — 0008 Token em cookie HttpOnly (dívida S2)
 
-## 🚧 DECISÃO PENDENTE (gate de clarificação) — bloqueia o resto do design
+## ✅ DECISÃO (Jefferson, 2026-11-05): **Opção A — proxy same-origin no Next**
+S2 pausada neste ponto (topologia escolhida); retomar a implementação a partir da "Solução (Opção A)" abaixo. Contexto da escolha:
+
+### Por que (gate de clarificação — resolvido)
 Front e back estão em **domínios diferentes** sob `up.railway.app`, que **está na Public Suffix List**
 (entrada de 3 rótulos) — [verificado 2026-11-05, WebSearch/PSL]. Logo o browser trata
 `...-frontend-production.up.railway.app` e `...-backend-production.up.railway.app` como **sites distintos**:
