@@ -14,6 +14,11 @@ from app.api.contatos import router as contatos_router
 from app.api.modelos import router as modelos_router
 from app.api.webhook_meta import router as webhook_router
 from app.core.config import get_settings
+from app.core.observabilidade import configurar_sentry
+
+# Observabilidade (§7): inicializa o Sentry antes de criar o app (auto-instrumenta FastAPI).
+# No-op sem SENTRY_DSN.
+configurar_sentry()
 
 app = FastAPI(title="Mensageiro API", version="0.1.0")
 

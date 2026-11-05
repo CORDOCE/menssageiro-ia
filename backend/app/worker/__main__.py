@@ -8,9 +8,12 @@ e grava `saude.ultimo_ciclo_em`. Nenhum estado em memória (BRIEFING §5): tudo 
 import time
 from datetime import UTC, datetime
 
+import sentry_sdk
+
 import app.db.database as _db
 from app.core.audit import registrar_auditoria
 from app.core.config import get_settings
+from app.core.observabilidade import configurar_sentry
 from app.models.saude import Saude
 from app.worker.disparo import processar_ciclo
 
@@ -52,7 +55,9 @@ def executar(ciclos: int | None = None, intervalo_s: float | None = None) -> Non
         anterior = ler_heartbeat()
         try:
             processar_ciclo(heartbeat_anterior=anterior, intervalo_s=int(espera))
-        except Exception:  # pragma: no cover — um ciclo ruim não pode derrubar o worker
+        except Exception:
+            # Um ciclo ruim não derruba o worker; registra auditoria e envia ao Sentry (§7).
+            sentry_sdk.capture_exception()
             registrar_auditoria("worker.ciclo_erro", status="error")
         gravar_heartbeat()
         feitos += 1
@@ -62,6 +67,7 @@ def executar(ciclos: int | None = None, intervalo_s: float | None = None) -> Non
 
 
 def main() -> None:
+    configurar_sentry()  # observabilidade (§7); no-op sem SENTRY_DSN
     executar()
 
 
