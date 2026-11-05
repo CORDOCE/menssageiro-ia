@@ -84,7 +84,7 @@ def client():
 
 @pytest.fixture
 def auth_headers(db):
-    """Cria um admin + sessão válida no banco e devolve o header Bearer (rota protegida)."""
+    """Cria um admin + sessão válida no banco e devolve o header de **cookie** de sessão (ADR 0012)."""
     import uuid
     from datetime import UTC, datetime, timedelta
 
@@ -103,4 +103,4 @@ def auth_headers(db):
         )
     )
     db.commit()
-    return {"Authorization": f"Bearer {token}"}
+    return {"Cookie": f"sessao={token}"}
