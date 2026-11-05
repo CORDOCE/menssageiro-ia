@@ -14,7 +14,10 @@ _Atualizado: 2026-11-05_
 - 🚨 **PRODUÇÃO — ordem crítica:** prod **tem o admin** → ao promover `develop`→`main`, **setar `TOTP_ENC_KEY` em produção ANTES** (senão a migração quebra o deploy). Gerar: `python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"` (chave própria por ambiente; aprovação §4). Branch `feat/0007` mergeada (pode apagar).
 - **Follow-up do estrito:** ✅ `decifrar_segredo` agora **estrito** (sem tolerância de claro) — PR **#29** mergeado em `develop` (`94e899d`), em **staging**. **Falta só promover a produção** (inerte: sem migração; pega na próxima promoção `develop`→`main`).
 - Opcional/menor: `criar_admin` rotular `issuer` por ambiente (e-mails distintos já mitigam a colisão).
-- **Próximas dívidas de segurança:** S2 (token em cookie HttpOnly) e S3 (inicializar Sentry) — não iniciadas; ver `docs/divida-tecnica.md`.
+- **Dívidas de segurança em andamento (ver `docs/divida-tecnica.md`):**
+  - **S2 (cookie HttpOnly):** spec **0008** aberta; **topologia decidida = Opção A (proxy same-origin no Next)** — front/back são cross-site sob `up.railway.app` (PSL), então cookie exige same-origin. `product.md`+`design.md` prontos; **implementação pausada** na branch `feat/0008-token-cookie-httponly` (retomar da "Solução (Opção A)").
+  - **S3 (Sentry):** spec **0009** **implementada** — `configurar_sentry()` (API+worker) + `before_send` mascara PII; **179 passed, cobertura 97,31%**. **PR #30 → develop aberto e CI verde, aguardando merge.** Inerte sem `SENTRY_DSN`; ativar = setar DSN na Railway (precisa projeto no Sentry).
+- **Pendências de release (inertes):** promover a produção o **estrito da S1** (#29, já em develop/staging) e, depois, a **S3** — podem ir juntas numa próxima release `develop`→`main`.
 
 ## Última frente concluída (spec 0006 — PWA telas v1: MERGEADA #25 + EM PRODUÇÃO #26)
 - **Spec 0006 — PWA telas v1 EM PRODUÇÃO** (promovida `develop`→`main` via PR **#26**, 2026-11-05, `main = 8b1d43f`). Deploy de produção: **frontend `SUCCESS`** (reconstruiu — `frontend/` mudou; commit `8b1d43f`); **backend/worker `SKIPPED`** (inalterados). Head Alembic de produção `4ff11dacdb87` inalterado. URL: `https://menssageiro-ia-frontend-production.up.railway.app`.
