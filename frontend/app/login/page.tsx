@@ -42,7 +42,7 @@ export default function LoginPage() {
       } else {
         limparSenha();
       }
-      router.replace("/painel");
+      router.replace("/hoje");
     } catch (err) {
       setErro(err instanceof Error ? err.message : "Falha no login");
     } finally {
