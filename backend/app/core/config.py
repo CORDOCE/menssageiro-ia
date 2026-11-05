@@ -49,6 +49,9 @@ class Settings(BaseSettings):
     session_throttle_min: int = 5  # só renova ultimo_uso_em/expira_em se passou disso
     admin_email: str | None = None
     admin_password: str | None = None
+    # Cifra do `totp_secret` em repouso (ADR 0011 / spec 0007). Chave(s) no formato Fernet; lista
+    # separada por vírgula habilita rotação (MultiFernet: a 1ª cifra, qualquer uma decifra).
+    totp_enc_key: str | None = None
 
     # Rate limit do login (task 7, CLAUDE.md §6): N falhas por e-mail dentro da janela → 429.
     login_max_tentativas: int = 5
