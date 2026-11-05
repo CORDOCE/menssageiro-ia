@@ -10,6 +10,11 @@ import os
 # para que o CORS tenha uma origem liberada nos testes.
 os.environ.setdefault("FRONTEND_URL", "http://localhost:3000")
 
+# Chave de cifra do totp_secret (ADR 0011) p/ os testes que exercitam a cifra (get_settings é cacheada).
+from cryptography.fernet import Fernet  # noqa: E402
+
+os.environ.setdefault("TOTP_ENC_KEY", Fernet.generate_key().decode())
+
 import psycopg  # noqa: E402
 import pytest  # noqa: E402
 from fastapi.testclient import TestClient  # noqa: E402

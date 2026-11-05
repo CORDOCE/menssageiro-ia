@@ -18,7 +18,7 @@ from sqlalchemy.orm import Session
 from app.core.audit import registrar_auditoria
 from app.core.auth_deps import sessao_atual, usuario_atual
 from app.core.config import get_settings
-from app.core.security import gerar_token_sessao, hash_password, verify_password
+from app.core.security import decifrar_segredo, gerar_token_sessao, hash_password, verify_password
 from app.db.database import get_db
 from app.models.auditoria import Auditoria
 from app.models.usuario import SessaoUsuario, Usuario
@@ -36,7 +36,9 @@ def _totp_confere(usuario: Usuario | None, codigo: str | None) -> bool:
     Retorna False se não há usuário, segredo TOTP ou código — sem revelar qual faltou."""
     if usuario is None or not usuario.totp_secret or not codigo:
         return False
-    return pyotp.TOTP(usuario.totp_secret).verify(codigo, valid_window=1)
+    # O segredo repousa cifrado (ADR 0011); decifra antes de validar o código.
+    segredo = decifrar_segredo(usuario.totp_secret)
+    return pyotp.TOTP(segredo).verify(codigo, valid_window=1)
 
 
 def _bloqueado_por_rate_limit(db: Session, email: str, agora: datetime) -> bool:

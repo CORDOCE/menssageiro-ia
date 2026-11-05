@@ -22,7 +22,8 @@ class Usuario(Base):
     email: Mapped[str] = mapped_column(String(255), unique=True, index=True, nullable=False)
     senha_hash: Mapped[str] = mapped_column(String(255), nullable=False)
     ativo: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
-    totp_secret: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    # Cifrado em repouso (ADR 0011): guarda o token Fernet, não o segredo base32 em claro.
+    totp_secret: Mapped[str | None] = mapped_column(String(255), nullable=True)
     telefone_whatsapp: Mapped[str | None] = mapped_column(String(20), nullable=True)
     criado_em: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), nullable=False
