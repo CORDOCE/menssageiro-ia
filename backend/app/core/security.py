@@ -8,22 +8,15 @@ nunca no banco nem no SQL.
 
 import hashlib
 import hmac
-import logging
 import os
-import re
 import secrets
 
-from cryptography.fernet import Fernet, InvalidToken, MultiFernet
+from cryptography.fernet import Fernet, MultiFernet
 
 from app.core.config import get_settings
 
-logger = logging.getLogger(__name__)
-
 # Parâmetros scrypt (mantidos do projeto antigo).
 _N, _R, _P = 16384, 8, 1
-
-# Segredo TOTP legado em claro é base32 (A–Z, 2–7, com padding opcional); usado só na janela de corte.
-_BASE32 = re.compile(r"[A-Z2-7]+=*\Z")
 
 
 def _multifernet() -> MultiFernet:
@@ -42,15 +35,10 @@ def cifrar_segredo(claro: str) -> str:
 
 
 def decifrar_segredo(cifra: str) -> str:
-    """Decifra um segredo cifrado. Tolera **uma vez** valor legado em claro (base32) na janela de
-    corte (ADR 0011) — removido em follow-up. Token adulterado/ininteligível → levanta."""
-    try:
-        return _multifernet().decrypt(cifra.encode()).decode()
-    except InvalidToken:
-        if _BASE32.match(cifra):
-            logger.warning("totp_secret legado em claro aceito (migração de cifra pendente)")
-            return cifra
-        raise
+    """Decifra um segredo cifrado em repouso (ADR 0011). **Estrito**: valor que não seja token
+    Fernet válido (incl. legado em claro ou adulterado) levanta `InvalidToken`.
+    (A tolerância de corte foi removida após prod e staging estarem cifrados — 2026-11-05.)"""
+    return _multifernet().decrypt(cifra.encode()).decode()
 
 
 def hash_password(senha: str) -> str:

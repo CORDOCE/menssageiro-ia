@@ -11,7 +11,7 @@ Ordem recomendada de ataque: **Segurança (S1–S3)** → gaps que destravam pro
 ## 🔴 SEGURANÇA (prioridade máxima)
 
 ### S1 — Cifrar `totp_secret` em repouso
-> **✅ FEITO e EM PRODUÇÃO** (2026-11-05, spec 0007 / ADR 0011, PRs #27→develop e #28→main). Único follow-up: remover a tolerância de claro (tornar `decifrar_segredo` estrito).
+> **✅ FEITO e EM PRODUÇÃO** (2026-11-05, spec 0007 / ADR 0011, PRs #27→develop e #28→main). Follow-up (remover tolerância de claro → `decifrar_segredo` estrito) **também concluído** (branch `fix/0007-decifrar-estrito`).
 - **Problema:** `backend/app/models/usuario.py:25` guarda o segredo TOTP em **texto puro** (`String(64)`). Quem acessar o banco clona o 2FA. [verificado]
 - **Decisão prévia (ADR):** escolher mecanismo. Duas opções:
   - **(A) pgcrypto** (extensão nativa do Postgres) — **sem dep nova**; cifra/decifra em SQL com chave passada pela aplicação.

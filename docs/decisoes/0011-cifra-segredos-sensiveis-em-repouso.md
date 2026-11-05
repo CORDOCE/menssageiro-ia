@@ -17,8 +17,9 @@ de chave), por isso o ADR.
 4. **Dependência nova `cryptography`** aprovada por Jefferson em 2026-11-05 (§4): biblioteca padrão de
    fato para cripto em Python, mantida (PyCA), licença Apache-2.0/BSD; versão fixada; coberta por `pip-audit`.
 5. **Migração de dados** cifra o segredo existente no `upgrade` e decifra no `downgrade` (coluna alargada p/ `String(255)`).
-6. **Tolerância de corte**: `decifrar_segredo` aceita uma vez segredo legado em claro (WARN); removida em
-   follow-up assim que produção estiver cifrada (vira estrito).
+6. **Tolerância de corte** (histórico): `decifrar_segredo` aceitava, na janela de migração, segredo legado
+   em claro. **Removida em 2026-11-05** (follow-up) após prod e staging estarem cifrados → agora **estrito**
+   (valor não-Fernet levanta `InvalidToken`).
 
 ## Alternativas rejeitadas
 - **pgcrypto**: a chave trafegaria no SQL (risco de log). Postura inferior.
@@ -27,4 +28,4 @@ de chave), por isso o ADR.
 ## Consequências
 - Perder `TOTP_ENC_KEY` inutiliza o 2FA cifrado → recuperação por reset (`criar_admin` apaga+recria).
 - Qualquer novo segredo sensível em repouso deve reusar `cifrar_segredo`/`decifrar_segredo`.
-- Follow-up: endurecer (remover tolerância de claro) após produção cifrada.
+- Follow-up **concluído** (2026-11-05): tolerância de claro removida; `decifrar_segredo` é estrito.
