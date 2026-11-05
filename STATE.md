@@ -4,6 +4,13 @@
 
 _Atualizado: 2026-11-05_
 
+## EM ANDAMENTO — spec 0007 (cifrar `totp_secret` em repouso / dívida S1)
+- **Implementada na branch `feat/0007-cifrar-totp-secret` (`a53fdb3`)** — tier Arquitetural, **ADR 0011** (Fernet app-level, `TOTP_ENC_KEY`, rotação MultiFernet; dep `cryptography` aprovada por Jefferson 2026-11-05). Fonte do plano: `docs/divida-tecnica.md` §S1.
+- **Gates verdes:** `/revisar` sem P0/P1 (1 P2 consciente); `/seguranca` sem vuln bloqueante (1 MÉDIO: tolerância de claro temporária); **CI completo** (backend ruff/mypy/ciclo-migração/cobertura **97,25%**/pip-audit + frontend eslint/tsc/build/audit). `/validar`: AC-1..AC-7 cobertos.
+- Arquivos: `core/security.py` (`cifrar_segredo`/`decifrar_segredo` MultiFernet lazy), `core/config.py` (`totp_enc_key`), `models/usuario.py` (`totp_secret`→`String(255)`), `api/auth.py` (decifra no `_totp_confere`), `criar_admin.py` (cifra), migração **`c4c7ff4e9646`** (cifra condicional a linhas), testes `test_cifra_totp.py` + seed cifrado em `test_auth.py`.
+- 🚨 **ORDEM DE DEPLOY CRÍTICA:** staging e produção **já têm o admin** (1 linha) → o `upgrade` desta migração **exige `TOTP_ENC_KEY`**. **Setar a chave na Railway (staging e produção) ANTES de deployar**, senão a migração quebra o deploy. Gerar com `python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"` (uma por ambiente; aprovação §4).
+- **Falta p/ fechar:** (1) setar `TOTP_ENC_KEY` na Railway; (2) validar login 2FA em staging; (3) PR→develop; (4) follow-up: remover a tolerância de claro após prod cifrada.
+
 ## Última frente concluída (spec 0006 — PWA telas v1: MERGEADA #25 + EM PRODUÇÃO #26)
 - **Spec 0006 — PWA telas v1 EM PRODUÇÃO** (promovida `develop`→`main` via PR **#26**, 2026-11-05, `main = 8b1d43f`). Deploy de produção: **frontend `SUCCESS`** (reconstruiu — `frontend/` mudou; commit `8b1d43f`); **backend/worker `SKIPPED`** (inalterados). Head Alembic de produção `4ff11dacdb87` inalterado. URL: `https://menssageiro-ia-frontend-production.up.railway.app`.
   - ⚠️ **Login em produção exigiu 2 ajustes de config (2026-11-05)** — produção nunca tinha sido logada antes; o deploy da 0006 expôs isso:
