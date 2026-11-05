@@ -27,7 +27,7 @@ Ordem recomendada de ataque: **Segurança (S1–S3)** → gaps que destravam pro
   7. Validar em **staging** (toca auth) antes do PR. Rodar `/seguranca`.
 
 ### S2 — Endurecer o armazenamento do token (cookie HttpOnly)
-> **✅ FEITO e EM PRODUÇÃO** (2026-11-05, spec 0008 / ADR 0012, proxy same-origin; PRs #31→develop, #32→main). Login validado em staging. Follow-up: remover fallback Bearer.
+> **✅ FEITO e EM PRODUÇÃO** (2026-11-05, spec 0008 / ADR 0012, proxy same-origin; PRs #31→develop, #32→main). Login validado em staging/produção. ✅ Fallback Bearer removido (#35).
 - **Problema:** token de sessão em `localStorage` (`frontend/lib/auth.ts:1-27`) → exposto a **XSS**. ADR 0010 já marcou como adiado. [verificado]
 - **Natureza:** mexe em autenticação/sessão → **ADR** (estende ADR 0001/0004) e **validação em staging** obrigatórias.
 - **Passos:**
