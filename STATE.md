@@ -9,7 +9,6 @@ _Atualizado: 2026-11-04_
 - ✅ **Fundação:** tokens claro+escuro (variáveis) + selos; tema claro/escuro/sistema (`data-theme` + script pré-pintura, sem flash); shell responsivo (lateral ≥1024 / barra inferior <640); Inter (next/font); guarda de auth; esqueletos. **Sem dep nova.**
 - ✅ **Hoje** (indicador Programadas + envios programados via GET /agendamentos, contato resolvido, selo, recorrência, limite 8; demais indicadores stub) e **Contatos** (lista tabela/cartões, criar/editar, consentimento, descadastro, import CSV/XLSX).
 - ✅ **Gates:** tsc+eslint+build verdes; smoke SSR (login/tema/hoje/contatos/painel); /revisar+/seguranca sem P0/P1. Arquivos: `frontend/app/(app)/{hoje,contatos}`, `components/*`, `lib/{api,tema}.ts`, `globals.css`, `layout.tsx`.
-- ⏳ **Falta:** validação **visual autenticada** (login 2FA) das telas com dados → fazer em **staging após o merge** (agora `frontend/` muda → deploy não será SKIPPED).
 
 ## Frente anterior (concluída): spec 0005 — recorrência MERGEADA (#23) e EM PRODUÇÃO (#24)
 - **Spec 0005 — recorrência MERGEADA** (PR **#23** → `develop` = `07eb60e`, 2026-11-04; branch `feat/0005-recorrencia` apagada). Esteira SDD completa + código TDD. Implementa ADR 0005/0009 (ocorrência = nova linha; `agendamento_pai_id`; dedup por índice único parcial `UNIQUE(agendamento_pai_id, executar_em) WHERE agendamento_pai_id IS NOT NULL`; criação lazy via RRULE/`python-dateutil`).
@@ -17,10 +16,10 @@ _Atualizado: 2026-11-04_
 - ✅ **Gates verdes (CI do PR #23: backend+frontend SUCCESS):** ruff/mypy limpos; ciclo de migração ok; **168 passed, cobertura 97.2%**; pip-audit sem vulns. **/revisar**+**/seguranca** sem P0/P1 (hardening `max_length=500`). **/validar** AC-1..AC-13 cobertos (double-check adicionou guarda explícita do índice parcial).
 - Arquivos: `services/recorrencia.py`, migração `4ff11dacdb87`, `models/agendamento.py` (índice no `__table_args__`), `worker/disparo.py` (`_criar_proxima_ocorrencia` + auditoria `agendamento.ocorrencia_criada`), `api/agendamentos.py` (recorrencia no criar + `cancelar-serie`), `schemas/agendamento.py`. Head Alembic em develop: `4ff11dacdb87` (único).
 
-## Próximo passo (retomar aqui)
-1. **Mergear PR #25** (0006) → `develop` → validar as telas no **staging** (login real; ver Hoje/Contatos/tema). Depois escolher próxima frente: **Nova mensagem (0007, precisa de GET /modelos)**, anexos (DOCUMENT), ou mais telas.
-2. **Observação P2 da 0005 (não bloqueia):** worker usa `apos=executar_em` → série atrasada recupera 1 ocorrência/ciclo.
-3. Envio real à Meta segue adiado (número +55) — AC passam com mock + Postgres real.
+## Próximo passo (retomar aqui — NADA em andamento; escolher a frente)
+1. **Escolher a próxima frente** e abrir com `/nova-feature`. Candidata natural: **Nova mensagem (spec 0007)** — criar agendamento pela UI; **pré-requisito: criar `GET /modelos` no backend** (hoje só existe `enviar-teste`). Alternativas: mais telas do PWA (Agenda/Modelos/Histórico), anexos (DOCUMENT).
+2. **Promover `develop`→`main`** (0006 para produção) é opcional e deliberado — `develop` está **7 commits à frente de `main`** (0006 só em staging). Promover só quando quiser (via PR, como o #24).
+3. **Observação P2 da 0005 (não bloqueia):** worker usa `apos=executar_em` → série atrasada recupera 1 ocorrência/ciclo. Envio real à Meta segue adiado (número +55).
 
 ## Contexto de fundo (não é a frente ativa)
 1. ✅ **Deploy da Fase 4 em staging CONFIRMADO + write path validado** (2026-11-04): backend+worker `SUCCESS` no commit `c46bc89`; migração `5d75fec0aa05` aplicada (visto no log do deploy). **Smoke E2E autenticado** (via `railway ssh` no container, hitando o uvicorn deployado): seed Modelo `teste_fase4` → `POST /agendamentos` **201** → `GET` 200. Sessão+agendamento de teste limpos; **Modelo `teste_fase4` (aprovado) mantido** em staging p/ futuros testes. *(O erro "Railpack/start.sh" do painel era log antigo de 01/11, já resolvido.)* **Falta só o envio REAL (worker→Meta), que depende da Fase 0.**
@@ -44,10 +43,10 @@ _Atualizado: 2026-11-04_
 - Pendência de segurança herdada: **cifrar `totp_secret` em repouso**.
 
 ## Estado do git
-- Branch atual: **`develop`** = `18bdcbc` (+ chore de STATE desta sessão, a pushar). **Spec 0005 mergeada (PR #23) e promovida p/ `main` (PR #24).**
-- `main` = `d43fc8f` (merge do #24) — agora com Fases 3/4/5; produção no ar. `develop` fica à frente de `main` só por chores de STATE pós-release.
-- Branch `feat/0005-recorrencia` **apagada** (remota + local). Remotas vivas: `develop`, `main`, `feat/0003` (mergeada há tempos — pode apagar).
-- Head Alembic (develop e main): `4ff11dacdb87` (único).
+- Branch atual: **`develop`** = `18b3697`, limpo, sincronizado com `origin`. **Sem PR aberta.**
+- `main` = `d43fc8f` (release #24, Fases 3/4/5 — recorrência em produção). **`develop` está 7 commits à frente de `main`** (a 0006/telas só em staging; promover p/ produção é passo deliberado via PR).
+- Branches `feat/0005-recorrencia` e `feat/0006-pwa-telas` **apagadas** (mergeadas). Remotas vivas: `develop`, `main`, `feat/0003` (mergeada há tempos — pode apagar).
+- Head Alembic: `4ff11dacdb87` (único) — a 0006 não mexeu em schema.
 - Locais não mergeadas: `docs/codebase-map` (`6f03cdc`), `chore/railway-procfile` (`879c09a`).
 
 ## Infra (Railway — projeto `406f04bb-7659-4366-aea0-f9489dbf0b07`)
