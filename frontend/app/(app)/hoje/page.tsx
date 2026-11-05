@@ -51,7 +51,7 @@ export default function HojePage() {
         setNomes(new Map(contatos.items.map((c) => [c.id, c.nome])));
         const futuros = ags
           .filter((a) => new Date(a.executar_em).getTime() > agora)
-          .sort((a, b) => a.executar_em.localeCompare(b.executar_em));
+          .sort((a, b) => new Date(a.executar_em).getTime() - new Date(b.executar_em).getTime());
         setItens(futuros);
       })
       .catch((e: unknown) => setErro(e instanceof Error ? e.message : "Falha ao carregar"));

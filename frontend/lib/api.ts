@@ -170,18 +170,18 @@ export async function criarContato(dados: ContatoEntrada): Promise<Contato> {
 }
 
 export async function atualizarContato(id: string, dados: Partial<ContatoEntrada>): Promise<Contato> {
-  return pedirJson<Contato>(`/contatos/${id}`, "PATCH", dados);
+  return pedirJson<Contato>(`/contatos/${encodeURIComponent(id)}`, "PATCH", dados);
 }
 
 export async function descadastrarContato(id: string): Promise<Contato> {
-  return pedir<Contato>(`/contatos/${id}/descadastrar`, { method: "POST" });
+  return pedir<Contato>(`/contatos/${encodeURIComponent(id)}/descadastrar`, { method: "POST" });
 }
 
 export async function registrarConsentimento(
   id: string,
   dados: { origem: string; data: string },
 ): Promise<Contato> {
-  return pedirJson<Contato>(`/contatos/${id}/consentimento`, "POST", dados);
+  return pedirJson<Contato>(`/contatos/${encodeURIComponent(id)}/consentimento`, "POST", dados);
 }
 
 export async function importarContatos(arquivo: File): Promise<RelatorioImportacao> {
