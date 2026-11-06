@@ -125,6 +125,25 @@ export async function criarAgendamento(dados: AgendamentoCriar): Promise<Agendam
   return pedirJson<Agendamento>("/agendamentos", "POST", dados);
 }
 
+// Ações de gestão (tela Agenda, spec 0012) — transições de estado no backend (§5.1: a API só
+// registra/transiciona; quem envia é o worker). `cancelar`: não-terminal → cancelado.
+export async function cancelarAgendamento(id: string): Promise<Agendamento> {
+  return pedir<Agendamento>(`/agendamentos/${encodeURIComponent(id)}/cancelar`, { method: "POST" });
+}
+
+// `reenviar`: só vale para status `aguardando_decisao` (backend devolve 409 caso contrário).
+export async function reenviarAgendamento(id: string): Promise<Agendamento> {
+  return pedir<Agendamento>(`/agendamentos/${encodeURIComponent(id)}/reenviar`, { method: "POST" });
+}
+
+// `cancelar-serie`: cancela as ocorrências futuras pendentes da série; devolve quantas.
+export async function cancelarSerie(id: string): Promise<{ cancelados: number }> {
+  return pedir<{ cancelados: number }>(
+    `/agendamentos/${encodeURIComponent(id)}/cancelar-serie`,
+    { method: "POST" },
+  );
+}
+
 // ---- Modelos (templates aprovados) ---------------------------------------------------------
 
 export interface Modelo {
