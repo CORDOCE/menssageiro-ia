@@ -47,6 +47,17 @@ export async function logout(): Promise<void> {
 
 // ---- Helper autenticado (sessão via cookie; credentials:"include") -------------------------
 
+// Erro de API que preserva o status HTTP, para o chamador diferenciar 401 (sessão expirada →
+// login), 422 (validação) e demais sem reparsear a mensagem. `instanceof Error` segue valendo.
+export class ApiError extends Error {
+  readonly status: number;
+  constructor(status: number, message: string) {
+    super(message);
+    this.name = "ApiError";
+    this.status = status;
+  }
+}
+
 async function pedir<T>(caminho: string, init: RequestInit = {}): Promise<T> {
   const r = await fetch(`${BASE}${caminho}`, {
     ...init,
@@ -56,7 +67,7 @@ async function pedir<T>(caminho: string, init: RequestInit = {}): Promise<T> {
   if (!r.ok) {
     const corpo: { detail?: unknown } = await r.json().catch(() => ({}));
     const detalhe = typeof corpo.detail === "string" ? corpo.detail : `Erro ${r.status}`;
-    throw new Error(detalhe);
+    throw new ApiError(r.status, detalhe);
   }
   return r.json() as Promise<T>;
 }
@@ -98,6 +109,42 @@ export async function listarAgendamentos(params: {
   if (params.offset != null) q.set("offset", String(params.offset));
   const sufixo = q.toString() ? `?${q.toString()}` : "";
   return pedir<Agendamento[]>(`/agendamentos${sufixo}`);
+}
+
+// Payload de criação (spec 0011): contato individual + modelo + variáveis + quando enviar.
+// `origem` é omitido de propósito — o backend aplica o default "operador" (schemas/agendamento.py).
+// `executar_em`: ISO-8601 com offset (UTC), convertido do horário local America/Sao_Paulo.
+export interface AgendamentoCriar {
+  contato_id: string;
+  modelo_id: string;
+  variaveis: string[];
+  executar_em: string;
+}
+
+export async function criarAgendamento(dados: AgendamentoCriar): Promise<Agendamento> {
+  return pedirJson<Agendamento>("/agendamentos", "POST", dados);
+}
+
+// ---- Modelos (templates aprovados) ---------------------------------------------------------
+
+export interface Modelo {
+  id: string;
+  nome: string;
+  idioma: string;
+  categoria: string;
+  status: string;
+  corpo: string;
+  cabecalho_tipo: string | null;
+  variaveis: string[];
+}
+
+// Lista modelos; `status: "aprovado"` filtra os que podem iniciar conversa (§5.3). O backend
+// já ordena por nome.
+export async function listarModelos(params: { status?: string } = {}): Promise<Modelo[]> {
+  const q = new URLSearchParams();
+  if (params.status) q.set("status", params.status);
+  const sufixo = q.toString() ? `?${q.toString()}` : "";
+  return pedir<Modelo[]>(`/modelos${sufixo}`);
 }
 
 // ---- Contatos ------------------------------------------------------------------------------
