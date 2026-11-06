@@ -37,7 +37,16 @@ _Atualizado: 2026-11-05_
 - ✅ **Gates verdes (CI do PR #23: backend+frontend SUCCESS):** ruff/mypy limpos; ciclo de migração ok; **168 passed, cobertura 97.2%**; pip-audit sem vulns. **/revisar**+**/seguranca** sem P0/P1 (hardening `max_length=500`). **/validar** AC-1..AC-13 cobertos (double-check adicionou guarda explícita do índice parcial).
 - Arquivos: `services/recorrencia.py`, migração `4ff11dacdb87`, `models/agendamento.py` (índice no `__table_args__`), `worker/disparo.py` (`_criar_proxima_ocorrencia` + auditoria `agendamento.ocorrencia_criada`), `api/agendamentos.py` (recorrencia no criar + `cancelar-serie`), `schemas/agendamento.py`. Head Alembic em develop: `4ff11dacdb87` (único).
 
-## Próximo passo (retomar aqui — NADA em andamento; escolher a frente)
+## EM ANDAMENTO — Promoção `develop`→`main` do #35 (auth cookie-only) — PAUSADA no Passo 2
+> Plano completo: `/Users/jefferson/.claude/plans/eu-precisei-sair-da-sorted-meteor.md`. `develop` está 5 commits à frente de `main`, só **1 é código**: `39f1c98` (#35, remove o fallback `Authorization: Bearer` → auth **só por cookie**, S2/ADR 0012). Os outros 4 são `STATE.md`/doc. Falta levar o #35 à **produção**.
+- ✅ **Passo 1 (smoke read-only staging) FEITO (2026-11-05):** backend staging ativo (SUCCESS) = commit `95b2fba`, que vem **depois** do merge do #35 → roda o código cookie-only. `GET /auth/me` sem cookie → **401 JSON** (`{"detail":"Não autenticado"}`); com `Bearer` falso → **401** também. Código confirma: `backend/app/core/auth_deps.py` lê só `Cookie(alias="sessao")`, docstring diz "fallback Authorization: Bearer removido". *(Deploy do topo `fe0a380` = SKIPPED: só mexeu em STATE.md, doc sem código.)*
+- ⏭️ **Passo 2 (PRÓXIMA AÇÃO — depende de Jefferson):** validar **login real cookie-only em staging** pela UI (admin `digital@cordoce.com.br` + 2FA): confirmar cookie `sessao` HttpOnly presente, nada no localStorage, navegação autenticada e logout OK. **Gate:** se falhar, parar e investigar antes de qualquer PR.
+- ⏭️ **Passo 3:** com Passo 2 verde, abrir PR release `develop`→`main` (`gh pr create --base main --head develop`, título `chore(release): promover develop→main — remover fallback Bearer (auth cookie-only, #35)`, sem co-autoria de IA). Confirmar CI verde; merge só com aval do Jefferson.
+- ⏭️ **Passo 4:** pós-merge, acompanhar deploy prod (back+front+worker) até SUCCESS; **nenhuma var nova** p/ o #35; smoke `GET /auth/me` sem cookie → 401; Jefferson valida login real em prod.
+- ⏭️ **Passo 5 (higiene):** fast-forward do `main` **local** p/ `origin/main` (hoje local=`8b1d43f`/#26, atrasado). Decisão do responsável: **não apagar** `chore/railway-procfile` nem `docs/codebase-map`.
+- ⏭️ **Passo 6:** atualizar este STATE (#35 em prod + Estado do git).
+
+## Depois da promoção — escolher a próxima frente
 0. **F1 (CRUD de Modelo) FEITO em develop** (spec 0010, PR #33): `GET /modelos` + `POST /modelos/sincronizar` (lê templates da Meta, upsert; §5.3). Pré-requisito da "Nova mensagem" resolvido. ✅ **F1 em produção** (release #34, `main=a50f11e`; GET /modelos smoke 401 ok). ✅ **`sincronizar` VALIDADO em staging (2026-11-05)**: `WHATSAPP_TOKEN`+`WABA_ID=1679341853598307` setados no backend/staging; leu 5 templates da WABA e upsertou (`total:5, criados:5`, todos `aprovado`). **Prod ainda sem credenciais Meta** → sincronizar inerte lá até setá-las (Fase 0). Criar/submeter template na Meta = spec futura.
 1. **Escolher a próxima frente** e abrir com `/nova-feature`. Candidata natural: **Nova mensagem** (criar agendamento pela UI; agora com `GET /modelos` disponível). Alternativas: mais telas do PWA (Agenda/Modelos/Histórico), anexos (DOCUMENT), ou dívidas (R1 hardening de agendamentos, O1 alerta §12).
 2. **Observação P2 da 0005 (não bloqueia):** worker usa `apos=executar_em` → série atrasada recupera 1 ocorrência/ciclo. Envio real à Meta segue adiado (número +55).
@@ -63,12 +72,13 @@ _Atualizado: 2026-11-05_
 - **Validar Fase 2 em staging** (DoD 0002): import com `validar_fase2.csv` (scratchpad), esperado total=3/criados=2/erros=1.
 - Pendência de segurança herdada: **cifrar `totp_secret` em repouso**.
 
-## Estado do git
-- Branch atual: **`develop`** = `4ce95dd` (+ commit de STATE desta sessão), limpo. **Sem PR aberta** (o #26 foi mergeado).
-- `main` = `8b1d43f` (release #26, spec 0006 — PWA telas em produção). **`develop` = `main` em conteúdo** (0 commits à frente; o merge commit vive só em `main`).
-- **Higiene feita (2026-11-05):** apagadas remotas mergeadas `feat/0003` (local+remota), `feat/0004`/`feat/0005` já tinham sido podadas. Remotas vivas: só `develop` e `main`. `main` local atualizado p/ `8b1d43f`.
-- Head Alembic: `4ff11dacdb87` (único) — a 0006 não mexeu em schema.
-- Locais não mergeadas (mantidas): `docs/codebase-map` (`6f03cdc`), `chore/railway-procfile` (`879c09a`, trabalho não integrado).
+## Estado do git (2026-11-05)
+- Branch atual: **`develop`** = `fe0a380`, limpo, sincronizado com `origin/develop`. **Sem PR aberta.**
+- `origin/main` = `a50f11e` (release #34, F1). **`develop` está 5 commits à frente de `origin/main`**, só **1 de código**: `39f1c98` (#35, remove fallback Bearer). Os outros 4 = STATE/doc + merge. **Promoção pendente** (ver "EM ANDAMENTO" no topo).
+- ⚠️ **`main` LOCAL desatualizado:** `8b1d43f` (#26) vs `origin/main` `a50f11e` (#34) → precisa fast-forward (Passo 5 do plano).
+- **Remotas: limpas** — só `origin/develop` e `origin/main` (prune 2026-11-05 podou `feat/0010` e `fix/0012`, já mergeados).
+- Head Alembic: `4ff11dacdb87` (único) — nada de schema novo desde a 0006.
+- Locais não mergeadas (mantidas por decisão): `docs/codebase-map` (`6f03cdc`), `chore/railway-procfile` (`879c09a`, trabalho não integrado).
 
 ## Infra (Railway — projeto `406f04bb-7659-4366-aea0-f9489dbf0b07`)
 - **staging** 🟢 segue `develop`; **produção** segue `main`. Dev/testes locais: `docker compose up -d db` (container `mensageiro-ia-db-1`, Postgres 17, porta 5434) — **está de pé** (healthy).
