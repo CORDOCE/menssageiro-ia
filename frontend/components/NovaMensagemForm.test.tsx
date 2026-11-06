@@ -162,6 +162,16 @@ describe("NovaMensagemForm — habilitação do botão (AC-5, matriz)", () => {
     expect(botao()).toBeDisabled();
   });
 
+  it("desabilita com modelo mas sem contato", async () => {
+    mockarCarga([modelo({ variaveis: ["1"] })], [contato()]);
+    render(<NovaMensagemForm />);
+    const user = userEvent.setup();
+    await user.selectOptions(await screen.findByLabelText("Modelo"), "m1");
+    await user.type(screen.getByLabelText("{{1}}"), "Maria");
+    await user.type(screen.getByLabelText(/quando enviar/i), "2026-12-01T12:00");
+    expect(botao()).toBeDisabled();
+  });
+
   it("desabilita com variável só de espaços", async () => {
     const user = await preencherTudo();
     await user.clear(screen.getByLabelText("{{1}}"));
