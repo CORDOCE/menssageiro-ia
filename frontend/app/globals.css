@@ -203,7 +203,8 @@ textarea:focus {
   border-color: var(--cor-primaria);
 }
 
-button {
+button,
+a[role="button"] {
   padding: 0.65rem 0.9rem;
   border: none;
   border-radius: 8px;
@@ -214,7 +215,16 @@ button {
   cursor: pointer;
 }
 
-button:hover {
+/* Links que agem como botão (navegação com aparência de botão). */
+a[role="button"] {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  text-decoration: none;
+}
+
+button:hover,
+a[role="button"]:hover {
   background: var(--cor-primaria-hover);
 }
 
@@ -223,25 +233,29 @@ button:disabled {
   cursor: not-allowed;
 }
 
-button.secundario {
+button.secundario,
+a[role="button"].secundario {
   background: transparent;
   color: var(--cor-primaria);
   font-weight: 500;
   border: 1px solid var(--borda);
 }
 
-button.secundario:hover {
+button.secundario:hover,
+a[role="button"].secundario:hover {
   background: var(--superficie-2);
 }
 
-button.fantasma {
+button.fantasma,
+a[role="button"].fantasma {
   background: transparent;
   color: var(--texto-2);
   font-weight: 500;
   padding: 0.3rem 0.5rem;
 }
 
-button.fantasma:hover {
+button.fantasma:hover,
+a[role="button"].fantasma:hover {
   background: var(--superficie-2);
 }
 
