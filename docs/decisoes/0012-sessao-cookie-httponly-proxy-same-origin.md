@@ -14,8 +14,8 @@ e um cookie `SameSite=Lax/Strict` do backend não é enviado nas chamadas do fro
    sessão (`session_max_dias`). O token **não** é mais lido/guardado por JavaScript.
 3. **CSRF**: `SameSite=Strict` já impede o envio do cookie em requisições cross-site → mitiga CSRF clássico.
    Double-submit/headers extras ficam como endurecimento futuro.
-4. **Transição sem lockout**: o backend aceita o token por **cookie OU `Authorization: Bearer`** por uma
-   release; o frontend passa a usar só o cookie. Remover o Bearer é follow-up.
+4. **Transição sem lockout**: o backend aceitou o token por **cookie OU `Authorization: Bearer`** durante a
+   migração do frontend. **Fallback Bearer removido em 2026-11-05** (frontend já migrado) → auth **só por cookie**.
 5. **CORS**: com proxy same-origin o browser não faz cross-origin para a API → CORS deixa de ser o caminho
    de auth (mantido `FRONTEND_URL` para eventuais acessos diretos).
 
