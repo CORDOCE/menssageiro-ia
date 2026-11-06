@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect, useState } from "react";
 
 import { EstadoVazio } from "@/components/EstadoVazio";
@@ -74,7 +75,12 @@ export default function HojePage() {
             {hojeExtenso}
           </p>
         </div>
-        <Selo tom="entregue">Sistema ok</Selo>
+        <div className="barra-acoes" style={{ alignItems: "center" }}>
+          <Selo tom="entregue">Sistema ok</Selo>
+          <Link href="/nova-mensagem" role="button">
+            Nova mensagem
+          </Link>
+        </div>
       </div>
 
       <div className="grade-indicadores">
