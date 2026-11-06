@@ -4,8 +4,9 @@
 
 _Atualizado: 2026-11-06_
 
-## 🔵 FRENTE ATIVA — spec 0012 "Agenda" (gerenciar agendamentos pela UI) — implementada, aguarda PR+staging
-> Branch `feat/0012-agenda` (base `develop`). Próxima tela da **Fase 5** (BRIEFING §14; dívida F2) escolhida após fechar a 0011. Tier **Pequeno**, só frontend sobre endpoints existentes (0004/0005). **Gates locais verdes; falta PR → develop e validar em staging.**
+## 🟢 spec 0012 "Agenda" (gerenciar agendamentos pela UI) — MERGEADA em develop (#39) + VALIDADA em staging; aguarda promoção p/ main
+> **PR #39 MERGEADO em `develop`** (merge `e3fe8e8`; CI verde). **✅ VALIDADO na UI de staging por Jefferson (2026-11-06):** Agenda listou, filtrou por status (Cancelada→0), e **Cancelar** funcionou (item virou "Cancelada"). Deploy staging frontend SUCCESS. **Falta só promover `develop`→`main`** (release PR aberto). Tier Pequeno, só frontend (0004/0005).
+> - **Nota:** o login de staging falhou antes por **erro de digitação no domínio do e-mail** (`cordce`/`codoce` em vez de `cordoce`) — diagnosticado pela auditoria (`ator_email` por tentativa); conta/relógio/cifra OK. Não era bug.
 - **Escopo (v1):** listar agendamentos (ordem do backend) com **filtro status** (servidor) + **período** futuros/passados/todos (cliente); ações **cancelar** (não-terminal), **reenviar** (só `aguardando_decisao`), **cancelar série** (recorrente, informa contagem). Confirmação `window.confirm`; erros `alert` (padrão Contatos); 401→login; guarda de duplo clique. **Fora:** editar (sem PATCH), criar (é a 0011), histórico de envios (sem `GET /envios`).
 - **Decisões de gate (Jefferson):** Q1 status+período · Q2 `limit=200` · Q3 `window.confirm` · Q4 reenviar incluído.
 - **Arquivos:** `frontend/app/(app)/agenda/page.tsx` (+teste), `lib/api.ts` (`cancelarAgendamento`/`reenviarAgendamento`/`cancelarSerie`), `components/icones.tsx` (`IconeAgenda`), `components/AppShell.tsx` (item Agenda sai de "Em breve").
