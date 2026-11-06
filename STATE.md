@@ -2,7 +2,7 @@
 
 > Memória volátil do trabalho. Histórico vive no git/ADR. Atualize ao pausar (`/handoff`).
 
-_Atualizado: 2026-11-05_
+_Atualizado: 2026-11-06_
 
 ## spec 0007 (cifrar `totp_secret`/dívida S1) — ✅ CONCLUÍDA e EM PRODUÇÃO
 - **EM PRODUÇÃO** (release PR **#28** `develop`→`main` = `5c133c42`, 2026-11-05). Deploy prod backend+worker `SUCCESS`; migração `c4c7ff4e9646` aplicada; `totp_secret` do admin de prod **cifrado em repouso** e 2FA funcional (verificado read-only: `usuarios=1`, `cifrado=True`, `self_verify=True`). Também mergeada em `develop` (#27) e **validada em staging** (login 2FA real por Jefferson). ADR 0011 (Fernet app-level, `TOTP_ENC_KEY`, MultiFernet; dep `cryptography`).
@@ -37,14 +37,14 @@ _Atualizado: 2026-11-05_
 - ✅ **Gates verdes (CI do PR #23: backend+frontend SUCCESS):** ruff/mypy limpos; ciclo de migração ok; **168 passed, cobertura 97.2%**; pip-audit sem vulns. **/revisar**+**/seguranca** sem P0/P1 (hardening `max_length=500`). **/validar** AC-1..AC-13 cobertos (double-check adicionou guarda explícita do índice parcial).
 - Arquivos: `services/recorrencia.py`, migração `4ff11dacdb87`, `models/agendamento.py` (índice no `__table_args__`), `worker/disparo.py` (`_criar_proxima_ocorrencia` + auditoria `agendamento.ocorrencia_criada`), `api/agendamentos.py` (recorrencia no criar + `cancelar-serie`), `schemas/agendamento.py`. Head Alembic em develop: `4ff11dacdb87` (único).
 
-## EM ANDAMENTO — Promoção `develop`→`main` do #35 (auth cookie-only) — PAUSADA no Passo 2
-> Plano completo: `/Users/jefferson/.claude/plans/eu-precisei-sair-da-sorted-meteor.md`. `develop` está 5 commits à frente de `main`, só **1 é código**: `39f1c98` (#35, remove o fallback `Authorization: Bearer` → auth **só por cookie**, S2/ADR 0012). Os outros 4 são `STATE.md`/doc. Falta levar o #35 à **produção**.
-- ✅ **Passo 1 (smoke read-only staging) FEITO (2026-11-05):** backend staging ativo (SUCCESS) = commit `95b2fba`, que vem **depois** do merge do #35 → roda o código cookie-only. `GET /auth/me` sem cookie → **401 JSON** (`{"detail":"Não autenticado"}`); com `Bearer` falso → **401** também. Código confirma: `backend/app/core/auth_deps.py` lê só `Cookie(alias="sessao")`, docstring diz "fallback Authorization: Bearer removido". *(Deploy do topo `fe0a380` = SKIPPED: só mexeu em STATE.md, doc sem código.)*
-- ⏭️ **Passo 2 (PRÓXIMA AÇÃO — depende de Jefferson):** validar **login real cookie-only em staging** pela UI (admin `digital@cordoce.com.br` + 2FA): confirmar cookie `sessao` HttpOnly presente, nada no localStorage, navegação autenticada e logout OK. **Gate:** se falhar, parar e investigar antes de qualquer PR.
-- ⏭️ **Passo 3:** com Passo 2 verde, abrir PR release `develop`→`main` (`gh pr create --base main --head develop`, título `chore(release): promover develop→main — remover fallback Bearer (auth cookie-only, #35)`, sem co-autoria de IA). Confirmar CI verde; merge só com aval do Jefferson.
-- ⏭️ **Passo 4:** pós-merge, acompanhar deploy prod (back+front+worker) até SUCCESS; **nenhuma var nova** p/ o #35; smoke `GET /auth/me` sem cookie → 401; Jefferson valida login real em prod.
-- ⏭️ **Passo 5 (higiene):** fast-forward do `main` **local** p/ `origin/main` (hoje local=`8b1d43f`/#26, atrasado). Decisão do responsável: **não apagar** `chore/railway-procfile` nem `docs/codebase-map`.
-- ⏭️ **Passo 6:** atualizar este STATE (#35 em prod + Estado do git).
+## ✅ CONCLUÍDA — Promoção `develop`→`main` do #35 (auth cookie-only) EM PRODUÇÃO (2026-11-06)
+> #35 (remove fallback `Authorization: Bearer` → auth **só por cookie**, S2/ADR 0012) promovido a produção via release PR **#36** (`main = d7983cb`, 2026-11-06). **Frente de auth cookie-only CONCLUÍDA ponta a ponta** — login real em produção validado por Jefferson (2026-11-06).
+- ✅ **Passo 1 (smoke read-only staging):** `GET /auth/me` sem cookie → 401 JSON; Bearer falso → 401. `backend/app/core/auth_deps.py` lê só `Cookie(alias="sessao")`.
+- ✅ **Passo 2 (login real cookie-only em staging) VALIDADO por Jefferson (2026-11-06).**
+- ✅ **Passo 3:** PR release **#36** aberto e CI verde (backend 47s, frontend 52s). Mesclado por Jefferson (merge commit `d7983cb`).
+- ✅ **Passo 4 (deploy prod):** backend `e31b875a` SUCCESS + worker `65a30dee` SUCCESS; frontend `0bf5ae69` SKIPPED (esperado, `frontend/` inalterado). **Nenhuma var nova.** Smoke prod: `GET /api/auth/me` sem cookie → **401 JSON**; Bearer falso → **401** (fallback removido confirmado em prod). ✅ **Login real pela UI de produção VALIDADO por Jefferson (2026-11-06)** (admin `jeffersonsilvaluiz26@gmail.com` + 2FA).
+- ✅ **Passo 5 (higiene):** `main` local fast-forward para `d7983cb` (== `origin/main`). Mantidas por decisão: `chore/railway-procfile`, `docs/codebase-map`.
+- ✅ **Passo 6:** STATE atualizado (este bloco + Estado do git).
 
 ## Depois da promoção — escolher a próxima frente
 0. **F1 (CRUD de Modelo) FEITO em develop** (spec 0010, PR #33): `GET /modelos` + `POST /modelos/sincronizar` (lê templates da Meta, upsert; §5.3). Pré-requisito da "Nova mensagem" resolvido. ✅ **F1 em produção** (release #34, `main=a50f11e`; GET /modelos smoke 401 ok). ✅ **`sincronizar` VALIDADO em staging (2026-11-05)**: `WHATSAPP_TOKEN`+`WABA_ID=1679341853598307` setados no backend/staging; leu 5 templates da WABA e upsertou (`total:5, criados:5`, todos `aprovado`). **Prod ainda sem credenciais Meta** → sincronizar inerte lá até setá-las (Fase 0). Criar/submeter template na Meta = spec futura.
@@ -72,11 +72,10 @@ _Atualizado: 2026-11-05_
 - **Validar Fase 2 em staging** (DoD 0002): import com `validar_fase2.csv` (scratchpad), esperado total=3/criados=2/erros=1.
 - Pendência de segurança herdada: **cifrar `totp_secret` em repouso**.
 
-## Estado do git (2026-11-05)
-- Branch atual: **`develop`** = `fe0a380`, limpo, sincronizado com `origin/develop`. **Sem PR aberta.**
-- `origin/main` = `a50f11e` (release #34, F1). **`develop` está 5 commits à frente de `origin/main`**, só **1 de código**: `39f1c98` (#35, remove fallback Bearer). Os outros 4 = STATE/doc + merge. **Promoção pendente** (ver "EM ANDAMENTO" no topo).
-- ⚠️ **`main` LOCAL desatualizado:** `8b1d43f` (#26) vs `origin/main` `a50f11e` (#34) → precisa fast-forward (Passo 5 do plano).
-- **Remotas: limpas** — só `origin/develop` e `origin/main` (prune 2026-11-05 podou `feat/0010` e `fix/0012`, já mergeados).
+## Estado do git (2026-11-06)
+- Branch atual: **`develop`** = `68b0bc5`, limpo, sincronizado com `origin/develop`. **Sem PR aberta.**
+- `origin/main` = **`d7983cb`** (release #36, auth cookie-only / #35). `main` **local** = `d7983cb` (alinhado). `develop` é ancestral de `main` (só o commit de merge difere). **Nenhuma promoção pendente.**
+- **Remotas: limpas** — só `origin/develop` e `origin/main`.
 - Head Alembic: `4ff11dacdb87` (único) — nada de schema novo desde a 0006.
 - Locais não mergeadas (mantidas por decisão): `docs/codebase-map` (`6f03cdc`), `chore/railway-procfile` (`879c09a`, trabalho não integrado).
 
