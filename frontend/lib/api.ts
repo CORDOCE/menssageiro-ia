@@ -166,6 +166,16 @@ export async function listarModelos(params: { status?: string } = {}): Promise<M
   return pedir<Modelo[]>(`/modelos${sufixo}`);
 }
 
+// Sincroniza os modelos com a Meta (lê templates, upsert; §5.3). Exige credenciais Meta no backend
+// (staging tem; produção não até a Fase 0 → falha lá). Tela Modelos (spec 0013).
+export async function sincronizarModelos(): Promise<{
+  total: number;
+  criados: number;
+  atualizados: number;
+}> {
+  return pedir("/modelos/sincronizar", { method: "POST" });
+}
+
 // ---- Contatos ------------------------------------------------------------------------------
 
 export interface Contato {

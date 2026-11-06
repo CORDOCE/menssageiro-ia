@@ -4,7 +4,16 @@
 
 _Atualizado: 2026-11-06_
 
-## 🟢 spec 0012 "Agenda" (gerenciar agendamentos pela UI) — MERGEADA em develop (#39) + VALIDADA em staging; aguarda promoção p/ main
+## 🔵 FRENTE ATIVA — spec 0013 "Modelos" (ver templates + sincronizar) — implementada, aguarda PR+staging
+> Branch `feat/0013-modelos` (base `develop`). Próxima tela da **Fase 5** (F2) após Agenda. Tier **Pequeno**, só frontend sobre endpoints existentes (0010). **Gates locais verdes (52 testes); falta PR → develop e validar em staging.**
+- **Escopo (v1):** listar templates (nome, selo de status, categoria/idioma, prévia do corpo texto-puro §6, variáveis) + filtro por status; botão **Sincronizar** (`POST /modelos/sincronizar`) com feedback (total/criados/atualizados) e recarga. **Fora:** criar/editar/submeter template, enviar-teste, excluir.
+- **Decisões de gate (Jefferson):** Q1 incluir filtro de status · Q2 enviar-teste fora · Q3 sincronizar sem confirmação · Q4 detalhe inline.
+- **Arquivos:** `frontend/app/(app)/modelos/page.tsx` (+teste), `lib/api.ts` (`sincronizarModelos`), `components/Selo.tsx` (`seloModelo` +teste), `components/icones.tsx` (`IconeModelos`), `components/AppShell.tsx` (item Modelos sai de "Em breve").
+- ⚠️ **Em produção o Sincronizar falha** (sem credenciais Meta — Fase 0); o AC-4 trata o erro de forma legível. **Staging funciona** (credenciais setadas; sincronização já validada antes — 5 templates).
+- **Gates:** `/revisar` 0 P0/P1 · `/seguranca` 0 crítico/alto · `/validar` 52 testes (lint+tsc+vitest+build `/modelos`). Backend intocado.
+- **Próximo passo:** abrir **PR `feat/0013-modelos` → develop** e validar em staging (clicar Sincronizar → ver resultado e a lista de templates).
+
+## 🟢 spec 0012 "Agenda" (gerenciar agendamentos pela UI) — MERGEADA em develop (#39) + VALIDADA em staging; aguarda promoção p/ main (release PR #40)
 > **PR #39 MERGEADO em `develop`** (merge `e3fe8e8`; CI verde). **✅ VALIDADO na UI de staging por Jefferson (2026-11-06):** Agenda listou, filtrou por status (Cancelada→0), e **Cancelar** funcionou (item virou "Cancelada"). Deploy staging frontend SUCCESS. **Falta só promover `develop`→`main`** (release PR aberto). Tier Pequeno, só frontend (0004/0005).
 > - **Nota:** o login de staging falhou antes por **erro de digitação no domínio do e-mail** (`cordce`/`codoce` em vez de `cordoce`) — diagnosticado pela auditoria (`ator_email` por tentativa); conta/relógio/cifra OK. Não era bug.
 - **Escopo (v1):** listar agendamentos (ordem do backend) com **filtro status** (servidor) + **período** futuros/passados/todos (cliente); ações **cancelar** (não-terminal), **reenviar** (só `aguardando_decisao`), **cancelar série** (recorrente, informa contagem). Confirmação `window.confirm`; erros `alert` (padrão Contatos); 401→login; guarda de duplo clique. **Fora:** editar (sem PATCH), criar (é a 0011), histórico de envios (sem `GET /envios`).
