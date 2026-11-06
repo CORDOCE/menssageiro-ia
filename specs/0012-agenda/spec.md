@@ -69,11 +69,9 @@ Um teste por AC (Vitest + Testing Library, cliente de API mockado — nunca Meta
 - Histórico de envios/status detalhado por mensagem (tela Histórico, precisa de `GET /envios` — não existe).
 - Ações em lote (cancelar vários de uma vez).
 
-## Questões em aberto (resolver no gate / `/clarificar`)
-1. **Filtros do v1:** além do filtro por **status**, incluir filtro de **período** (futuros / passados /
-   todos — feito no cliente, já que o GET não filtra por data)? Quais status no seletor?
-2. **Paginação:** base pequena hoje — carregar `limit=200` e pronto, ou botão "carregar mais"/paginação?
-3. **Confirmação destrutiva:** cancelar / cancelar-série via `window.confirm` (padrão atual da tela
-   Contatos) ou diálogo próprio?
-4. **Reenviar no v1:** expor a ação (só aparece em `aguardando_decisao`, que surge do limite diário) ou
-   deixar para depois? (Não custa, mas confirma o escopo.)
+## Questões em aberto — RESOLVIDAS no gate (Jefferson, 2026-11-06)
+1. **Filtros:** **status + período**. Status via servidor (`?status=`); **período** (futuros / passados /
+   todos) no cliente, pois o `GET` não filtra por data. Default: **todos**.
+2. **Paginação:** carregar **`limit=200`** e pronto (base pequena); "carregar mais" só se crescer.
+3. **Confirmação destrutiva:** **`window.confirm`** — mesmo padrão da tela Contatos.
+4. **Reenviar:** **incluído** no v1 (só aparece em `aguardando_decisao`).
