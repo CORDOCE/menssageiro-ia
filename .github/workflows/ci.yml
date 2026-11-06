@@ -90,6 +90,9 @@ jobs:
       - name: Tipos (tsc)
         run: npx tsc --noEmit
 
+      - name: Testes (vitest)
+        run: npm test
+
       - name: Build
         run: npm run build
 
