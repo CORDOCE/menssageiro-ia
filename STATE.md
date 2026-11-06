@@ -46,6 +46,17 @@ _Atualizado: 2026-11-06_
 - ✅ **Passo 5 (higiene):** `main` local fast-forward para `d7983cb` (== `origin/main`). Mantidas por decisão: `chore/railway-procfile`, `docs/codebase-map`.
 - ✅ **Passo 6:** STATE atualizado (este bloco + Estado do git).
 
+## 🔵 FRENTE ATIVA — spec 0011 "Nova mensagem" (criar agendamento pela UI) — implementada, aguarda staging+PR
+> Branch `feat/0011-nova-mensagem` (base `develop`). Retomada de sessão interrompida que só tinha criado a spec. **Gates verdes, ainda NÃO há PR nem push nem validação em staging** (dependem de Jefferson).
+- **Escopo (v1):** só contato individual, só envio único, só modelos `aprovado`, só contatos elegíveis (consentimento + não descadastrado). Grupo/recorrência/anexos ficam fora (specs futuras).
+- **Decisões de gate (resolvidas com evidência, na spec):** passado estrito no cliente (backend não valida data futura no `criar`); filtro de consentimento no front (`GET /contatos?status=ativo` não filtra consentimento); `origem` pelo default do schema; `executar_em` enviado como UTC (`...Z`).
+- **Infra nova:** frontend ganhou **framework de teste (Vitest + Testing Library + jsdom)** — não existia; script `test` em `package.json`. Mantido no **vitest 3** (vitest 5 força vite 8, incompatível); vulnerabilidades do audit são **só de dev** (audit de produção = 0). **Dependências novas aprovadas por Jefferson (§4).**
+- ⚠️ **Step do Vitest no CI NÃO está na branch:** o token `gh` da conta CORDOCE **não tem escopo `workflow`** → GitHub recusou o push de qualquer commit que tocasse `.github/workflows/ci.yml`. A branch foi reconstruída (cherry-pick) para **nenhum commit tocar o `ci.yml`**. O patch do step ("Testes (vitest)" antes do Build) está salvo em `scratchpad/ci-vitest-step.patch`. **Follow-up:** adicionar `gh auth refresh -h github.com -s workflow` (num terminal real, fluxo device code) e aplicar o patch num commit à parte. Até lá, o CI do PR **não roda o Vitest** (gate local verde cobre).
+- **Arquivos:** `frontend/lib/api.ts` (`listarModelos`, `criarAgendamento`, `ApiError` c/ status), `frontend/lib/datas.ts` (`saoPauloParaIso` via Intl), `frontend/components/NovaMensagemForm.tsx`, rota `app/(app)/nova-mensagem/`, CTA na tela `hoje`, CSS link-botão em `globals.css`, `vitest.config.ts`/`vitest.setup.ts`.
+- **Gates:** `/revisar` (0 P0/P1; 1 P2 de CSS corrigido), `/seguranca` (0 crítico/alto; §6 ok — prévia como texto puro, sem HTML), `/validar` AC-1..AC-7 por **27 testes verdes** (eslint+tsc+vitest+build+audit prod=0). Backend intocado (zero diff backend).
+- **Próximo passo:** (1) Jefferson validar em **staging** (criar um agendamento pela UI usando o Modelo `teste_fase4` aprovado e conferir na tela Hoje); (2) abrir **PR `feat/0011-nova-mensagem` → `develop`**. Envio real à Meta segue adiado (número +55, Fase 0).
+- **Commits (branch reconstruída, 8):** `28aaffa` spec · `32afa47` infra teste (sem ci.yml) · `6ef77d7` api · `ca943ed` datas · `6641fbd` tela · `81ab26a` css · `cabc6b4` teste matriz · `9f8e038` STATE.
+
 ## Depois da promoção — escolher a próxima frente
 0. **F1 (CRUD de Modelo) FEITO em develop** (spec 0010, PR #33): `GET /modelos` + `POST /modelos/sincronizar` (lê templates da Meta, upsert; §5.3). Pré-requisito da "Nova mensagem" resolvido. ✅ **F1 em produção** (release #34, `main=a50f11e`; GET /modelos smoke 401 ok). ✅ **`sincronizar` VALIDADO em staging (2026-11-05)**: `WHATSAPP_TOKEN`+`WABA_ID=1679341853598307` setados no backend/staging; leu 5 templates da WABA e upsertou (`total:5, criados:5`, todos `aprovado`). **Prod ainda sem credenciais Meta** → sincronizar inerte lá até setá-las (Fase 0). Criar/submeter template na Meta = spec futura.
 1. **Escolher a próxima frente** e abrir com `/nova-feature`. Candidata natural: **Nova mensagem** (criar agendamento pela UI; agora com `GET /modelos` disponível). Alternativas: mais telas do PWA (Agenda/Modelos/Histórico), anexos (DOCUMENT), ou dívidas (R1 hardening de agendamentos, O1 alerta §12).
@@ -73,10 +84,10 @@ _Atualizado: 2026-11-06_
 - Pendência de segurança herdada: **cifrar `totp_secret` em repouso**.
 
 ## Estado do git (2026-11-06)
-- Branch atual: **`develop`** = `68b0bc5`, limpo, sincronizado com `origin/develop`. **Sem PR aberta.**
-- `origin/main` = **`d7983cb`** (release #36, auth cookie-only / #35). `main` **local** = `d7983cb` (alinhado). `develop` é ancestral de `main` (só o commit de merge difere). **Nenhuma promoção pendente.**
+- Branch atual: **`feat/0011-nova-mensagem`** (reconstruída via cherry-pick p/ não tocar `ci.yml`; HEAD `9f8e038`, 8 commits à frente de `develop`). `develop` local/remoto = `68b0bc5`, limpo. Branch antiga (`0162aec`, tinha o commit do `ci.yml`) descartada.
+- `origin/main` = **`d7983cb`** (release #36, auth cookie-only / #35). `main` **local** = `d7983cb` (alinhado). **Nenhuma promoção pendente.**
 - **Remotas: limpas** — só `origin/develop` e `origin/main`.
-- Head Alembic: `4ff11dacdb87` (único) — nada de schema novo desde a 0006.
+- Head Alembic: `4ff11dacdb87` (único) — nada de schema novo desde a 0006 (a 0011 é só frontend).
 - Locais não mergeadas (mantidas por decisão): `docs/codebase-map` (`6f03cdc`), `chore/railway-procfile` (`879c09a`, trabalho não integrado).
 
 ## Infra (Railway — projeto `406f04bb-7659-4366-aea0-f9489dbf0b07`)
