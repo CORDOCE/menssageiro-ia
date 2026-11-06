@@ -53,9 +53,8 @@ Um teste por AC (Vitest + Testing Library, cliente de API mockado — nunca Meta
 - **Enviar teste** (`POST /modelos/{id}/enviar-teste`, restrito ao número de teste) — ação de QA, fora da UI do operador (ver Questão 2).
 - Excluir modelo.
 
-## Questões em aberto (resolver no gate / `/clarificar`)
-1. **Filtro de status** na lista: incluir no v1 (como na Agenda) ou só listar tudo?
-2. **Enviar teste:** expor o botão (só funciona p/ o número de teste em staging) ou deixar fora do v1?
-3. **Confirmação antes de sincronizar:** a sincronização é idempotente (só leitura + upsert) — botão direto
-   com feedback, ou pedir confirmação?
-4. **Detalhe do modelo:** mostrar corpo/variáveis **inline** na lista, ou um painel/diálogo de detalhe ao clicar?
+## Questões em aberto — RESOLVIDAS no gate (Jefferson, 2026-11-06)
+1. **Filtro de status:** **incluir** (consistência com a Agenda; `GET /modelos?status=`).
+2. **Enviar teste:** **fora do v1** (ação de QA restrita ao número de teste).
+3. **Confirmação antes de sincronizar:** **sem confirmação** — botão direto + feedback (idempotente).
+4. **Detalhe do modelo:** **inline** na lista (corpo + variáveis no próprio item), sem diálogo.

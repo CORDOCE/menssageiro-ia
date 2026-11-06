@@ -27,3 +27,21 @@ export function seloAgendamento(status: string): { tom: Tom; texto: string } {
       return { tom: "neutro", texto: status };
   }
 }
+
+// Mapeia o status de um modelo (template) para selo (spec 0013). Status vêm da Meta (§5.3).
+export function seloModelo(status: string): { tom: Tom; texto: string } {
+  switch (status) {
+    case "aprovado":
+      return { tom: "entregue", texto: "Aprovado" };
+    case "pendente":
+      return { tom: "aguardando", texto: "Pendente" };
+    case "rejeitado":
+      return { tom: "erro", texto: "Rejeitado" };
+    case "pausado":
+      return { tom: "neutro", texto: "Pausado" };
+    case "rascunho":
+      return { tom: "neutro", texto: "Rascunho" };
+    default:
+      return { tom: "neutro", texto: status };
+  }
+}

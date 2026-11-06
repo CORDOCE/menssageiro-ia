@@ -9,6 +9,7 @@ import {
   criarAgendamento,
   listarModelos,
   reenviarAgendamento,
+  sincronizarModelos,
 } from "./api";
 
 function resposta(corpo: unknown, status = 200): Response {
@@ -120,5 +121,18 @@ describe("ações de agendamento (Agenda, spec 0012)", () => {
     expect(url).toBe("/api/agendamentos/a1/cancelar-serie");
     expect(init.method).toBe("POST");
     expect(r).toEqual({ cancelados: 3 });
+  });
+});
+
+describe("sincronizarModelos (Modelos, spec 0013)", () => {
+  it("faz POST /modelos/sincronizar e devolve {total,criados,atualizados} (AC-3)", async () => {
+    const fetchMock = vi.fn().mockResolvedValue(resposta({ total: 5, criados: 5, atualizados: 0 }));
+    vi.stubGlobal("fetch", fetchMock);
+    const r = await sincronizarModelos();
+    const [url, init] = fetchMock.mock.calls[0] as [string, RequestInit];
+    expect(url).toBe("/api/modelos/sincronizar");
+    expect(init.method).toBe("POST");
+    expect(init.credentials).toBe("include");
+    expect(r).toEqual({ total: 5, criados: 5, atualizados: 0 });
   });
 });
