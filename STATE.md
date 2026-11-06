@@ -2,7 +2,7 @@
 
 > Memória volátil do trabalho. Histórico vive no git/ADR. Atualize ao pausar (`/handoff`).
 
-_Atualizado: 2026-11-05_
+_Atualizado: 2026-11-06_
 
 ## spec 0007 (cifrar `totp_secret`/dívida S1) — ✅ CONCLUÍDA e EM PRODUÇÃO
 - **EM PRODUÇÃO** (release PR **#28** `develop`→`main` = `5c133c42`, 2026-11-05). Deploy prod backend+worker `SUCCESS`; migração `c4c7ff4e9646` aplicada; `totp_secret` do admin de prod **cifrado em repouso** e 2FA funcional (verificado read-only: `usuarios=1`, `cifrado=True`, `self_verify=True`). Também mergeada em `develop` (#27) e **validada em staging** (login 2FA real por Jefferson). ADR 0011 (Fernet app-level, `TOTP_ENC_KEY`, MultiFernet; dep `cryptography`).
@@ -37,14 +37,27 @@ _Atualizado: 2026-11-05_
 - ✅ **Gates verdes (CI do PR #23: backend+frontend SUCCESS):** ruff/mypy limpos; ciclo de migração ok; **168 passed, cobertura 97.2%**; pip-audit sem vulns. **/revisar**+**/seguranca** sem P0/P1 (hardening `max_length=500`). **/validar** AC-1..AC-13 cobertos (double-check adicionou guarda explícita do índice parcial).
 - Arquivos: `services/recorrencia.py`, migração `4ff11dacdb87`, `models/agendamento.py` (índice no `__table_args__`), `worker/disparo.py` (`_criar_proxima_ocorrencia` + auditoria `agendamento.ocorrencia_criada`), `api/agendamentos.py` (recorrencia no criar + `cancelar-serie`), `schemas/agendamento.py`. Head Alembic em develop: `4ff11dacdb87` (único).
 
-## EM ANDAMENTO — Promoção `develop`→`main` do #35 (auth cookie-only) — PAUSADA no Passo 2
-> Plano completo: `/Users/jefferson/.claude/plans/eu-precisei-sair-da-sorted-meteor.md`. `develop` está 5 commits à frente de `main`, só **1 é código**: `39f1c98` (#35, remove o fallback `Authorization: Bearer` → auth **só por cookie**, S2/ADR 0012). Os outros 4 são `STATE.md`/doc. Falta levar o #35 à **produção**.
-- ✅ **Passo 1 (smoke read-only staging) FEITO (2026-11-05):** backend staging ativo (SUCCESS) = commit `95b2fba`, que vem **depois** do merge do #35 → roda o código cookie-only. `GET /auth/me` sem cookie → **401 JSON** (`{"detail":"Não autenticado"}`); com `Bearer` falso → **401** também. Código confirma: `backend/app/core/auth_deps.py` lê só `Cookie(alias="sessao")`, docstring diz "fallback Authorization: Bearer removido". *(Deploy do topo `fe0a380` = SKIPPED: só mexeu em STATE.md, doc sem código.)*
-- ⏭️ **Passo 2 (PRÓXIMA AÇÃO — depende de Jefferson):** validar **login real cookie-only em staging** pela UI (admin `digital@cordoce.com.br` + 2FA): confirmar cookie `sessao` HttpOnly presente, nada no localStorage, navegação autenticada e logout OK. **Gate:** se falhar, parar e investigar antes de qualquer PR.
-- ⏭️ **Passo 3:** com Passo 2 verde, abrir PR release `develop`→`main` (`gh pr create --base main --head develop`, título `chore(release): promover develop→main — remover fallback Bearer (auth cookie-only, #35)`, sem co-autoria de IA). Confirmar CI verde; merge só com aval do Jefferson.
-- ⏭️ **Passo 4:** pós-merge, acompanhar deploy prod (back+front+worker) até SUCCESS; **nenhuma var nova** p/ o #35; smoke `GET /auth/me` sem cookie → 401; Jefferson valida login real em prod.
-- ⏭️ **Passo 5 (higiene):** fast-forward do `main` **local** p/ `origin/main` (hoje local=`8b1d43f`/#26, atrasado). Decisão do responsável: **não apagar** `chore/railway-procfile` nem `docs/codebase-map`.
-- ⏭️ **Passo 6:** atualizar este STATE (#35 em prod + Estado do git).
+## ✅ CONCLUÍDA — Promoção `develop`→`main` do #35 (auth cookie-only) EM PRODUÇÃO (2026-11-06)
+> #35 (remove fallback `Authorization: Bearer` → auth **só por cookie**, S2/ADR 0012) promovido a produção via release PR **#36** (`main = d7983cb`, 2026-11-06). **Frente de auth cookie-only CONCLUÍDA ponta a ponta** — login real em produção validado por Jefferson (2026-11-06).
+- ✅ **Passo 1 (smoke read-only staging):** `GET /auth/me` sem cookie → 401 JSON; Bearer falso → 401. `backend/app/core/auth_deps.py` lê só `Cookie(alias="sessao")`.
+- ✅ **Passo 2 (login real cookie-only em staging) VALIDADO por Jefferson (2026-11-06).**
+- ✅ **Passo 3:** PR release **#36** aberto e CI verde (backend 47s, frontend 52s). Mesclado por Jefferson (merge commit `d7983cb`).
+- ✅ **Passo 4 (deploy prod):** backend `e31b875a` SUCCESS + worker `65a30dee` SUCCESS; frontend `0bf5ae69` SKIPPED (esperado, `frontend/` inalterado). **Nenhuma var nova.** Smoke prod: `GET /api/auth/me` sem cookie → **401 JSON**; Bearer falso → **401** (fallback removido confirmado em prod). ✅ **Login real pela UI de produção VALIDADO por Jefferson (2026-11-06)** (admin `jeffersonsilvaluiz26@gmail.com` + 2FA).
+- ✅ **Passo 5 (higiene):** `main` local fast-forward para `d7983cb` (== `origin/main`). Mantidas por decisão: `chore/railway-procfile`, `docs/codebase-map`.
+- ✅ **Passo 6:** STATE atualizado (este bloco + Estado do git).
+
+## 🔵 FRENTE ATIVA — spec 0011 "Nova mensagem" (criar agendamento pela UI) — ✅ MERGEADA em develop (#37) + VALIDADA em staging; promovendo p/ produção
+> **PR #37 MERGEADO em `develop`** (merge `62615c4`; CI verde). **✅ VALIDADO na UI de staging por Jefferson (2026-11-06):** criou agendamento (Modelo + contato elegível + data futura) → "Mensagem agendada" → apareceu na Hoje (07/11 08:00, status "Agendada", Programadas=1). Deploy staging frontend online. Step do Vitest no CI aplicado (`c949a31`).
+> - **Diagnóstico `/hipotese` (não era bug):** 1ª tentativa não criou nada porque o contato só virou elegível (consentimento) **depois** que a Nova mensagem já estava aberta — a tela carrega contatos 1x, botão ficou desabilitado, nenhum POST. Reabrindo com o contato elegível, funciona. Logs HTTP confirmaram ausência de POST /agendamentos na 1ª tentativa.
+> - **Refino de UX pendente (opcional, não bloqueia):** Nova mensagem aberta não re-busca contatos quando um fica elegível em outra página (estado vazio já linka p/ Contatos; reabrir resolve).
+- **Escopo (v1):** só contato individual, só envio único, só modelos `aprovado`, só contatos elegíveis (consentimento + não descadastrado). Grupo/recorrência/anexos ficam fora (specs futuras).
+- **Decisões de gate (resolvidas com evidência, na spec):** passado estrito no cliente (backend não valida data futura no `criar`); filtro de consentimento no front (`GET /contatos?status=ativo` não filtra consentimento); `origem` pelo default do schema; `executar_em` enviado como UTC (`...Z`).
+- **Infra nova:** frontend ganhou **framework de teste (Vitest + Testing Library + jsdom)** — não existia; script `test` em `package.json`. Mantido no **vitest 3** (vitest 5 força vite 8, incompatível); vulnerabilidades do audit são **só de dev** (audit de produção = 0). **Dependências novas aprovadas por Jefferson (§4).**
+- ✅ **Step do Vitest no CI aplicado** (commit `c949a31` em develop, após `gh auth refresh -s workflow` adicionar o escopo). O #37 saiu sem ele (token sem escopo `workflow`); a branch tinha sido reconstruída p/ não tocar `ci.yml`. Agora o job frontend roda os 27 testes antes do build.
+- **Arquivos:** `frontend/lib/api.ts` (`listarModelos`, `criarAgendamento`, `ApiError` c/ status), `frontend/lib/datas.ts` (`saoPauloParaIso` via Intl), `frontend/components/NovaMensagemForm.tsx`, rota `app/(app)/nova-mensagem/`, CTA na tela `hoje`, CSS link-botão em `globals.css`, `vitest.config.ts`/`vitest.setup.ts`.
+- **Gates:** `/revisar` (0 P0/P1; 1 P2 de CSS corrigido), `/seguranca` (0 crítico/alto; §6 ok — prévia como texto puro, sem HTML), `/validar` AC-1..AC-7 por **27 testes verdes** (eslint+tsc+vitest+build+audit prod=0). Backend intocado (zero diff backend).
+- **Próximo passo:** validar em **staging** após o deploy (criar um agendamento pela UI com o Modelo `teste_fase4` aprovado e conferir na tela Hoje). Envio real à Meta segue adiado (número +55, Fase 0). Promoção `develop`→`main` só após validar em staging.
+- **Commits (branch reconstruída, 8):** `28aaffa` spec · `32afa47` infra teste (sem ci.yml) · `6ef77d7` api · `ca943ed` datas · `6641fbd` tela · `81ab26a` css · `cabc6b4` teste matriz · `9f8e038` STATE.
 
 ## Depois da promoção — escolher a próxima frente
 0. **F1 (CRUD de Modelo) FEITO em develop** (spec 0010, PR #33): `GET /modelos` + `POST /modelos/sincronizar` (lê templates da Meta, upsert; §5.3). Pré-requisito da "Nova mensagem" resolvido. ✅ **F1 em produção** (release #34, `main=a50f11e`; GET /modelos smoke 401 ok). ✅ **`sincronizar` VALIDADO em staging (2026-11-05)**: `WHATSAPP_TOKEN`+`WABA_ID=1679341853598307` setados no backend/staging; leu 5 templates da WABA e upsertou (`total:5, criados:5`, todos `aprovado`). **Prod ainda sem credenciais Meta** → sincronizar inerte lá até setá-las (Fase 0). Criar/submeter template na Meta = spec futura.
@@ -72,12 +85,11 @@ _Atualizado: 2026-11-05_
 - **Validar Fase 2 em staging** (DoD 0002): import com `validar_fase2.csv` (scratchpad), esperado total=3/criados=2/erros=1.
 - Pendência de segurança herdada: **cifrar `totp_secret` em repouso**.
 
-## Estado do git (2026-11-05)
-- Branch atual: **`develop`** = `fe0a380`, limpo, sincronizado com `origin/develop`. **Sem PR aberta.**
-- `origin/main` = `a50f11e` (release #34, F1). **`develop` está 5 commits à frente de `origin/main`**, só **1 de código**: `39f1c98` (#35, remove fallback Bearer). Os outros 4 = STATE/doc + merge. **Promoção pendente** (ver "EM ANDAMENTO" no topo).
-- ⚠️ **`main` LOCAL desatualizado:** `8b1d43f` (#26) vs `origin/main` `a50f11e` (#34) → precisa fast-forward (Passo 5 do plano).
-- **Remotas: limpas** — só `origin/develop` e `origin/main` (prune 2026-11-05 podou `feat/0010` e `fix/0012`, já mergeados).
-- Head Alembic: `4ff11dacdb87` (único) — nada de schema novo desde a 0006.
+## Estado do git (2026-11-06)
+- Branch atual: **`develop`** = `62615c4` (merge do #37), sincronizado com `origin/develop`. Feature `feat/0011-nova-mensagem` mergeada e apagada (local). **Sem PR aberta.**
+- `origin/main` = **`d7983cb`** (release #36, auth cookie-only / #35). `main` **local** = `d7983cb` (alinhado). **Nenhuma promoção pendente.**
+- **Remotas: limpas** — só `origin/develop` e `origin/main`.
+- Head Alembic: `4ff11dacdb87` (único) — nada de schema novo desde a 0006 (a 0011 é só frontend).
 - Locais não mergeadas (mantidas por decisão): `docs/codebase-map` (`6f03cdc`), `chore/railway-procfile` (`879c09a`, trabalho não integrado).
 
 ## Infra (Railway — projeto `406f04bb-7659-4366-aea0-f9489dbf0b07`)
