@@ -46,8 +46,8 @@ _Atualizado: 2026-11-06_
 - ✅ **Passo 5 (higiene):** `main` local fast-forward para `d7983cb` (== `origin/main`). Mantidas por decisão: `chore/railway-procfile`, `docs/codebase-map`.
 - ✅ **Passo 6:** STATE atualizado (este bloco + Estado do git).
 
-## 🔵 FRENTE ATIVA — spec 0011 "Nova mensagem" (criar agendamento pela UI) — ✅ MERGEADA em develop (#37) + VALIDADA em staging; promovendo p/ produção
-> **PR #37 MERGEADO em `develop`** (merge `62615c4`; CI verde). **✅ VALIDADO na UI de staging por Jefferson (2026-11-06):** criou agendamento (Modelo + contato elegível + data futura) → "Mensagem agendada" → apareceu na Hoje (07/11 08:00, status "Agendada", Programadas=1). Deploy staging frontend online. Step do Vitest no CI aplicado (`c949a31`).
+## ✅ CONCLUÍDA e EM PRODUÇÃO — spec 0011 "Nova mensagem" (criar agendamento pela UI)
+> **EM PRODUÇÃO** (release PR **#38** `develop`→`main` = `6323901`, 2026-11-06). Deploy prod **frontend SUCCESS** (`238fd099`, reconstruiu); **backend/worker SKIPPED** (inalterados); head Alembic inalterado (0011 é só frontend). Mergeada em `develop` via #37 (`62615c4`). **✅ VALIDADO na UI de staging por Jefferson (2026-11-06):** agendamento criado (Modelo + contato elegível + data futura) → "Mensagem agendada" → apareceu na Hoje (07/11 08:00, "Agendada", Programadas=1). Step do Vitest no CI aplicado (`c949a31`). **Envio real à Meta segue inerte em produção** (sem credenciais Meta / número +55 — Fase 0); criar agendamento não dispara envio.
 > - **Diagnóstico `/hipotese` (não era bug):** 1ª tentativa não criou nada porque o contato só virou elegível (consentimento) **depois** que a Nova mensagem já estava aberta — a tela carrega contatos 1x, botão ficou desabilitado, nenhum POST. Reabrindo com o contato elegível, funciona. Logs HTTP confirmaram ausência de POST /agendamentos na 1ª tentativa.
 > - **Refino de UX pendente (opcional, não bloqueia):** Nova mensagem aberta não re-busca contatos quando um fica elegível em outra página (estado vazio já linka p/ Contatos; reabrir resolve).
 - **Escopo (v1):** só contato individual, só envio único, só modelos `aprovado`, só contatos elegíveis (consentimento + não descadastrado). Grupo/recorrência/anexos ficam fora (specs futuras).
@@ -86,8 +86,8 @@ _Atualizado: 2026-11-06_
 - Pendência de segurança herdada: **cifrar `totp_secret` em repouso**.
 
 ## Estado do git (2026-11-06)
-- Branch atual: **`develop`** = `62615c4` (merge do #37), sincronizado com `origin/develop`. Feature `feat/0011-nova-mensagem` mergeada e apagada (local). **Sem PR aberta.**
-- `origin/main` = **`d7983cb`** (release #36, auth cookie-only / #35). `main` **local** = `d7983cb` (alinhado). **Nenhuma promoção pendente.**
+- Branch atual: **`develop`** (= `origin/develop`), sincronizado. Feature `feat/0011-nova-mensagem` mergeada e apagada. **Sem PR aberta.**
+- `origin/main` = **`6323901`** (release #38, spec 0011 Nova mensagem). `main` local alinhado. **Nenhuma promoção pendente** (develop e main só diferem pelo commit de merge + STATE).
 - **Remotas: limpas** — só `origin/develop` e `origin/main`.
 - Head Alembic: `4ff11dacdb87` (único) — nada de schema novo desde a 0006 (a 0011 é só frontend).
 - Locais não mergeadas (mantidas por decisão): `docs/codebase-map` (`6f03cdc`), `chore/railway-procfile` (`879c09a`, trabalho não integrado).
