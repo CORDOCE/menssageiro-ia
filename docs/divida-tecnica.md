@@ -58,7 +58,8 @@ Ordem recomendada de ataque: **Segurança (S1–S3)** → gaps que destravam pro
 - **Passos:** `/nova-feature` → `GET /modelos` (lista; usado pela UI de Nova mensagem) e `POST /modelos` (criar/sincronizar com a Meta — usar `/meta-whatsapp`); authz em todo endpoint; testes de contrato; cobertura. Pré-requisito explícito da spec 0007.
 
 ### F2 — Telas do PWA restantes
-- **Pendente:** Agenda, Modelos, Histórico; **Nova mensagem** (= spec 0007, depende de F1); indicadores de gasto/saúde/histórico na tela Hoje são **stub** (sem endpoint — ADR 0010). [verificado/ADR]
+> **Progresso:** ✅ **Nova mensagem** EM PRODUÇÃO (spec 0011, 2026-11-06). **Restam:** Agenda, Modelos, Histórico.
+- **Pendente:** Agenda, Modelos, Histórico; indicadores de gasto/saúde/histórico na tela Hoje são **stub** (sem endpoint — ADR 0010). [verificado/ADR]
 - **Passos:** uma `/nova-feature` por tela (tier da 0006 como referência); cada indicador stub vira real só quando o endpoint existir (criar o endpoint antes). `frontend-design` + smoke `webapp-testing`.
 
 ### F3 — Anexos (DOCUMENT) fim-a-fim
@@ -106,8 +107,9 @@ Ordem recomendada de ataque: **Segurança (S1–S3)** → gaps que destravam pro
 ## 🟢 QUALIDADE DE TESTE
 
 ### Q1 — Testes automatizados de frontend + contraste WCAG no CI
-- **Problema:** frontend sem test runner (Vitest/Playwright = dep nova §4); AC validados por `eslint`+`tsc`+`build`+smoke manual. Contraste AA só manual. [verificado via ADR 0010]
-- **Passos:** ADR + aprovação de dep para Vitest/Playwright; smoke virando teste versionado; job de contraste no CI. Baixa prioridade enquanto o frontend for pequeno.
+> **✅ PARCIAL (Vitest) — spec 0011 (2026-11-06):** frontend ganhou **Vitest + Testing Library + jsdom** (devDeps aprovadas §4), script `test` e step no CI (job frontend). ACs da 0011 cobertos por 27 testes versionados. Mantido no **vitest 3** (vitest 5 força vite 8, incompatível com o toolchain; vulnerabilidades do audit são **só de dev**, audit de produção = 0). **Restam:** E2E (Playwright) e job de contraste WCAG no CI.
+- **Problema:** ~~frontend sem test runner~~ → runner unit/componente agora existe; falta **E2E** e **contraste AA** automatizados. [verificado]
+- **Passos restantes:** ADR + aprovação de dep para **Playwright** (E2E); job de contraste no CI; avaliar subir o vitest de major quando o toolchain (vite/plugin-react) permitir. Baixa prioridade enquanto o frontend for pequeno.
 
 ---
 

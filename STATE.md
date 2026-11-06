@@ -4,6 +4,16 @@
 
 _Atualizado: 2026-11-06_
 
+## 🟢 spec 0012 "Agenda" (gerenciar agendamentos pela UI) — MERGEADA em develop (#39) + VALIDADA em staging; aguarda promoção p/ main
+> **PR #39 MERGEADO em `develop`** (merge `e3fe8e8`; CI verde). **✅ VALIDADO na UI de staging por Jefferson (2026-11-06):** Agenda listou, filtrou por status (Cancelada→0), e **Cancelar** funcionou (item virou "Cancelada"). Deploy staging frontend SUCCESS. **Falta só promover `develop`→`main`** (release PR aberto). Tier Pequeno, só frontend (0004/0005).
+> - **Nota:** o login de staging falhou antes por **erro de digitação no domínio do e-mail** (`cordce`/`codoce` em vez de `cordoce`) — diagnosticado pela auditoria (`ator_email` por tentativa); conta/relógio/cifra OK. Não era bug.
+- **Escopo (v1):** listar agendamentos (ordem do backend) com **filtro status** (servidor) + **período** futuros/passados/todos (cliente); ações **cancelar** (não-terminal), **reenviar** (só `aguardando_decisao`), **cancelar série** (recorrente, informa contagem). Confirmação `window.confirm`; erros `alert` (padrão Contatos); 401→login; guarda de duplo clique. **Fora:** editar (sem PATCH), criar (é a 0011), histórico de envios (sem `GET /envios`).
+- **Decisões de gate (Jefferson):** Q1 status+período · Q2 `limit=200` · Q3 `window.confirm` · Q4 reenviar incluído.
+- **Arquivos:** `frontend/app/(app)/agenda/page.tsx` (+teste), `lib/api.ts` (`cancelarAgendamento`/`reenviarAgendamento`/`cancelarSerie`), `components/icones.tsx` (`IconeAgenda`), `components/AppShell.tsx` (item Agenda sai de "Em breve").
+- **Gates:** `/revisar` 0 P0/P1 (1 P2 consciente: formatadores de data duplicam os da Hoje — não extraí p/ não tocar a Hoje) · `/seguranca` 0 crítico/alto · `/validar` **42 testes** verdes (lint+tsc+vitest+build `/agenda`). Backend intocado.
+- **Armadilha de teste resolvida:** mock de `useRouter` precisa devolver objeto **estável** (via `vi.hoisted`) — senão `carregar` (depende de `router`) recria a cada render e o `useEffect` entra em loop, piscando o esqueleto. Em produção o `useRouter` do Next é estável.
+- **Próximo passo:** abrir **PR `feat/0012-agenda` → develop** e validar em staging (cancelar/reenviar/cancelar-série numa tela real).
+
 ## spec 0007 (cifrar `totp_secret`/dívida S1) — ✅ CONCLUÍDA e EM PRODUÇÃO
 - **EM PRODUÇÃO** (release PR **#28** `develop`→`main` = `5c133c42`, 2026-11-05). Deploy prod backend+worker `SUCCESS`; migração `c4c7ff4e9646` aplicada; `totp_secret` do admin de prod **cifrado em repouso** e 2FA funcional (verificado read-only: `usuarios=1`, `cifrado=True`, `self_verify=True`). Também mergeada em `develop` (#27) e **validada em staging** (login 2FA real por Jefferson). ADR 0011 (Fernet app-level, `TOTP_ENC_KEY`, MultiFernet; dep `cryptography`).
 - **Gates:** `/revisar` (1 P2 consciente: chave errada→500), `/seguranca` (1 MÉDIO: tolerância de claro temporária), CI completo (cobertura **97,25%**), `/validar` AC-1..AC-7.
@@ -46,8 +56,8 @@ _Atualizado: 2026-11-06_
 - ✅ **Passo 5 (higiene):** `main` local fast-forward para `d7983cb` (== `origin/main`). Mantidas por decisão: `chore/railway-procfile`, `docs/codebase-map`.
 - ✅ **Passo 6:** STATE atualizado (este bloco + Estado do git).
 
-## 🔵 FRENTE ATIVA — spec 0011 "Nova mensagem" (criar agendamento pela UI) — ✅ MERGEADA em develop (#37) + VALIDADA em staging; promovendo p/ produção
-> **PR #37 MERGEADO em `develop`** (merge `62615c4`; CI verde). **✅ VALIDADO na UI de staging por Jefferson (2026-11-06):** criou agendamento (Modelo + contato elegível + data futura) → "Mensagem agendada" → apareceu na Hoje (07/11 08:00, status "Agendada", Programadas=1). Deploy staging frontend online. Step do Vitest no CI aplicado (`c949a31`).
+## ✅ CONCLUÍDA e EM PRODUÇÃO — spec 0011 "Nova mensagem" (criar agendamento pela UI)
+> **EM PRODUÇÃO** (release PR **#38** `develop`→`main` = `6323901`, 2026-11-06). Deploy prod **frontend SUCCESS** (`238fd099`, reconstruiu); **backend/worker SKIPPED** (inalterados); head Alembic inalterado (0011 é só frontend). Mergeada em `develop` via #37 (`62615c4`). **✅ VALIDADO na UI de staging por Jefferson (2026-11-06):** agendamento criado (Modelo + contato elegível + data futura) → "Mensagem agendada" → apareceu na Hoje (07/11 08:00, "Agendada", Programadas=1). Step do Vitest no CI aplicado (`c949a31`). **Envio real à Meta segue inerte em produção** (sem credenciais Meta / número +55 — Fase 0); criar agendamento não dispara envio.
 > - **Diagnóstico `/hipotese` (não era bug):** 1ª tentativa não criou nada porque o contato só virou elegível (consentimento) **depois** que a Nova mensagem já estava aberta — a tela carrega contatos 1x, botão ficou desabilitado, nenhum POST. Reabrindo com o contato elegível, funciona. Logs HTTP confirmaram ausência de POST /agendamentos na 1ª tentativa.
 > - **Refino de UX pendente (opcional, não bloqueia):** Nova mensagem aberta não re-busca contatos quando um fica elegível em outra página (estado vazio já linka p/ Contatos; reabrir resolve).
 - **Escopo (v1):** só contato individual, só envio único, só modelos `aprovado`, só contatos elegíveis (consentimento + não descadastrado). Grupo/recorrência/anexos ficam fora (specs futuras).
@@ -86,8 +96,8 @@ _Atualizado: 2026-11-06_
 - Pendência de segurança herdada: **cifrar `totp_secret` em repouso**.
 
 ## Estado do git (2026-11-06)
-- Branch atual: **`develop`** = `62615c4` (merge do #37), sincronizado com `origin/develop`. Feature `feat/0011-nova-mensagem` mergeada e apagada (local). **Sem PR aberta.**
-- `origin/main` = **`d7983cb`** (release #36, auth cookie-only / #35). `main` **local** = `d7983cb` (alinhado). **Nenhuma promoção pendente.**
+- Branch atual: **`develop`** (= `origin/develop`), sincronizado. Feature `feat/0011-nova-mensagem` mergeada e apagada. **Sem PR aberta.**
+- `origin/main` = **`6323901`** (release #38, spec 0011 Nova mensagem). `main` local alinhado. **Nenhuma promoção pendente** (develop e main só diferem pelo commit de merge + STATE).
 - **Remotas: limpas** — só `origin/develop` e `origin/main`.
 - Head Alembic: `4ff11dacdb87` (único) — nada de schema novo desde a 0006 (a 0011 é só frontend).
 - Locais não mergeadas (mantidas por decisão): `docs/codebase-map` (`6f03cdc`), `chore/railway-procfile` (`879c09a`, trabalho não integrado).

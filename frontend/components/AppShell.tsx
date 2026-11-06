@@ -6,18 +6,19 @@ import type { ComponentType, ReactNode, SVGProps } from "react";
 
 import type { Usuario } from "@/lib/api";
 
-import { IconeContatos, IconeHoje } from "./icones";
+import { IconeAgenda, IconeContatos, IconeHoje } from "./icones";
 import { SeletorTema } from "./SeletorTema";
 
 type Item = { href: string; rotulo: string; icone: ComponentType<SVGProps<SVGSVGElement>> };
 
 const ITENS: Item[] = [
   { href: "/hoje", rotulo: "Hoje", icone: IconeHoje },
+  { href: "/agenda", rotulo: "Agenda", icone: IconeAgenda },
   { href: "/contatos", rotulo: "Contatos", icone: IconeContatos },
 ];
 
 // Itens do DESIGN §4 ainda não implementados — visíveis, desabilitados.
-const EM_BREVE = ["Agenda", "Conversas", "Sugestões", "Modelos", "Histórico", "Configurações"];
+const EM_BREVE = ["Conversas", "Sugestões", "Modelos", "Histórico", "Configurações"];
 
 // Shell de navegação (DESIGN §4): menu lateral ≥1024px, barra inferior <640px.
 export function AppShell({
