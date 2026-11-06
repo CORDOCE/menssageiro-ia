@@ -4,8 +4,11 @@ import {
   ApiError,
   type AgendamentoCriar,
   type Modelo,
+  cancelarAgendamento,
+  cancelarSerie,
   criarAgendamento,
   listarModelos,
+  reenviarAgendamento,
 } from "./api";
 
 function resposta(corpo: unknown, status = 200): Response {
@@ -84,5 +87,38 @@ describe("criarAgendamento", () => {
       executar_em: "x",
     }).catch((e) => e);
     expect(erro).toBeInstanceOf(ApiError);
+  });
+});
+
+describe("ações de agendamento (Agenda, spec 0012)", () => {
+  it("cancelarAgendamento faz POST /agendamentos/{id}/cancelar (AC-3)", async () => {
+    const fetchMock = vi.fn().mockResolvedValue(resposta({ id: "a1", status: "cancelado" }));
+    vi.stubGlobal("fetch", fetchMock);
+    const r = await cancelarAgendamento("a 1");
+    const [url, init] = fetchMock.mock.calls[0] as [string, RequestInit];
+    expect(url).toBe("/api/agendamentos/a%201/cancelar");
+    expect(init.method).toBe("POST");
+    expect(init.credentials).toBe("include");
+    expect(r).toMatchObject({ status: "cancelado" });
+  });
+
+  it("reenviarAgendamento faz POST /agendamentos/{id}/reenviar (AC-4)", async () => {
+    const fetchMock = vi.fn().mockResolvedValue(resposta({ id: "a1", status: "aprovado" }));
+    vi.stubGlobal("fetch", fetchMock);
+    const r = await reenviarAgendamento("a1");
+    const [url, init] = fetchMock.mock.calls[0] as [string, RequestInit];
+    expect(url).toBe("/api/agendamentos/a1/reenviar");
+    expect(init.method).toBe("POST");
+    expect(r).toMatchObject({ status: "aprovado" });
+  });
+
+  it("cancelarSerie faz POST /agendamentos/{id}/cancelar-serie e devolve {cancelados} (AC-5)", async () => {
+    const fetchMock = vi.fn().mockResolvedValue(resposta({ cancelados: 3 }));
+    vi.stubGlobal("fetch", fetchMock);
+    const r = await cancelarSerie("a1");
+    const [url, init] = fetchMock.mock.calls[0] as [string, RequestInit];
+    expect(url).toBe("/api/agendamentos/a1/cancelar-serie");
+    expect(init.method).toBe("POST");
+    expect(r).toEqual({ cancelados: 3 });
   });
 });

@@ -4,6 +4,15 @@
 
 _Atualizado: 2026-11-06_
 
+## 🔵 FRENTE ATIVA — spec 0012 "Agenda" (gerenciar agendamentos pela UI) — implementada, aguarda PR+staging
+> Branch `feat/0012-agenda` (base `develop`). Próxima tela da **Fase 5** (BRIEFING §14; dívida F2) escolhida após fechar a 0011. Tier **Pequeno**, só frontend sobre endpoints existentes (0004/0005). **Gates locais verdes; falta PR → develop e validar em staging.**
+- **Escopo (v1):** listar agendamentos (ordem do backend) com **filtro status** (servidor) + **período** futuros/passados/todos (cliente); ações **cancelar** (não-terminal), **reenviar** (só `aguardando_decisao`), **cancelar série** (recorrente, informa contagem). Confirmação `window.confirm`; erros `alert` (padrão Contatos); 401→login; guarda de duplo clique. **Fora:** editar (sem PATCH), criar (é a 0011), histórico de envios (sem `GET /envios`).
+- **Decisões de gate (Jefferson):** Q1 status+período · Q2 `limit=200` · Q3 `window.confirm` · Q4 reenviar incluído.
+- **Arquivos:** `frontend/app/(app)/agenda/page.tsx` (+teste), `lib/api.ts` (`cancelarAgendamento`/`reenviarAgendamento`/`cancelarSerie`), `components/icones.tsx` (`IconeAgenda`), `components/AppShell.tsx` (item Agenda sai de "Em breve").
+- **Gates:** `/revisar` 0 P0/P1 (1 P2 consciente: formatadores de data duplicam os da Hoje — não extraí p/ não tocar a Hoje) · `/seguranca` 0 crítico/alto · `/validar` **42 testes** verdes (lint+tsc+vitest+build `/agenda`). Backend intocado.
+- **Armadilha de teste resolvida:** mock de `useRouter` precisa devolver objeto **estável** (via `vi.hoisted`) — senão `carregar` (depende de `router`) recria a cada render e o `useEffect` entra em loop, piscando o esqueleto. Em produção o `useRouter` do Next é estável.
+- **Próximo passo:** abrir **PR `feat/0012-agenda` → develop** e validar em staging (cancelar/reenviar/cancelar-série numa tela real).
+
 ## spec 0007 (cifrar `totp_secret`/dívida S1) — ✅ CONCLUÍDA e EM PRODUÇÃO
 - **EM PRODUÇÃO** (release PR **#28** `develop`→`main` = `5c133c42`, 2026-11-05). Deploy prod backend+worker `SUCCESS`; migração `c4c7ff4e9646` aplicada; `totp_secret` do admin de prod **cifrado em repouso** e 2FA funcional (verificado read-only: `usuarios=1`, `cifrado=True`, `self_verify=True`). Também mergeada em `develop` (#27) e **validada em staging** (login 2FA real por Jefferson). ADR 0011 (Fernet app-level, `TOTP_ENC_KEY`, MultiFernet; dep `cryptography`).
 - **Gates:** `/revisar` (1 P2 consciente: chave errada→500), `/seguranca` (1 MÉDIO: tolerância de claro temporária), CI completo (cobertura **97,25%**), `/validar` AC-1..AC-7.
