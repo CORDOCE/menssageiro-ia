@@ -12,12 +12,12 @@ Gate da stack (frontend): `cd frontend && npm run lint && npx tsc --noEmit && np
 
 | # | Task | Cobre AC | Depende de | Gate (comando de teste) | Status |
 |---|------|----------|------------|--------------------------|--------|
-| 1 | `lib/api.ts`: `sincronizarModelos()` → `{total,criados,atualizados}` (POST /modelos/sincronizar) | AC-3 | — | teste unit do cliente (fetch mockado) | todo |
-| 2 | Selo de status de modelo (mapa aprovado/pendente/rejeitado/pausado/rascunho → tom) | AC-1 | — | teste unit do mapa | todo |
-| 3 | Página `app/(app)/modelos/page.tsx`: carrega `listarModelos`, lista (nome/selo/categoria/idioma/prévia/variáveis); esqueleto + estado vazio | AC-1, AC-5, borda | 1,2 | teste de componente | todo |
-| 4 | Filtro por status (recarrega `?status=`), se aprovado na Q1 | AC-2 | 3 | teste de componente | todo |
-| 5 | Botão **Sincronizar** → chama `sincronizarModelos`, mostra total/criados/atualizados, recarrega; erro legível (500/401→login) + guarda de duplo clique | AC-3, AC-4 | 1,3 | teste de componente (sucesso + erros) | todo |
-| 6 | Entrada no shell/nav (item "Modelos" do AppShell deixa de ser "Em breve") + smoke SSR | AC-1 | 3-5 | `npm run build` + smoke | todo |
+| 1 | `lib/api.ts`: `sincronizarModelos()` → `{total,criados,atualizados}` (POST /modelos/sincronizar) | AC-3 | — | teste unit do cliente (fetch mockado) | ✅ feito |
+| 2 | Selo de status de modelo (mapa aprovado/pendente/rejeitado/pausado/rascunho → tom) | AC-1 | — | teste unit do mapa | ✅ feito |
+| 3 | Página `app/(app)/modelos/page.tsx`: carrega `listarModelos`, lista (nome/selo/categoria/idioma/prévia/variáveis); esqueleto + estado vazio | AC-1, AC-5, borda | 1,2 | teste de componente | ✅ feito |
+| 4 | Filtro por status (recarrega `?status=`), se aprovado na Q1 | AC-2 | 3 | teste de componente | ✅ feito |
+| 5 | Botão **Sincronizar** → chama `sincronizarModelos`, mostra total/criados/atualizados, recarrega; erro legível (500/401→login) + guarda de duplo clique | AC-3, AC-4 | 1,3 | teste de componente (sucesso + erros) | ✅ feito |
+| 6 | Entrada no shell/nav (item "Modelos" do AppShell deixa de ser "Em breve") + smoke SSR | AC-1 | 3-5 | `npm run build` + smoke | ✅ feito |
 
 ## Definition of Done (resumo — detalhe no CLAUDE.md §9)
 - [ ] Todo AC verde pelo **gate executável** (Vitest), não por inspeção
