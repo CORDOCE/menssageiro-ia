@@ -126,12 +126,12 @@ _Atualizado: 2026-11-09_
 - **Validar Fase 2 em staging** (DoD 0002): import com `validar_fase2.csv` (scratchpad), esperado total=3/criados=2/erros=1.
 - Pendência de segurança herdada: **cifrar `totp_secret` em repouso**.
 
-## Estado do git (2026-11-09, handoff ~13:35)
-- Branch atual: **`develop`** = **`cf98cba`** (= `origin/develop`), limpo. `main` local fast-forward para **`9a8cf7e`** (= `origin/main`). **Sem PR aberta.**
-- `origin/main` = **`9a8cf7e`** (release **#42**, spec 0013 Modelos, 2026-11-09). 0011/0012/0013 todas em main. PRs: #37/#38 (0011), #39/#40 (0012), #41/#42 (0013) — todos mergeados.
+## Estado do git (2026-11-09, handoff ~19:10)
+- Branch atual: **`develop`** = **`63a011d`** (= `origin/develop`), limpo. `main` local = **`471c095`** (= `origin/main`). **Sem PR aberta.**
+- `origin/main` = **`471c095`** (release **#50**, spec 0017, 2026-11-09). **Specs 0011–0017 todas em main/produção.** Releases da sessão: #42 (0013), #44 (0014), #46 (0015), #48 (0016), #50 (0017) — todos mergeados; branches de feature apagadas.
 - **Remotas: limpas** — só `origin/develop` e `origin/main`.
-- Head Alembic: `4ff11dacdb87` (único) — nada de schema novo (0011/0012/0013 são só frontend).
-- Produção no ar: 0011 + 0012 + 0013 (frontend prod `fd7a5213` SUCCESS, commit `9a8cf7e`).
+- Head Alembic: **`4a3dc85cbaa2`** (migração da 0016 — `limite_por_agendamento_dia` na config; aplicada em staging+produção). 0014/0015/0017 sem schema.
+- Produção no ar: 0011–0017 (backend/worker/frontend, commit `471c095`).
 - Locais não mergeadas (mantidas por decisão): `docs/codebase-map` (`6f03cdc`), `chore/railway-procfile` (`879c09a`, trabalho não integrado).
 
 ## Infra (Railway — projeto `406f04bb-7659-4366-aea0-f9489dbf0b07`)
