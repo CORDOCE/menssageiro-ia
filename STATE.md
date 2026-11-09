@@ -4,16 +4,19 @@
 
 _Atualizado: 2026-11-09_
 
-## ▶️ RETOMAR AQUI (handoff 2026-11-09 ~16:30)
-**Fase 5 (telas do PWA) em andamento.** 0011/0012/0013 EM PRODUÇÃO. **0014 Histórico MERGEADA em develop, EM STAGING (validar).** Git: `develop=e05e4fe` (PR #43), `main=9a8cf7e`.
-- ✅ **0014 VALIDADA na UI de staging (2026-11-09, capturas):** Histórico lista "2 envio(s)" — contato/telefone/modelo/data/selo "Falhou" + motivo em vermelho (`Falha (190): Invalid OAuth access token`). Exercita AC-1/AC-4/AC-6/AC-8. **Próximo passo — promover 0014 `develop`→`main`** (aguarda OK §4 do Jefferson). **Sem migração**; deploy prod reconstrói backend+frontend.
-- 📌 **Observações (não são bug da 0014, não bloqueiam):** (a) envios falharam por **token Meta de staging expirado** (erro 190) — item da Fase 0, renovar `WHATSAPP_TOKEN` staging p/ testes de envio real; (b) Agenda mostra "Enviada" e Histórico mostra "Falhou" p/ o mesmo disparo — status de entidades distintas (agendamento processado vs envio rejeitado pela Meta); decisão de produto futura; (c) P2 de layout da barra inferior mobile (<640px) ainda **não verificado** (capturas são desktop; na lateral está ok).
-- Deploy **staging SUCCESS** (commit `e05e4fe`): backend/worker/frontend. **Smoke infra staging:** `/historico` HTTP 200, `/api/envios` sem cookie → 401 JSON.
-- **Depois:** próxima frente = dívidas de `docs/divida-tecnica.md` (R1 hardening de agendamentos, O1 alerta §12) ou mais telas (Conversas/Sugestões/Configurações).
-- ⏳ **0013 — único não exercido:** clicar **Sincronizar** na tela de produção (deve dar erro legível AC-4, sem credenciais). Não bloqueia.
+## ▶️ RETOMAR AQUI (handoff 2026-11-09 ~17:20)
+**Fase 5 (telas) + hardening.** **0011/0012/0013/0014 EM PRODUÇÃO; 0015 (R1) MERGEADA em develop, EM STAGING.** Git: `develop=001d99b`, `main=ffc2adc`. Sem PR aberta.
+- **Próximo passo #1 — promover 0015 `develop`→`main`** (aguarda OK §4). **Sem migração**; prova funcional é por teste/CI (hardening de validação, sem UI nova) — deploy prod reconstrói backend. Smoke infra staging: backend `/auth/me` sem cookie → 401.
+- **Próximo passo #2 — escolher a próxima frente:** item **(d) limite diário por-agendamento** (vira spec própria: regra de envio §5 + aprovação §4 + migração), **O1 alerta §12**, ou mais telas (Conversas/Sugestões/Configurações). Abrir com `/nova-feature`.
+- 📌 **Follow-ups abertos (não bloqueiam):** (a) **token Meta de staging expirado** (erro 190 no Histórico) — Fase 0, renovar `WHATSAPP_TOKEN` staging; (b) Agenda "Enviada" × Histórico "Falhou" p/ o mesmo disparo (status de entidades distintas — decisão de produto); (c) **P2 layout** barra inferior mobile <640px não verificado (lateral ok); (d) 0013 — clicar Sincronizar em prod (erro AC-4) não exercido.
 
-## ✅ spec 0014 "Histórico" (ver envios realizados) — MERGEADA em develop, EM STAGING
-> Tier Pequeno. Backend novo **`GET /envios`** (read-only, molde de `/agendamentos`) + tela `historico`. **Sem migração** (modelo `Envio` já existia). **MERGEADA via PR #43** (`e05e4fe`, 2026-11-09; CI do PR verde back+front). Deploy **staging SUCCESS** (backend/worker/frontend). Falta: validar na UI de staging e promover p/ main.
+## ✅ spec 0015 "Hardening agendamentos" (dívida R1) — MERGEADA em develop, EM STAGING
+> Tier Pequeno, só backend, **sem migração**. `POST /agendamentos`: (a) `contato_id` inexistente **500→404** "Contato não encontrado"; (c) cap em `variaveis` **≤50 itens / ≤1000 chars** → 422. **MERGEADA via PR #45** (`001d99b`, 2026-11-09; CI do PR verde). Deploy **staging backend SUCCESS** (frontend SKIPPED).
+- **Re-verificação R1 (evidência):** (b) N+1 **DESCARTADO** (sem relationship/lazy-load); (d) limite por-agendamento **FORA** (regra de envio §5 → spec própria, §4 + migração).
+- **Gates:** `/revisar` 0 P0/P1 · `/seguranca` 0 vuln (remove vetor de 500; cap §6) · `/validar` AC-1..AC-4. CI backend completo: **204 passed**, cobertura **97%**, migração, pip-audit. Arquivos: `api/agendamentos.py` (valida Contato), `schemas/agendamento.py` (cap `variaveis`), `tests/test_agendamentos_api.py` (+4 testes). Gap `agendamentos.py:79` (filtro status listagem) é pré-existente (0004).
+
+## ✅ spec 0014 "Histórico" (ver envios realizados) — EM PRODUÇÃO
+> Tier Pequeno. Backend novo **`GET /envios`** (read-only, molde de `/agendamentos`) + tela `historico`. **Sem migração** (modelo `Envio` já existia). **EM PRODUÇÃO** (release PR **#44** `develop`→`main` = `ffc2adc`, 2026-11-09; mergeado pelo Jefferson). Deploy prod **backend+worker+frontend SUCCESS**, head Alembic inalterado (`4ff11dacdb87`). **Smoke prod read-only:** `/historico` HTTP 200, `/api/envios` sem cookie → 401 JSON. Mergeada em develop via #43 (`e05e4fe`); ✅ validada na UI de staging (2026-11-09, 2 envios "Falhou" c/ motivo — AC-1/4/6/8).
 - **Escopo (v1, /clarificar 2026-11-09):** endpoint faz **join** e devolve nome+telefone do contato e nome do modelo; filtros **status + período** (desde/ate); campos por linha: contato, modelo, status, data, **erro só quando falhou**; ordena por `criado_em` desc; paginação (cap 200). `pricing`/`conversation` **fora**. Item "Histórico" ativado no `AppShell`.
 - **Gates:** `/revisar` 0 P0/P1 (1 P2 corrigido: try/catch na conversão de período, `b2cf4cf`) · `/seguranca` 0 crítico/alto/médio · `/validar` AC-1..AC-8. **CI completo via Docker VERDE** (backend ruff/mypy/migração/pytest **97.36%**/pip-audit; frontend eslint/tsc/vitest **59**/build/npm audit 0 vulns).
 - **Arquivos:** `backend/app/api/envios.py` (+`schemas/envio.py` `EnvioRead`+`StatusEnvio`, registro em `main.py`, `tests/test_envios.py` 9 testes); `frontend/app/(app)/historico/page.tsx` (+teste 7), `lib/api.ts` (`listarEnvios`+tipo `Envio`), `components/{Selo.tsx (seloEnvio),icones.tsx (IconeHistorico),AppShell.tsx}`.
