@@ -66,6 +66,7 @@ def processar_ciclo(
         pausado = cfg.envios_pausados
         limite_diario = cfg.limite_diario
         limite_contato = cfg.limite_por_contato_dia
+        limite_agendamento = cfg.limite_por_agendamento_dia
 
         if heartbeat_anterior is not None and (agora - heartbeat_anterior).total_seconds() > 2 * intervalo:
             ctrl.execute(
@@ -99,7 +100,9 @@ def processar_ciclo(
 
     for aid in ids:
         try:
-            _processar_agendamento(aid, agora, janela, limite_diario, limite_contato, enviar)
+            _processar_agendamento(
+                aid, agora, janela, limite_diario, limite_contato, limite_agendamento, enviar
+            )
         except Exception as exc:  # um agendamento ruim não derruba o ciclo
             registrar_auditoria(
                 "agendamento.erro_ciclo",
@@ -115,7 +118,23 @@ def _destinatarios(sess: Session, ag: Agendamento) -> list[Contato]:
     if ag.contato_id is not None:
         c = sess.get(Contato, ag.contato_id)
         return [c] if c is not None else []
-    return list(sess.execute(select(Contato).where(Contato.grupo == ag.grupo)).scalars().all())
+    # Ordem estável (Contato.id) para o corte do teto por-agendamento ser determinístico (ADR 0013).
+    return list(
+        sess.execute(
+            select(Contato).where(Contato.grupo == ag.grupo).order_by(Contato.id)
+        ).scalars().all()
+    )
+
+
+def _enviados_do_agendamento(sess: Session, aid: str) -> int:
+    """Envios já reservados/entregues deste agendamento (teto por-agendamento, ADR 0013)."""
+    return int(
+        sess.execute(
+            select(func.count())
+            .select_from(Envio)
+            .where(Envio.agendamento_id == aid, Envio.status.in_(_CONTAM_LIMITE))
+        ).scalar_one()
+    )
 
 
 def _enviados_em_24h(sess: Session, agora: datetime, contato_id: str | None = None) -> int:
@@ -131,6 +150,7 @@ def _processar_agendamento(
     janela: dict[str, Any],
     limite_diario: int,
     limite_contato: int | None,
+    limite_agendamento: int | None,
     enviar: Enviar,
 ) -> None:
     sess = _db.SessionLocal()
@@ -179,6 +199,14 @@ def _processar_agendamento(
         recorrencia, pai_id, executar_em = ag.recorrencia, ag.agendamento_pai_id, ag.executar_em
         contato_id, grupo, origem = ag.contato_id, ag.grupo, ag.origem
         contatos = _destinatarios(sess, ag)
+        # Teto por-agendamento (ADR 0013): corta o excedente e marca `parcial` no fim.
+        total_destinatarios = len(contatos)
+        cortou = False
+        if limite_agendamento is not None:
+            restante = max(0, limite_agendamento - _enviados_do_agendamento(sess, aid))
+            if total_destinatarios > restante:
+                contatos = contatos[:restante]
+                cortou = True
         ag.status = "enviando"
         sess.commit()  # libera o FOR UPDATE antes de inserir envios (FK envios→agendamentos)
 
@@ -191,6 +219,29 @@ def _processar_agendamento(
             _processar_contato(
                 sess, aid, modelo_id, nome, idioma, componentes, contato, agora, limite_contato, enviar
             )
+
+        if cortou:
+            # Teto atingido (ADR 0013): para, marca `parcial` (terminal) e alerta — não espalha, não
+            # cria próxima ocorrência (o operador investiga o corte antes de a série seguir).
+            enviados = _enviados_do_agendamento(sess, aid)
+            sess.execute(
+                update(Agendamento)
+                .where(Agendamento.id == aid)
+                .values(
+                    status="parcial",
+                    motivo_ultima_transicao=(
+                        f"teto por-agendamento atingido — {enviados} de {total_destinatarios}"
+                    ),
+                )
+            )
+            sess.commit()
+            registrar_auditoria(
+                "agendamento.limite_por_agendamento", alvo_tipo="agendamento", alvo_id=aid,
+                status="warning",
+                metadados={"enviados": enviados, "total": total_destinatarios, "teto": limite_agendamento},
+                correlation_id=aid,
+            )
+            return
 
         # Recorrência (spec 0005, ADR 0005/0009): cria a próxima ocorrência (lazy) junto de marcar
         # `enviado`, no mesmo commit (atômico). ON CONFLICT torna o reprocesso idempotente (§5.2).

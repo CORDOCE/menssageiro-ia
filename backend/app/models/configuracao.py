@@ -30,6 +30,8 @@ class Configuracao(Base):
     )
     limite_diario: Mapped[int] = mapped_column(Integer, nullable=False, default=200)
     limite_por_contato_dia: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    # Teto de segurança por disparo (spec 0016 / ADR 0013); NULL = sem teto.
+    limite_por_agendamento_dia: Mapped[int | None] = mapped_column(Integer, nullable=True)
     envios_pausados: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
     atualizado_em: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False

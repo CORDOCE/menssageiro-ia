@@ -347,3 +347,84 @@ def test_ac22_skip_locked_nao_processa_travado(db):
     processar_ciclo(enviar=fake2, agora=AGORA)  # liberado → dispara
     db.expire_all()
     assert len(fake2.chamadas) == 1 and db.get(Agendamento, aid).status == "enviado"
+
+
+# --- teto de segurança por agendamento (spec 0016 / ADR 0013) ---
+def _grupo(db, n: int, nome: str = "g") -> None:
+    for _ in range(n):
+        _contato(db, grupo=nome)
+
+
+def test_teto_nulo_nao_corta(db):  # AC-1
+    mid = _modelo(db)
+    _grupo(db, 3)
+    aid = _agendamento(db, mid, grupo="g")
+    _config(db, limite_por_agendamento_dia=None)
+    fake = FakeEnviar()
+    processar_ciclo(enviar=fake, agora=AGORA)
+    assert len(fake.chamadas) == 3
+    assert db.get(Agendamento, aid).status == "enviado"
+
+
+def test_grupo_dentro_do_teto_enviado(db):  # AC-2
+    mid = _modelo(db)
+    _grupo(db, 2)
+    aid = _agendamento(db, mid, grupo="g")
+    _config(db, limite_por_agendamento_dia=5)
+    fake = FakeEnviar()
+    processar_ciclo(enviar=fake, agora=AGORA)
+    assert len(fake.chamadas) == 2
+    assert db.get(Agendamento, aid).status == "enviado"
+    assert (
+        db.query(Auditoria).filter(Auditoria.operacao == "agendamento.limite_por_agendamento").count()
+        == 0
+    )
+
+
+def test_grupo_excede_teto_parcial(db):  # AC-3
+    mid = _modelo(db)
+    _grupo(db, 5)
+    aid = _agendamento(db, mid, grupo="g")
+    _config(db, limite_por_agendamento_dia=3)
+    fake = FakeEnviar()
+    processar_ciclo(enviar=fake, agora=AGORA)
+    assert len(fake.chamadas) == 3
+    assert db.query(Envio).filter(Envio.agendamento_id == aid).count() == 3  # excedente não enviado
+    assert db.get(Agendamento, aid).status == "parcial"
+
+
+def test_corte_emite_auditoria_sem_pii(db):  # AC-4
+    mid = _modelo(db)
+    _grupo(db, 5)
+    _agendamento(db, mid, grupo="g")
+    _config(db, limite_por_agendamento_dia=3)
+    processar_ciclo(enviar=FakeEnviar(), agora=AGORA)
+    aud = (
+        db.query(Auditoria)
+        .filter(Auditoria.operacao == "agendamento.limite_por_agendamento")
+        .one()
+    )
+    assert aud.status == "warning"
+    assert json.loads(aud.metadados) == {"enviados": 3, "total": 5, "teto": 3}
+
+
+def test_parcial_terminal_nao_reprocessa(db):  # AC-5
+    mid = _modelo(db)
+    _grupo(db, 5)
+    aid = _agendamento(db, mid, grupo="g")
+    _config(db, limite_por_agendamento_dia=3)
+    processar_ciclo(enviar=FakeEnviar(), agora=AGORA)
+    db.expire_all()
+    fake2 = FakeEnviar()
+    processar_ciclo(enviar=fake2, agora=AGORA + timedelta(minutes=1))
+    assert len(fake2.chamadas) == 0  # parcial é terminal
+    assert db.get(Agendamento, aid).status == "parcial"
+
+
+def test_borda_n_igual_teto_enviado(db):  # borda: N == teto não corta
+    mid = _modelo(db)
+    _grupo(db, 3)
+    aid = _agendamento(db, mid, grupo="g")
+    _config(db, limite_por_agendamento_dia=3)
+    processar_ciclo(enviar=FakeEnviar(), agora=AGORA)
+    assert db.get(Agendamento, aid).status == "enviado"

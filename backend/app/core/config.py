@@ -63,6 +63,11 @@ class Settings(BaseSettings):
     # Disparo (spec 0004 / ADR 0008): a env `LIMITE_DIARIO` é só a **semente** do `limite_diario`
     # inicial da linha de `configuracoes`. A fonte runtime é a tabela (operador muda sem redeploy).
     limite_diario_default: int = Field(default=200, validation_alias="LIMITE_DIARIO")
+    # Teto de segurança por disparo (spec 0016 / ADR 0013); semeia `limite_por_agendamento_dia`.
+    # None = sem teto. Fonte runtime é a tabela (operador muda sem redeploy).
+    limite_por_agendamento_default: int | None = Field(
+        default=None, validation_alias="LIMITE_POR_AGENDAMENTO"
+    )
 
     # Importação de contatos (spec 0002): limites configuráveis do upload (AC-17).
     import_max_bytes: int = 5 * 1024 * 1024  # 5 MB

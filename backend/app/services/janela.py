@@ -72,7 +72,11 @@ def obter_configuracao(db: Session) -> Configuracao:
     """
     cfg = db.get(Configuracao, ID_CONFIG)
     if cfg is None:
-        cfg = Configuracao(id=ID_CONFIG, limite_diario=get_settings().limite_diario_default)
+        cfg = Configuracao(
+            id=ID_CONFIG,
+            limite_diario=get_settings().limite_diario_default,
+            limite_por_agendamento_dia=get_settings().limite_por_agendamento_default,
+        )
         db.add(cfg)
         db.commit()
         db.refresh(cfg)
