@@ -39,11 +39,18 @@ export default function HistoricoPage() {
   const carregar = useCallback(() => {
     setEnvios(null);
     setErro(null);
-    listarEnvios({
-      status: status || undefined,
-      desde: desde ? saoPauloParaIso(`${desde}T00:00`) : undefined,
-      ate: ate ? saoPauloParaIso(`${ate}T23:59:59`) : undefined,
-    })
+    let params: { status?: string; desde?: string; ate?: string };
+    try {
+      params = {
+        status: status || undefined,
+        desde: desde ? saoPauloParaIso(`${desde}T00:00`) : undefined,
+        ate: ate ? saoPauloParaIso(`${ate}T23:59:59`) : undefined,
+      };
+    } catch {
+      setErro("Período inválido");
+      return;
+    }
+    listarEnvios(params)
       .then(setEnvios)
       .catch((e: unknown) => {
         if (e instanceof ApiError && e.status === 401) {
