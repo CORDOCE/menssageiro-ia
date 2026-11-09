@@ -7,15 +7,19 @@ do banco. O agendamento nasce `aprovado`; quem envia é o worker (§5.1).
 from __future__ import annotations
 
 from datetime import datetime
+from typing import Annotated
 
-from pydantic import BaseModel, ConfigDict, Field, model_validator
+from pydantic import BaseModel, ConfigDict, Field, StringConstraints, model_validator
+
+# Cap defensivo (§6/R1): cada variável limitada em tamanho; a lista limitada em nº de itens.
+_Variavel = Annotated[str, StringConstraints(max_length=1000)]
 
 
 class AgendamentoCriar(BaseModel):
     contato_id: str | None = None
     grupo: str | None = None
     modelo_id: str
-    variaveis: list[str] = Field(default_factory=list)
+    variaveis: list[_Variavel] = Field(default_factory=list, max_length=50)
     executar_em: datetime
     origem: str = "operador"
     # string RRULE (spec 0005); None = avulso. Cap defensivo (§6): RRULE é curta.

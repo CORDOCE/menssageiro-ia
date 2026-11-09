@@ -18,6 +18,7 @@ from app.core.audit import registrar_auditoria
 from app.core.auth_deps import usuario_atual
 from app.db.database import get_db
 from app.models.agendamento import Agendamento
+from app.models.contato import Contato
 from app.models.modelo import Modelo
 from app.models.usuario import Usuario
 from app.schemas.agendamento import AgendamentoCriar, AgendamentoRead
@@ -38,6 +39,9 @@ def criar(
 ) -> Agendamento:
     if db.get(Modelo, payload.modelo_id) is None:
         raise HTTPException(status_code=404, detail="Modelo não encontrado")
+    # §6/R1: contato_id inexistente dava 500 (FK viola no commit); valida antes → 404.
+    if payload.contato_id is not None and db.get(Contato, payload.contato_id) is None:
+        raise HTTPException(status_code=404, detail="Contato não encontrado")
     if payload.recorrencia is not None:
         try:
             validar_regra(payload.recorrencia)
