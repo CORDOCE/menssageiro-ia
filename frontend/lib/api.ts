@@ -176,6 +176,40 @@ export async function sincronizarModelos(): Promise<{
   return pedir("/modelos/sincronizar", { method: "POST" });
 }
 
+// ---- Envios (histórico) --------------------------------------------------------------------
+
+export interface Envio {
+  id: string;
+  contato_id: string;
+  contato_nome: string;
+  contato_telefone: string;
+  modelo_id: string | null;
+  modelo_nome: string | null;
+  status: string;
+  erro_codigo: string | null;
+  erro_motivo: string | null;
+  criado_em: string;
+}
+
+// Histórico de envios (spec 0014). Filtros de status e período (ISO-8601 UTC) + paginação.
+// O backend já ordena por `criado_em` desc (mais recentes primeiro).
+export async function listarEnvios(params: {
+  status?: string;
+  desde?: string;
+  ate?: string;
+  limit?: number;
+  offset?: number;
+} = {}): Promise<Envio[]> {
+  const q = new URLSearchParams();
+  if (params.status) q.set("status", params.status);
+  if (params.desde) q.set("desde", params.desde);
+  if (params.ate) q.set("ate", params.ate);
+  if (params.limit != null) q.set("limit", String(params.limit));
+  if (params.offset != null) q.set("offset", String(params.offset));
+  const sufixo = q.toString() ? `?${q.toString()}` : "";
+  return pedir<Envio[]>(`/envios${sufixo}`);
+}
+
 // ---- Contatos ------------------------------------------------------------------------------
 
 export interface Contato {

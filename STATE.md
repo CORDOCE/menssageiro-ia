@@ -2,17 +2,24 @@
 
 > Memória volátil do trabalho. Histórico vive no git/ADR. Atualize ao pausar (`/handoff`).
 
-_Atualizado: 2026-11-06_
+_Atualizado: 2026-11-09_
 
-## ▶️ RETOMAR AQUI (handoff 2026-11-06 ~15:25)
-**Fase 5 (telas do PWA) em andamento.** Nesta sessão: 0011 Nova mensagem, 0012 Agenda e 0013 Modelos. Git: `develop=d30e042` (0011+0012+0013), `main=51a0237` (0011+0012). Working tree limpo, **sem PR aberta**.
-- **Próximo passo #1 — validar a 0013 Modelos em staging** (Jefferson vai testar na próxima sessão): login staging → menu **Modelos** → listar templates (status/categoria/prévia/variáveis), filtrar por status, e **Sincronizar com a Meta** (deve mostrar "N total, X criados, Y atualizados" e recarregar; staging tem credenciais). Roteiro completo já passado.
-- **Próximo passo #2 — promover 0013 `develop`→`main`** após validar (release PR develop→main; Jefferson mergeia). Só frontend, sem migração.
-- **Depois:** próxima tela da Fase 5 = **Histórico** (precisa de endpoint novo `GET /envios` — não existe; é mais trabalho: backend + frontend) ou outra dívida de `docs/divida-tecnica.md`.
-- ⚠️ Havia um **ScheduleWakeup para ~16:09** (rodar /handoff). Como o handoff já foi feito agora, ao disparar é inócuo — pode ignorar/confirmar que o STATE já está salvo.
+## ▶️ RETOMAR AQUI (handoff 2026-11-09 ~16:30)
+**Fase 5 (telas do PWA) em andamento.** 0011/0012/0013 EM PRODUÇÃO. **0014 Histórico MERGEADA em develop, EM STAGING (validar).** Git: `develop=e05e4fe` (PR #43), `main=9a8cf7e`.
+- ✅ **0014 VALIDADA na UI de staging (2026-11-09, capturas):** Histórico lista "2 envio(s)" — contato/telefone/modelo/data/selo "Falhou" + motivo em vermelho (`Falha (190): Invalid OAuth access token`). Exercita AC-1/AC-4/AC-6/AC-8. **Próximo passo — promover 0014 `develop`→`main`** (aguarda OK §4 do Jefferson). **Sem migração**; deploy prod reconstrói backend+frontend.
+- 📌 **Observações (não são bug da 0014, não bloqueiam):** (a) envios falharam por **token Meta de staging expirado** (erro 190) — item da Fase 0, renovar `WHATSAPP_TOKEN` staging p/ testes de envio real; (b) Agenda mostra "Enviada" e Histórico mostra "Falhou" p/ o mesmo disparo — status de entidades distintas (agendamento processado vs envio rejeitado pela Meta); decisão de produto futura; (c) P2 de layout da barra inferior mobile (<640px) ainda **não verificado** (capturas são desktop; na lateral está ok).
+- Deploy **staging SUCCESS** (commit `e05e4fe`): backend/worker/frontend. **Smoke infra staging:** `/historico` HTTP 200, `/api/envios` sem cookie → 401 JSON.
+- **Depois:** próxima frente = dívidas de `docs/divida-tecnica.md` (R1 hardening de agendamentos, O1 alerta §12) ou mais telas (Conversas/Sugestões/Configurações).
+- ⏳ **0013 — único não exercido:** clicar **Sincronizar** na tela de produção (deve dar erro legível AC-4, sem credenciais). Não bloqueia.
 
-## ✅ spec 0013 "Modelos" (ver templates + sincronizar) — EM develop + VALIDANDO em staging
-> **PR #41 MERGEADO em `develop`** (merge `d30e042`, 2026-11-06; CI verde back+front). Deploy **staging frontend SUCCESS** (`51f75d12`). **Falta: validar na UI de staging e promover p/ main.** Tier Pequeno, só frontend sobre endpoints da 0010.
+## ✅ spec 0014 "Histórico" (ver envios realizados) — MERGEADA em develop, EM STAGING
+> Tier Pequeno. Backend novo **`GET /envios`** (read-only, molde de `/agendamentos`) + tela `historico`. **Sem migração** (modelo `Envio` já existia). **MERGEADA via PR #43** (`e05e4fe`, 2026-11-09; CI do PR verde back+front). Deploy **staging SUCCESS** (backend/worker/frontend). Falta: validar na UI de staging e promover p/ main.
+- **Escopo (v1, /clarificar 2026-11-09):** endpoint faz **join** e devolve nome+telefone do contato e nome do modelo; filtros **status + período** (desde/ate); campos por linha: contato, modelo, status, data, **erro só quando falhou**; ordena por `criado_em` desc; paginação (cap 200). `pricing`/`conversation` **fora**. Item "Histórico" ativado no `AppShell`.
+- **Gates:** `/revisar` 0 P0/P1 (1 P2 corrigido: try/catch na conversão de período, `b2cf4cf`) · `/seguranca` 0 crítico/alto/médio · `/validar` AC-1..AC-8. **CI completo via Docker VERDE** (backend ruff/mypy/migração/pytest **97.36%**/pip-audit; frontend eslint/tsc/vitest **59**/build/npm audit 0 vulns).
+- **Arquivos:** `backend/app/api/envios.py` (+`schemas/envio.py` `EnvioRead`+`StatusEnvio`, registro em `main.py`, `tests/test_envios.py` 9 testes); `frontend/app/(app)/historico/page.tsx` (+teste 7), `lib/api.ts` (`listarEnvios`+tipo `Envio`), `components/{Selo.tsx (seloEnvio),icones.tsx (IconeHistorico),AppShell.tsx}`.
+
+## ✅ spec 0013 "Modelos" (ver templates + sincronizar) — EM PRODUÇÃO
+> **EM PRODUÇÃO** (release PR **#42** `develop`→`main` = `9a8cf7e`, 2026-11-09; mergeado pelo Jefferson). Deploy prod **frontend SUCCESS** (`fd7a5213`, reconstruiu), **backend/worker SKIPPED**, head Alembic inalterado (`4ff11dacdb87`). **Smoke prod read-only:** raiz HTTP 200, rota `/modelos` HTTP 200. Mergeada em `develop` via #41 (`d30e042`). ✅ **Validada na UI (2026-11-09):** staging lista 6 modelos (selo/categoria/idioma/cabeçalho/prévia/variáveis/filtro); produção = estado-vazio esperado (Fase 0, sem credenciais Meta → banco vazio; **não é bug**). Tier Pequeno, só frontend sobre endpoints da 0010.
 - **Escopo (v1):** listar templates (nome, selo `seloModelo`, categoria/idioma, prévia do corpo texto-puro §6, variáveis) + filtro por status; botão **Sincronizar** (`POST /modelos/sincronizar`) com feedback (total/criados/atualizados) e recarga; erro legível via `alert`, 401→login, guarda de duplo clique. **Fora:** criar/editar/submeter template, enviar-teste, excluir.
 - **Decisões de gate (Jefferson):** Q1 incluir filtro · Q2 enviar-teste fora · Q3 sem confirmação · Q4 detalhe inline.
 - ⚠️ **Em produção o Sincronizar falha** (sem credenciais Meta — Fase 0); AC-4 trata o erro. Staging funciona.
@@ -106,12 +113,12 @@ _Atualizado: 2026-11-06_
 - **Validar Fase 2 em staging** (DoD 0002): import com `validar_fase2.csv` (scratchpad), esperado total=3/criados=2/erros=1.
 - Pendência de segurança herdada: **cifrar `totp_secret` em repouso**.
 
-## Estado do git (2026-11-06, handoff ~15:25)
-- Branch atual: **`develop`** = **`d30e042`** (= `origin/develop`), limpo. Features 0011/0012/0013 mergeadas e branches apagadas. **Sem PR aberta.**
-- `origin/main` = **`51a0237`** (release #40, spec 0012 Agenda). **0013 ainda NÃO em main** (promover após validar staging). PRs da sessão: #37/#38 (0011), #39/#40 (0012), #41 (0013) — todos mergeados.
+## Estado do git (2026-11-09, handoff ~13:35)
+- Branch atual: **`develop`** = **`cf98cba`** (= `origin/develop`), limpo. `main` local fast-forward para **`9a8cf7e`** (= `origin/main`). **Sem PR aberta.**
+- `origin/main` = **`9a8cf7e`** (release **#42**, spec 0013 Modelos, 2026-11-09). 0011/0012/0013 todas em main. PRs: #37/#38 (0011), #39/#40 (0012), #41/#42 (0013) — todos mergeados.
 - **Remotas: limpas** — só `origin/develop` e `origin/main`.
 - Head Alembic: `4ff11dacdb87` (único) — nada de schema novo (0011/0012/0013 são só frontend).
-- Produção no ar: 0011 + 0012 (frontend `4b36b059`). Staging: develop com 0013 (`51f75d12`).
+- Produção no ar: 0011 + 0012 + 0013 (frontend prod `fd7a5213` SUCCESS, commit `9a8cf7e`).
 - Locais não mergeadas (mantidas por decisão): `docs/codebase-map` (`6f03cdc`), `chore/railway-procfile` (`879c09a`, trabalho não integrado).
 
 ## Infra (Railway — projeto `406f04bb-7659-4366-aea0-f9489dbf0b07`)
