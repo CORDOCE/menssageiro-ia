@@ -4,14 +4,14 @@
 
 _Atualizado: 2026-11-09_
 
-## ▶️ RETOMAR AQUI (handoff 2026-11-09 ~18:40)
-**Fase 5 (telas) + hardening/regra/observabilidade.** **0011–0016 EM PRODUÇÃO; 0017 (alerta Sentry O1) MERGEADA em develop, EM STAGING.** Git: `develop=038b046`, `main=5a22f63`. Sem PR aberta.
-- **Próximo passo #1 — promover 0017 `develop`→`main`** (observabilidade pura, sem migração/§4; backend reconstrói). Smoke de infra basta (sem UI/regra nova).
-- **Próximo passo #2 — próxima frente:** alertas de **agregação** (worker parado >5min, falhas >5%/dia — painel Sentry/§4), **I1** (paridade env prod×staging, go-live), ou mais telas (Conversas/Sugestões/Configurações). Abrir com `/nova-feature`.
+## ▶️ RETOMAR AQUI (handoff 2026-11-09 ~19:10)
+**Fase 5 (telas) + hardening/regra/observabilidade.** **0011–0017 todas EM PRODUÇÃO.** Git: `develop=6c7fd9f`, `main=471c095` (release #50). Sem PR aberta.
+- **Próximo passo — escolher a próxima frente:** alertas de **agregação** (worker parado >5min, falhas >5%/dia — painel Sentry/§4), **I1** (paridade env prod×staging, go-live), ou mais telas (Conversas/Sugestões/Configurações). Abrir com `/nova-feature`.
+- **Follow-up da 0017 (§4):** configurar as **rules de alerta no painel Sentry** p/ rotear a e-mail os eventos que o código já emite (org `cordoce-digital`).
 - 📌 **Follow-ups abertos (não bloqueiam):** (a) **token Meta de staging expirado** (erro 190) — Fase 0, renovar `WHATSAPP_TOKEN` staging; (b) Agenda "Enviada" × Histórico "Falhou" (status de entidades distintas — decisão de produto); (c) **P2 layout** barra inferior mobile <640px não verificado; (d) 0013 Sincronizar em prod não exercido; (e) smoke funcional do teto 0016 (configurar limite + disparar grupo) não feito — coberto por teste/CI; (f) configurar as **rules de alerta no painel Sentry** p/ os eventos que a 0017 passou a emitir (§4).
 
-## ✅ spec 0017 "Alerta de fluxo crítico ao Sentry" (dívida O1) — MERGEADA em develop, EM STAGING
-> Tier Pequeno, só backend, sem migração/§4. Flag **`alertar=True`** em `registrar_auditoria` → emite `capture_message` ao Sentry nos eventos `error`/`warning` do disparo (`agendamento.erro_ciclo`/`falhou`/`limite_por_agendamento`/`envio.falhou`; webhook `template_status` pausado/rejeitado). No-op sem DSN. **Ganho de segurança:** `before_send` agora mascara PII também em `contexts` (telefone de `envio.falhou`). **MERGEADA via PR #49** (`038b046`, 2026-11-09; CI verde). Deploy staging backend (frontend SKIPPED).
+## ✅ spec 0017 "Alerta de fluxo crítico ao Sentry" (dívida O1) — EM PRODUÇÃO
+> Tier Pequeno, só backend, sem migração/§4. Flag **`alertar=True`** em `registrar_auditoria` → emite `capture_message` ao Sentry nos eventos `error`/`warning` do disparo (`agendamento.erro_ciclo`/`falhou`/`limite_por_agendamento`/`envio.falhou`; webhook `template_status` pausado/rejeitado). No-op sem DSN. **Ganho de segurança:** `before_send` agora mascara PII também em `contexts` (telefone de `envio.falhou`). **EM PRODUÇÃO** (release PR **#50** `develop`→`main` = `471c095`, 2026-11-09; mergeado pelo Jefferson). Deploy prod backend SUCCESS (frontend SKIPPED), head Alembic inalterado. Smoke prod `/auth/me`→401. Mergeada em develop via #49 (`038b046`). ⏳ **Falta (§4):** rules de alerta no painel Sentry p/ rotear a e-mail.
 - **Escopo (/clarificar):** eventos pontuais ao Sentry. **Fora:** alertas de agregação (worker parado>5min, falhas%) = painel Sentry/§4; IA inativa.
 - **Gates:** `/revisar` 0 P0/P1 · `/seguranca` 0 vuln (PII em contexts mascarada) · `/validar` AC-1..AC-7. CI: pytest **97.43%** (audit.py/observabilidade.py 100%). Arquivos: `core/observabilidade.py` (`alertar_evento`+contexts no before_send), `core/audit.py` (flag), `worker/disparo.py` (4 pontos), `api/webhook_meta.py` (template crítico). Testes: `test_observabilidade.py`+`test_worker_disparo.py`.
 
