@@ -39,4 +39,9 @@ cota da Meta antes de um humano perceber. Falta uma rede de proteção por dispa
   mapear todos os pontos para não deixar `parcial` órfão.
 - Default `NULL` (sem teto) → comportamento inalterado até o operador configurar; mudar o valor exige **§4**.
 - A contagem usa `COUNT(envios do agendamento)` → idempotente sob reprocesso; corte determinístico exige ordem
-  estável dos contatos.
+  estável dos contatos (`ORDER BY contato.id`).
+- **Limitação conhecida (P2):** se o worker cair no meio de um disparo que seria cortado (status fica
+  `enviando`) e reprocessar, o slice `contatos[:restante]` pega o prefixo do grupo — que pode já ter envios
+  (pulados por `ON CONFLICT`) — e o disparo **subenvia** (nunca excede o teto). O invariante de segurança
+  (≤ teto) é mantido; só não recompleta até o teto nesse caso raro. Aceito; corrigir exigiria filtrar os
+  já-enviados antes do slice.
