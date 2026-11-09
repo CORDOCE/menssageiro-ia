@@ -28,7 +28,7 @@ router = APIRouter(
     prefix="/agendamentos", tags=["agendamentos"], dependencies=[Depends(usuario_atual)]
 )
 
-_STATUS_TERMINAIS = {"enviado", "cancelado"}
+_STATUS_TERMINAIS = {"enviado", "cancelado", "parcial"}
 
 
 @router.post("", status_code=201, response_model=AgendamentoRead)

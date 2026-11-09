@@ -19,6 +19,9 @@ export function seloAgendamento(status: string): { tom: Tom; texto: string } {
       return { tom: "entregue", texto: "Lida" };
     case "aguardando_decisao":
       return { tom: "aguardando", texto: "Aguardando" };
+    case "parcial":
+      // Teto por-agendamento cortou o disparo (spec 0016): parte enviada, excedente não.
+      return { tom: "aguardando", texto: "Parcial" };
     case "falhou":
       return { tom: "erro", texto: "Não enviada" };
     case "cancelado":
