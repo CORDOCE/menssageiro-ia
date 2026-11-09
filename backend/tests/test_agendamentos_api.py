@@ -6,6 +6,8 @@ A API só registra (§5.1): nenhum caminho chama a Meta.
 import uuid
 from datetime import UTC, datetime, timedelta
 
+from sqlalchemy import select
+
 from app.models.agendamento import Agendamento
 from app.models.contato import Contato
 from app.models.modelo import Modelo
@@ -185,3 +187,45 @@ def test_cancelar_serie_so_futuras_pendentes(client, auth_headers, db):  # AC-13
 def test_cancelar_serie_inexistente_404(client, auth_headers, db):
     r = client.post("/agendamentos/nao-existe/cancelar-serie", headers=auth_headers)
     assert r.status_code == 404
+
+
+# --- hardening (spec 0015 / dívida R1) ---
+def test_criar_contato_inexistente_404(client, auth_headers, db):  # AC-1
+    mid = _modelo(db)
+    r = client.post(
+        "/agendamentos", json=_payload(mid, contato_id="nao-existe"), headers=auth_headers
+    )
+    assert r.status_code == 404
+    assert r.json()["detail"] == "Contato não encontrado"
+    # nada criado
+    assert db.execute(select(Agendamento)).scalars().first() is None
+
+
+def test_criar_variaveis_itens_demais_422(client, auth_headers, db):  # AC-3
+    mid, cid = _modelo(db), _contato(db)
+    r = client.post(
+        "/agendamentos",
+        json=_payload(mid, contato_id=cid, variaveis=[str(i) for i in range(51)]),
+        headers=auth_headers,
+    )
+    assert r.status_code == 422
+
+
+def test_criar_variavel_longa_demais_422(client, auth_headers, db):  # AC-3
+    mid, cid = _modelo(db), _contato(db)
+    r = client.post(
+        "/agendamentos",
+        json=_payload(mid, contato_id=cid, variaveis=["x" * 1001]),
+        headers=auth_headers,
+    )
+    assert r.status_code == 422
+
+
+def test_criar_variaveis_no_limite_201(client, auth_headers, db):  # AC-4
+    mid, cid = _modelo(db), _contato(db)
+    r = client.post(
+        "/agendamentos",
+        json=_payload(mid, contato_id=cid, variaveis=["x" * 1000] * 50),
+        headers=auth_headers,
+    )
+    assert r.status_code == 201
