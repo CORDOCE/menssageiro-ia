@@ -4,10 +4,16 @@
 
 _Atualizado: 2026-11-09_
 
-## ▶️ RETOMAR AQUI (handoff 2026-11-09 ~17:35)
-**Fase 5 (telas) + hardening.** **0011/0012/0013/0014/0015 todas EM PRODUÇÃO.** Git: `develop=25c0f46`, `main=e5d6469` (release #46). Sem PR aberta.
-- **Próximo passo — escolher a próxima frente:** item **(d) limite diário por-agendamento** (vira spec própria: regra de envio §5 + aprovação §4 + migração), **O1 alerta §12**, ou mais telas (Conversas/Sugestões/Configurações). Abrir com `/nova-feature`.
+## ▶️ RETOMAR AQUI (handoff 2026-11-09 ~17:50)
+**Fase 5 (telas) + hardening/regra.** **0011–0015 EM PRODUÇÃO; 0016 (teto por-agendamento) MERGEADA em develop, EM STAGING.** Git: `develop=16c4095`, `main=e5d6469`. Sem PR aberta.
+- **Próximo passo #1 — validar 0016 em staging e promover `develop`→`main`** (regra de envio → §4). **Tem migração** (coluna na config) → já aplicada em staging (deploy backend SUCCESS). Smoke funcional opcional (write-path; envio inerte): setar `limite_por_agendamento_dia` baixo na config + disparar grupo > teto → status `parcial` + auditoria `agendamento.limite_por_agendamento`. Validação funcional já coberta por teste/CI.
+- **Próximo passo #2 — escolher a próxima frente:** **O1 alerta §12** (consome o sinal que a 0016 já emite), ou mais telas (Conversas/Sugestões/Configurações). Abrir com `/nova-feature`.
 - 📌 **Follow-ups abertos (não bloqueiam):** (a) **token Meta de staging expirado** (erro 190 no Histórico) — Fase 0, renovar `WHATSAPP_TOKEN` staging; (b) Agenda "Enviada" × Histórico "Falhou" p/ o mesmo disparo (status de entidades distintas — decisão de produto); (c) **P2 layout** barra inferior mobile <640px não verificado (lateral ok); (d) 0013 — clicar Sincronizar em prod (erro AC-4) não exercido.
+
+## ✅ spec 0016 "Teto por agendamento" (dívida R1-d) — MERGEADA em develop, EM STAGING
+> Tier Arquitetural (regra de envio §5, migração, §4). **ADR 0013.** Novo limite `limite_por_agendamento_dia` na config (`NULL`=sem teto, env `LIMITE_POR_AGENDAMENTO`): ao exceder, o worker envia até o teto, **para**, marca status terminal novo **`parcial`** + auditoria `agendamento.limite_por_agendamento` (sem PII). Selo "Parcial" na UI. **MERGEADA via PR #47** (`16c4095`, 2026-11-09; CI verde). Deploy **staging SUCCESS** (backend+worker+frontend; **migração aplicada**).
+- **Regra (/clarificar + gate de design, aprovados):** teto na config · parar+marcar+alertar (não espalha) · status `parcial` terminal.
+- **Gates:** `/revisar` 0 P0/P1 (**1 P2 consciente** no ADR: reprocesso pós-crash com teto subenvia — nunca excede) · `/seguranca` 0 vuln · `/validar` AC-1..AC-7. CI completo: migração, pytest **97.40%**, pip-audit, npm audit 0. Arquivos: `models/configuracao.py`+`core/config.py`+`services/janela.py` (config/semente), `worker/disparo.py` (corte+`parcial`+auditoria), `api/agendamentos.py` (`parcial` terminal), migração `4a3dc85cbaa2`, `components/Selo.tsx` (selo). Testes: `test_worker_disparo.py` (+6), `Selo.test.ts`.
 
 ## ✅ spec 0015 "Hardening agendamentos" (dívida R1) — EM PRODUÇÃO
 > Tier Pequeno, só backend, **sem migração**. `POST /agendamentos`: (a) `contato_id` inexistente **500→404** "Contato não encontrado"; (c) cap em `variaveis` **≤50 itens / ≤1000 chars** → 422. **EM PRODUÇÃO** (release PR **#46** `develop`→`main` = `e5d6469`, 2026-11-09; mergeado pelo Jefferson). Deploy prod **backend SUCCESS** (frontend SKIPPED), head Alembic inalterado. Smoke prod: `/auth/me` sem cookie → 401 JSON. Mergeada em develop via #45 (`001d99b`).
