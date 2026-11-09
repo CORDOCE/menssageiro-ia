@@ -28,6 +28,26 @@ export function seloAgendamento(status: string): { tom: Tom; texto: string } {
   }
 }
 
+// Mapeia o status de um envio para selo (spec 0014). Status internos vêm do webhook (§webhook_meta).
+export function seloEnvio(status: string): { tom: Tom; texto: string } {
+  switch (status) {
+    case "criado":
+      return { tom: "neutro", texto: "Criado" };
+    case "enviando":
+      return { tom: "agendada", texto: "Enviando" };
+    case "enviado":
+      return { tom: "agendada", texto: "Enviado" };
+    case "entregue":
+      return { tom: "entregue", texto: "Entregue" };
+    case "lido":
+      return { tom: "entregue", texto: "Lido" };
+    case "falhou":
+      return { tom: "erro", texto: "Falhou" };
+    default:
+      return { tom: "neutro", texto: status };
+  }
+}
+
 // Mapeia o status de um modelo (template) para selo (spec 0013). Status vêm da Meta (§5.3).
 export function seloModelo(status: string): { tom: Tom; texto: string } {
   switch (status) {

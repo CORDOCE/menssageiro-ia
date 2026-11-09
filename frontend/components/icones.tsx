@@ -56,6 +56,16 @@ export function IconeModelos(props: Props) {
   );
 }
 
+export function IconeHistorico(props: Props) {
+  return (
+    <svg {...base(props)}>
+      <path d="M3 3v5h5" />
+      <path d="M3.05 11A9 9 0 1 1 6 18.7L3 16" />
+      <path d="M12 7v5l3 2" />
+    </svg>
+  );
+}
+
 export function IconeRecorrencia(props: Props) {
   return (
     <svg {...base({ width: 16, height: 16, ...props })}>
