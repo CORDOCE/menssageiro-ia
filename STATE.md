@@ -6,8 +6,8 @@ _Atualizado: 2026-11-09_
 
 ## ▶️ RETOMAR AQUI (handoff 2026-11-09 ~16:30)
 **Fase 5 (telas do PWA) em andamento.** 0011/0012/0013 EM PRODUÇÃO. **0014 Histórico MERGEADA em develop, EM STAGING (validar).** Git: `develop=e05e4fe` (PR #43), `main=9a8cf7e`.
-- **Próximo passo #1 — smoke visual da 0014 em staging** (Jefferson): login staging → menu **Histórico** → listar envios, filtrar status+período, conferir erro só em falhou. ⚠️ Staging tem poucos/zero envios reais (Fase 0), então a lista pode vir vazia: estado-vazio é esperado. Conferir também o **P2 de layout**: barra inferior no mobile agora tem 5 itens + "Mais" (ver se aperta).
-- **Próximo passo #2 — promover 0014 `develop`→`main`** após validar staging. **Sem migração** (modelo `Envio` já existia); deploy prod reconstrói backend+frontend.
+- ✅ **0014 VALIDADA na UI de staging (2026-11-09, capturas):** Histórico lista "2 envio(s)" — contato/telefone/modelo/data/selo "Falhou" + motivo em vermelho (`Falha (190): Invalid OAuth access token`). Exercita AC-1/AC-4/AC-6/AC-8. **Próximo passo — promover 0014 `develop`→`main`** (aguarda OK §4 do Jefferson). **Sem migração**; deploy prod reconstrói backend+frontend.
+- 📌 **Observações (não são bug da 0014, não bloqueiam):** (a) envios falharam por **token Meta de staging expirado** (erro 190) — item da Fase 0, renovar `WHATSAPP_TOKEN` staging p/ testes de envio real; (b) Agenda mostra "Enviada" e Histórico mostra "Falhou" p/ o mesmo disparo — status de entidades distintas (agendamento processado vs envio rejeitado pela Meta); decisão de produto futura; (c) P2 de layout da barra inferior mobile (<640px) ainda **não verificado** (capturas são desktop; na lateral está ok).
 - Deploy **staging SUCCESS** (commit `e05e4fe`): backend/worker/frontend. **Smoke infra staging:** `/historico` HTTP 200, `/api/envios` sem cookie → 401 JSON.
 - **Depois:** próxima frente = dívidas de `docs/divida-tecnica.md` (R1 hardening de agendamentos, O1 alerta §12) ou mais telas (Conversas/Sugestões/Configurações).
 - ⏳ **0013 — único não exercido:** clicar **Sincronizar** na tela de produção (deve dar erro legível AC-4, sem credenciais). Não bloqueia.
