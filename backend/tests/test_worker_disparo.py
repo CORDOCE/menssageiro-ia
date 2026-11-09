@@ -428,3 +428,31 @@ def test_borda_n_igual_teto_enviado(db):  # borda: N == teto não corta
     _config(db, limite_por_agendamento_dia=3)
     processar_ciclo(enviar=FakeEnviar(), agora=AGORA)
     assert db.get(Agendamento, aid).status == "enviado"
+
+
+def test_modelo_nao_aprovado_alerta_sentry(db, monkeypatch):  # spec 0017 AC-5
+    import sentry_sdk
+
+    alertas: list[tuple[str, dict]] = []
+    monkeypatch.setattr(sentry_sdk, "capture_message", lambda msg, **kw: alertas.append((msg, kw)))
+    mid = _modelo(db, status="pendente")  # modelo não aprovado → agendamento.falhou
+    cid = _contato(db)
+    _agendamento(db, mid, contato_id=cid)
+    processar_ciclo(enviar=FakeEnviar(), agora=AGORA)
+    assert any(op == "agendamento.falhou" and kw.get("level") == "error" for op, kw in alertas)
+
+
+def test_teto_atingido_alerta_sentry(db, monkeypatch):  # spec 0017 AC-5
+    import sentry_sdk
+
+    alertas: list[tuple[str, dict]] = []
+    monkeypatch.setattr(sentry_sdk, "capture_message", lambda msg, **kw: alertas.append((msg, kw)))
+    mid = _modelo(db)
+    _grupo(db, 5)
+    _agendamento(db, mid, grupo="g")
+    _config(db, limite_por_agendamento_dia=3)
+    processar_ciclo(enviar=FakeEnviar(), agora=AGORA)
+    assert any(
+        op == "agendamento.limite_por_agendamento" and kw.get("level") == "warning"
+        for op, kw in alertas
+    )

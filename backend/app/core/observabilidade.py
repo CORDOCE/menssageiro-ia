@@ -9,7 +9,7 @@ from __future__ import annotations
 import logging
 import os
 import re
-from typing import Any
+from typing import Any, Literal
 
 import sentry_sdk
 
@@ -39,10 +39,44 @@ def _mascarar_pii(event: dict[str, Any], hint: dict[str, Any] | None = None) -> 
         for exc in (event.get("exception", {}) or {}).get("values", []) or []:
             if isinstance(exc.get("value"), str):
                 exc["value"] = _mascarar_texto(exc["value"])
+        # Mascara PII em `contexts` (ex.: metadados de `alertar_evento` com telefone — spec 0017).
+        contexts = event.get("contexts")
+        if isinstance(contexts, dict):
+            for ctx in contexts.values():
+                if isinstance(ctx, dict):
+                    for chave, valor in ctx.items():
+                        if isinstance(valor, str):
+                            ctx[chave] = _mascarar_texto(valor)
         return event
     except Exception:  # pragma: no cover — scrub nunca derruba nem vaza
         logger.warning("falha ao mascarar PII do evento Sentry; evento descartado")
         return None
+
+
+_NIVEL_SENTRY: dict[str, Literal["error", "warning"]] = {"error": "error", "warning": "warning"}
+
+
+def alertar_evento(
+    operacao: str,
+    status: str,
+    correlation_id: str | None = None,
+    metadados: dict[str, Any] | None = None,
+) -> None:
+    """Emite um evento de fluxo crítico ao Sentry (spec 0017 / §12). Só alerta em `error`/`warning`;
+    no-op sem Sentry inicializado (o `sentry_sdk` já é no-op sem `init`). Passa apenas `operacao` +
+    `metadados` (sem PII); `before_send` ainda mascara dígitos. Nunca levanta."""
+    nivel = _NIVEL_SENTRY.get(status)
+    if nivel is None:
+        return
+    try:
+        sentry_sdk.capture_message(
+            operacao,
+            level=nivel,
+            tags={"correlation_id": correlation_id} if correlation_id else {},
+            contexts={"evento": metadados} if metadados else {},
+        )
+    except Exception:  # pragma: no cover — alerta nunca derruba o fluxo
+        logger.warning("falha ao alertar evento ao Sentry: %s", operacao)
 
 
 def configurar_sentry() -> bool:

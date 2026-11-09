@@ -96,11 +96,15 @@ def _aplicar_template_status(db: Session, value: dict[str, Any]) -> None:
     if novo == "rejeitado" and motivo and motivo != "NONE":
         modelo.motivo_rejeicao = str(motivo)
     db.commit()
+    # Modelo pausado/rejeitado é fluxo crítico (§12): alerta além da auditoria (spec 0017).
+    critico = novo in {"pausado", "rejeitado"}
     registrar_auditoria(
         operacao="template_status",
         alvo_tipo="modelo",
         alvo_id=modelo.id,
+        status="warning" if critico else "success",
         metadados={"status": novo, "template": nome},  # sem PII
+        alertar=critico,
     )
 
 
