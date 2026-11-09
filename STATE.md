@@ -4,15 +4,26 @@
 
 _Atualizado: 2026-11-06_
 
-## 🟢 spec 0012 "Agenda" (gerenciar agendamentos pela UI) — MERGEADA em develop (#39) + VALIDADA em staging; aguarda promoção p/ main
-> **PR #39 MERGEADO em `develop`** (merge `e3fe8e8`; CI verde). **✅ VALIDADO na UI de staging por Jefferson (2026-11-06):** Agenda listou, filtrou por status (Cancelada→0), e **Cancelar** funcionou (item virou "Cancelada"). Deploy staging frontend SUCCESS. **Falta só promover `develop`→`main`** (release PR aberto). Tier Pequeno, só frontend (0004/0005).
-> - **Nota:** o login de staging falhou antes por **erro de digitação no domínio do e-mail** (`cordce`/`codoce` em vez de `cordoce`) — diagnosticado pela auditoria (`ator_email` por tentativa); conta/relógio/cifra OK. Não era bug.
-- **Escopo (v1):** listar agendamentos (ordem do backend) com **filtro status** (servidor) + **período** futuros/passados/todos (cliente); ações **cancelar** (não-terminal), **reenviar** (só `aguardando_decisao`), **cancelar série** (recorrente, informa contagem). Confirmação `window.confirm`; erros `alert` (padrão Contatos); 401→login; guarda de duplo clique. **Fora:** editar (sem PATCH), criar (é a 0011), histórico de envios (sem `GET /envios`).
-- **Decisões de gate (Jefferson):** Q1 status+período · Q2 `limit=200` · Q3 `window.confirm` · Q4 reenviar incluído.
-- **Arquivos:** `frontend/app/(app)/agenda/page.tsx` (+teste), `lib/api.ts` (`cancelarAgendamento`/`reenviarAgendamento`/`cancelarSerie`), `components/icones.tsx` (`IconeAgenda`), `components/AppShell.tsx` (item Agenda sai de "Em breve").
-- **Gates:** `/revisar` 0 P0/P1 (1 P2 consciente: formatadores de data duplicam os da Hoje — não extraí p/ não tocar a Hoje) · `/seguranca` 0 crítico/alto · `/validar` **42 testes** verdes (lint+tsc+vitest+build `/agenda`). Backend intocado.
-- **Armadilha de teste resolvida:** mock de `useRouter` precisa devolver objeto **estável** (via `vi.hoisted`) — senão `carregar` (depende de `router`) recria a cada render e o `useEffect` entra em loop, piscando o esqueleto. Em produção o `useRouter` do Next é estável.
-- **Próximo passo:** abrir **PR `feat/0012-agenda` → develop** e validar em staging (cancelar/reenviar/cancelar-série numa tela real).
+## ▶️ RETOMAR AQUI (handoff 2026-11-06 ~15:25)
+**Fase 5 (telas do PWA) em andamento.** Nesta sessão: 0011 Nova mensagem, 0012 Agenda e 0013 Modelos. Git: `develop=d30e042` (0011+0012+0013), `main=51a0237` (0011+0012). Working tree limpo, **sem PR aberta**.
+- **Próximo passo #1 — validar a 0013 Modelos em staging** (Jefferson vai testar na próxima sessão): login staging → menu **Modelos** → listar templates (status/categoria/prévia/variáveis), filtrar por status, e **Sincronizar com a Meta** (deve mostrar "N total, X criados, Y atualizados" e recarregar; staging tem credenciais). Roteiro completo já passado.
+- **Próximo passo #2 — promover 0013 `develop`→`main`** após validar (release PR develop→main; Jefferson mergeia). Só frontend, sem migração.
+- **Depois:** próxima tela da Fase 5 = **Histórico** (precisa de endpoint novo `GET /envios` — não existe; é mais trabalho: backend + frontend) ou outra dívida de `docs/divida-tecnica.md`.
+- ⚠️ Havia um **ScheduleWakeup para ~16:09** (rodar /handoff). Como o handoff já foi feito agora, ao disparar é inócuo — pode ignorar/confirmar que o STATE já está salvo.
+
+## ✅ spec 0013 "Modelos" (ver templates + sincronizar) — EM develop + VALIDANDO em staging
+> **PR #41 MERGEADO em `develop`** (merge `d30e042`, 2026-11-06; CI verde back+front). Deploy **staging frontend SUCCESS** (`51f75d12`). **Falta: validar na UI de staging e promover p/ main.** Tier Pequeno, só frontend sobre endpoints da 0010.
+- **Escopo (v1):** listar templates (nome, selo `seloModelo`, categoria/idioma, prévia do corpo texto-puro §6, variáveis) + filtro por status; botão **Sincronizar** (`POST /modelos/sincronizar`) com feedback (total/criados/atualizados) e recarga; erro legível via `alert`, 401→login, guarda de duplo clique. **Fora:** criar/editar/submeter template, enviar-teste, excluir.
+- **Decisões de gate (Jefferson):** Q1 incluir filtro · Q2 enviar-teste fora · Q3 sem confirmação · Q4 detalhe inline.
+- ⚠️ **Em produção o Sincronizar falha** (sem credenciais Meta — Fase 0); AC-4 trata o erro. Staging funciona.
+- **Arquivos:** `frontend/app/(app)/modelos/page.tsx` (+teste), `lib/api.ts` (`sincronizarModelos`), `components/Selo.tsx` (`seloModelo` +teste `Selo.test.ts`), `components/icones.tsx` (`IconeModelos`), `components/AppShell.tsx`.
+- **Gates:** `/revisar` 0 P0/P1 · `/seguranca` 0 crítico/alto · `/validar` **52 testes**. Backend intocado. (CI falhou 1x por `within` não usado no teste — corrigido `2cdeb64`; ver [[gate-nao-mascarar-exit-code-com-pipe]].)
+
+## ✅ spec 0012 "Agenda" (gerenciar agendamentos pela UI) — EM PRODUÇÃO
+> **EM PRODUÇÃO** (release PR **#40** `develop`→`main` = `51a0237`, 2026-11-06; prod frontend SUCCESS `4b36b059`, back/worker SKIPPED). Mergeada em develop via #39. **✅ VALIDADA na UI de staging por Jefferson:** listou, filtrou (Cancelada→0), Cancelar funcionou. Tier Pequeno, só frontend (0004/0005).
+- **Escopo (v1):** lista (filtro status servidor + período cliente); ações cancelar / reenviar (só `aguardando_decisao`) / cancelar série (recorrente). `window.confirm`; erros `alert`; 401→login. **Fora:** editar (sem PATCH), criar (0011), histórico (sem `GET /envios`).
+- **Armadilha de teste:** mock de `useRouter` precisa de objeto **estável** (`vi.hoisted`) — senão `useEffect` de carga entra em loop. Em prod o `useRouter` do Next é estável.
+- **Nota (não era bug):** login de staging falhava por **typo no domínio do e-mail** (`cordce`/`codoce` ≠ `cordoce`) — diagnosticado pela auditoria (`ator_email` por tentativa); conta/relógio/cifra OK.
 
 ## spec 0007 (cifrar `totp_secret`/dívida S1) — ✅ CONCLUÍDA e EM PRODUÇÃO
 - **EM PRODUÇÃO** (release PR **#28** `develop`→`main` = `5c133c42`, 2026-11-05). Deploy prod backend+worker `SUCCESS`; migração `c4c7ff4e9646` aplicada; `totp_secret` do admin de prod **cifrado em repouso** e 2FA funcional (verificado read-only: `usuarios=1`, `cifrado=True`, `self_verify=True`). Também mergeada em `develop` (#27) e **validada em staging** (login 2FA real por Jefferson). ADR 0011 (Fernet app-level, `TOTP_ENC_KEY`, MultiFernet; dep `cryptography`).
@@ -95,11 +106,12 @@ _Atualizado: 2026-11-06_
 - **Validar Fase 2 em staging** (DoD 0002): import com `validar_fase2.csv` (scratchpad), esperado total=3/criados=2/erros=1.
 - Pendência de segurança herdada: **cifrar `totp_secret` em repouso**.
 
-## Estado do git (2026-11-06)
-- Branch atual: **`develop`** (= `origin/develop`), sincronizado. Feature `feat/0011-nova-mensagem` mergeada e apagada. **Sem PR aberta.**
-- `origin/main` = **`6323901`** (release #38, spec 0011 Nova mensagem). `main` local alinhado. **Nenhuma promoção pendente** (develop e main só diferem pelo commit de merge + STATE).
+## Estado do git (2026-11-06, handoff ~15:25)
+- Branch atual: **`develop`** = **`d30e042`** (= `origin/develop`), limpo. Features 0011/0012/0013 mergeadas e branches apagadas. **Sem PR aberta.**
+- `origin/main` = **`51a0237`** (release #40, spec 0012 Agenda). **0013 ainda NÃO em main** (promover após validar staging). PRs da sessão: #37/#38 (0011), #39/#40 (0012), #41 (0013) — todos mergeados.
 - **Remotas: limpas** — só `origin/develop` e `origin/main`.
-- Head Alembic: `4ff11dacdb87` (único) — nada de schema novo desde a 0006 (a 0011 é só frontend).
+- Head Alembic: `4ff11dacdb87` (único) — nada de schema novo (0011/0012/0013 são só frontend).
+- Produção no ar: 0011 + 0012 (frontend `4b36b059`). Staging: develop com 0013 (`51f75d12`).
 - Locais não mergeadas (mantidas por decisão): `docs/codebase-map` (`6f03cdc`), `chore/railway-procfile` (`879c09a`, trabalho não integrado).
 
 ## Infra (Railway — projeto `406f04bb-7659-4366-aea0-f9489dbf0b07`)
