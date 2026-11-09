@@ -4,15 +4,16 @@
 
 _Atualizado: 2026-11-09_
 
-## ▶️ RETOMAR AQUI (handoff 2026-11-09 ~16:10)
-**Fase 5 (telas do PWA) em andamento.** 0011/0012/0013 EM PRODUÇÃO. **0014 Histórico implementada, PR aberta p/ develop.** Git: `develop=cf98cba`, `main=9a8cf7e`, branch `feat/0014-historico`.
-- **Próximo passo #1 — mergear a PR da 0014 em develop** (CI do PR verde). Depois deploy staging → **smoke visual em staging** (menu Histórico: lista envios, filtra status+período, erro só em falhou). ⚠️ Staging/prod têm poucos ou zero envios reais (Fase 0 — envio real adiado), então a lista pode vir vazia/curta: o estado-vazio é esperado.
-- **Próximo passo #2 — promover 0014 `develop`→`main`** após validar staging. **Sem migração** (modelo `Envio` já existia).
+## ▶️ RETOMAR AQUI (handoff 2026-11-09 ~16:30)
+**Fase 5 (telas do PWA) em andamento.** 0011/0012/0013 EM PRODUÇÃO. **0014 Histórico MERGEADA em develop, EM STAGING (validar).** Git: `develop=e05e4fe` (PR #43), `main=9a8cf7e`.
+- **Próximo passo #1 — smoke visual da 0014 em staging** (Jefferson): login staging → menu **Histórico** → listar envios, filtrar status+período, conferir erro só em falhou. ⚠️ Staging tem poucos/zero envios reais (Fase 0), então a lista pode vir vazia: estado-vazio é esperado. Conferir também o **P2 de layout**: barra inferior no mobile agora tem 5 itens + "Mais" (ver se aperta).
+- **Próximo passo #2 — promover 0014 `develop`→`main`** após validar staging. **Sem migração** (modelo `Envio` já existia); deploy prod reconstrói backend+frontend.
+- Deploy **staging SUCCESS** (commit `e05e4fe`): backend/worker/frontend. **Smoke infra staging:** `/historico` HTTP 200, `/api/envios` sem cookie → 401 JSON.
 - **Depois:** próxima frente = dívidas de `docs/divida-tecnica.md` (R1 hardening de agendamentos, O1 alerta §12) ou mais telas (Conversas/Sugestões/Configurações).
 - ⏳ **0013 — único não exercido:** clicar **Sincronizar** na tela de produção (deve dar erro legível AC-4, sem credenciais). Não bloqueia.
 
-## ✅ spec 0014 "Histórico" (ver envios realizados) — IMPLEMENTADA, PR p/ develop
-> Tier Pequeno. Backend novo **`GET /envios`** (read-only, molde de `/agendamentos`) + tela `historico`. **Sem migração** (modelo `Envio` já existia). Branch `feat/0014-historico`.
+## ✅ spec 0014 "Histórico" (ver envios realizados) — MERGEADA em develop, EM STAGING
+> Tier Pequeno. Backend novo **`GET /envios`** (read-only, molde de `/agendamentos`) + tela `historico`. **Sem migração** (modelo `Envio` já existia). **MERGEADA via PR #43** (`e05e4fe`, 2026-11-09; CI do PR verde back+front). Deploy **staging SUCCESS** (backend/worker/frontend). Falta: validar na UI de staging e promover p/ main.
 - **Escopo (v1, /clarificar 2026-11-09):** endpoint faz **join** e devolve nome+telefone do contato e nome do modelo; filtros **status + período** (desde/ate); campos por linha: contato, modelo, status, data, **erro só quando falhou**; ordena por `criado_em` desc; paginação (cap 200). `pricing`/`conversation` **fora**. Item "Histórico" ativado no `AppShell`.
 - **Gates:** `/revisar` 0 P0/P1 (1 P2 corrigido: try/catch na conversão de período, `b2cf4cf`) · `/seguranca` 0 crítico/alto/médio · `/validar` AC-1..AC-8. **CI completo via Docker VERDE** (backend ruff/mypy/migração/pytest **97.36%**/pip-audit; frontend eslint/tsc/vitest **59**/build/npm audit 0 vulns).
 - **Arquivos:** `backend/app/api/envios.py` (+`schemas/envio.py` `EnvioRead`+`StatusEnvio`, registro em `main.py`, `tests/test_envios.py` 9 testes); `frontend/app/(app)/historico/page.tsx` (+teste 7), `lib/api.ts` (`listarEnvios`+tipo `Envio`), `components/{Selo.tsx (seloEnvio),icones.tsx (IconeHistorico),AppShell.tsx}`.
