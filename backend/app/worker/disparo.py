@@ -111,6 +111,7 @@ def processar_ciclo(
                 status="error",
                 metadados={"erro": type(exc).__name__},
                 correlation_id=aid,
+                alertar=True,
             )
 
 
@@ -183,7 +184,7 @@ def _processar_agendamento(
             sess.commit()
             registrar_auditoria(
                 "agendamento.falhou", alvo_tipo="agendamento", alvo_id=ag.id, status="error",
-                metadados={"motivo": "modelo_nao_aprovado"}, correlation_id=ag.id,
+                metadados={"motivo": "modelo_nao_aprovado"}, correlation_id=ag.id, alertar=True,
             )
             return
 
@@ -239,7 +240,7 @@ def _processar_agendamento(
                 "agendamento.limite_por_agendamento", alvo_tipo="agendamento", alvo_id=aid,
                 status="warning",
                 metadados={"enviados": enviados, "total": total_destinatarios, "teto": limite_agendamento},
-                correlation_id=aid,
+                correlation_id=aid, alertar=True,
             )
             return
 
@@ -362,7 +363,7 @@ def _processar_contato(
         sess.commit()
         registrar_auditoria(
             "envio.falhou", alvo_tipo="envio", alvo_id=reservado, status="error",
-            metadados={"telefone": tel, "codigo": str(exc.codigo)}, correlation_id=aid,
+            metadados={"telefone": tel, "codigo": str(exc.codigo)}, correlation_id=aid, alertar=True,
         )
 
 

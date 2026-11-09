@@ -22,11 +22,21 @@ def registrar_auditoria(
     status: str = "success",
     metadados: dict[str, Any] | None = None,
     correlation_id: str | None = None,
+    alertar: bool = False,
 ) -> None:
-    """Grava uma entrada de auditoria. Nunca levanta exceção."""
+    """Grava uma entrada de auditoria. Nunca levanta exceção.
+
+    `alertar=True` em eventos de fluxo crítico (`status` error/warning) também emite ao Sentry
+    para o §12 poder alertar (spec 0017 / O1). Sem PII; no-op sem Sentry inicializado.
+    """
     try:
         import app.db.database as _db
         from app.models.auditoria import Auditoria
+
+        if alertar:
+            from app.core.observabilidade import alertar_evento
+
+            alertar_evento(operacao, status, correlation_id, metadados)
 
         entrada = Auditoria(
             id=str(uuid.uuid4()),
