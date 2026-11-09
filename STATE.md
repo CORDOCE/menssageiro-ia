@@ -4,14 +4,13 @@
 
 _Atualizado: 2026-11-09_
 
-## ▶️ RETOMAR AQUI (handoff 2026-11-09 ~17:20)
-**Fase 5 (telas) + hardening.** **0011/0012/0013/0014 EM PRODUÇÃO; 0015 (R1) MERGEADA em develop, EM STAGING.** Git: `develop=001d99b`, `main=ffc2adc`. Sem PR aberta.
-- **Próximo passo #1 — promover 0015 `develop`→`main`** (aguarda OK §4). **Sem migração**; prova funcional é por teste/CI (hardening de validação, sem UI nova) — deploy prod reconstrói backend. Smoke infra staging: backend `/auth/me` sem cookie → 401.
-- **Próximo passo #2 — escolher a próxima frente:** item **(d) limite diário por-agendamento** (vira spec própria: regra de envio §5 + aprovação §4 + migração), **O1 alerta §12**, ou mais telas (Conversas/Sugestões/Configurações). Abrir com `/nova-feature`.
+## ▶️ RETOMAR AQUI (handoff 2026-11-09 ~17:35)
+**Fase 5 (telas) + hardening.** **0011/0012/0013/0014/0015 todas EM PRODUÇÃO.** Git: `develop=25c0f46`, `main=e5d6469` (release #46). Sem PR aberta.
+- **Próximo passo — escolher a próxima frente:** item **(d) limite diário por-agendamento** (vira spec própria: regra de envio §5 + aprovação §4 + migração), **O1 alerta §12**, ou mais telas (Conversas/Sugestões/Configurações). Abrir com `/nova-feature`.
 - 📌 **Follow-ups abertos (não bloqueiam):** (a) **token Meta de staging expirado** (erro 190 no Histórico) — Fase 0, renovar `WHATSAPP_TOKEN` staging; (b) Agenda "Enviada" × Histórico "Falhou" p/ o mesmo disparo (status de entidades distintas — decisão de produto); (c) **P2 layout** barra inferior mobile <640px não verificado (lateral ok); (d) 0013 — clicar Sincronizar em prod (erro AC-4) não exercido.
 
-## ✅ spec 0015 "Hardening agendamentos" (dívida R1) — MERGEADA em develop, EM STAGING
-> Tier Pequeno, só backend, **sem migração**. `POST /agendamentos`: (a) `contato_id` inexistente **500→404** "Contato não encontrado"; (c) cap em `variaveis` **≤50 itens / ≤1000 chars** → 422. **MERGEADA via PR #45** (`001d99b`, 2026-11-09; CI do PR verde). Deploy **staging backend SUCCESS** (frontend SKIPPED).
+## ✅ spec 0015 "Hardening agendamentos" (dívida R1) — EM PRODUÇÃO
+> Tier Pequeno, só backend, **sem migração**. `POST /agendamentos`: (a) `contato_id` inexistente **500→404** "Contato não encontrado"; (c) cap em `variaveis` **≤50 itens / ≤1000 chars** → 422. **EM PRODUÇÃO** (release PR **#46** `develop`→`main` = `e5d6469`, 2026-11-09; mergeado pelo Jefferson). Deploy prod **backend SUCCESS** (frontend SKIPPED), head Alembic inalterado. Smoke prod: `/auth/me` sem cookie → 401 JSON. Mergeada em develop via #45 (`001d99b`).
 - **Re-verificação R1 (evidência):** (b) N+1 **DESCARTADO** (sem relationship/lazy-load); (d) limite por-agendamento **FORA** (regra de envio §5 → spec própria, §4 + migração).
 - **Gates:** `/revisar` 0 P0/P1 · `/seguranca` 0 vuln (remove vetor de 500; cap §6) · `/validar` AC-1..AC-4. CI backend completo: **204 passed**, cobertura **97%**, migração, pip-audit. Arquivos: `api/agendamentos.py` (valida Contato), `schemas/agendamento.py` (cap `variaveis`), `tests/test_agendamentos_api.py` (+4 testes). Gap `agendamentos.py:79` (filtro status listagem) é pré-existente (0004).
 
