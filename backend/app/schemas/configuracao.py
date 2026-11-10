@@ -25,7 +25,9 @@ class JanelaEnvio(BaseModel):
 
     model_config = ConfigDict(extra="forbid")
 
-    dias: list[StrictInt]  # inteiros de verdade (sem coerção de bool/str/float)
+    # inteiros de verdade (sem coerção de bool/str/float); cap de 7 (só há 7 dias) corta
+    # listas gigantes antes do validator — defesa contra DoS por payload grande (§6).
+    dias: Annotated[list[StrictInt], Field(max_length=7)]
     inicio: str
     fim: str
 

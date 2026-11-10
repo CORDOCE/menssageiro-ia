@@ -46,6 +46,7 @@ def test_janela_dias_fora_de_ordem_normaliza() -> None:
         {"dias": [1.5], "inicio": "08:00", "fim": "20:00"},       # dia não-inteiro
         {"dias": [True, False], "inicio": "08:00", "fim": "20:00"},  # bool não é dia
         {"dias": ["1", "2"], "inicio": "08:00", "fim": "20:00"},  # string não é dia
+        {"dias": list(range(8)), "inicio": "08:00", "fim": "20:00"},  # §6: cap de 7 (DoS)
     ],
 )
 def test_janela_invalida(janela: dict[str, object]) -> None:
