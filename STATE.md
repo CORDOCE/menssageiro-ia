@@ -2,16 +2,25 @@
 
 > Memória volátil do trabalho. Histórico vive no git/ADR. Atualize ao pausar (`/handoff`).
 
-_Atualizado: 2026-11-09_
+_Atualizado: 2026-11-10_
 
-## ▶️ RETOMAR AQUI (handoff 2026-11-09 ~18:40)
-**Fase 5 (telas) + hardening/regra/observabilidade.** **0011–0016 EM PRODUÇÃO; 0017 (alerta Sentry O1) MERGEADA em develop, EM STAGING.** Git: `develop=038b046`, `main=5a22f63`. Sem PR aberta.
-- **Próximo passo #1 — promover 0017 `develop`→`main`** (observabilidade pura, sem migração/§4; backend reconstrói). Smoke de infra basta (sem UI/regra nova).
-- **Próximo passo #2 — próxima frente:** alertas de **agregação** (worker parado >5min, falhas >5%/dia — painel Sentry/§4), **I1** (paridade env prod×staging, go-live), ou mais telas (Conversas/Sugestões/Configurações). Abrir com `/nova-feature`.
+## ▶️ RETOMAR AQUI (2026-11-10)
+**spec 0018 "Tela de Configurações" MERGEADA em develop (#51) e EM STAGING.** 0011–0017 em produção. `develop=824715f` sincronizada; mapa do repo criado (`docs/CODEBASE_MAP.md`); branches órfãs limpas. Deploy staging SUCCESS + smoke read-only OK (ver bloco 0018).
+- **Próximo passo:** **validação funcional da 0018 em staging pelo Jefferson** (login 2FA → pausar/limite/janela pela UI; toca envio §4), depois **promover `develop`→`main`**. Pendente também: apagar branch remota `origin/feat/0018-tela-configuracoes`.
+- **Depois da 0018:** escolher a próxima frente — alertas de **agregação** (worker parado >5min, falhas >5%/dia — painel Sentry/§4), **I1** (paridade env prod×staging, go-live), ou mais telas (Conversas/Sugestões). Abrir com `/nova-feature`.
+- **Follow-up da 0017 (§4):** configurar as **rules de alerta no painel Sentry** p/ rotear a e-mail os eventos que o código já emite (org `cordoce-digital`).
 - 📌 **Follow-ups abertos (não bloqueiam):** (a) **token Meta de staging expirado** (erro 190) — Fase 0, renovar `WHATSAPP_TOKEN` staging; (b) Agenda "Enviada" × Histórico "Falhou" (status de entidades distintas — decisão de produto); (c) **P2 layout** barra inferior mobile <640px não verificado; (d) 0013 Sincronizar em prod não exercido; (e) smoke funcional do teto 0016 (configurar limite + disparar grupo) não feito — coberto por teste/CI; (f) configurar as **rules de alerta no painel Sentry** p/ os eventos que a 0017 passou a emitir (§4).
 
-## ✅ spec 0017 "Alerta de fluxo crítico ao Sentry" (dívida O1) — MERGEADA em develop, EM STAGING
-> Tier Pequeno, só backend, sem migração/§4. Flag **`alertar=True`** em `registrar_auditoria` → emite `capture_message` ao Sentry nos eventos `error`/`warning` do disparo (`agendamento.erro_ciclo`/`falhou`/`limite_por_agendamento`/`envio.falhou`; webhook `template_status` pausado/rejeitado). No-op sem DSN. **Ganho de segurança:** `before_send` agora mascara PII também em `contexts` (telefone de `envio.falhou`). **MERGEADA via PR #49** (`038b046`, 2026-11-09; CI verde). Deploy staging backend (frontend SKIPPED).
+## 🟡 spec 0018 "Tela de Configurações" — EM STAGING (deploy OK), falta validação funcional
+> Tier Pequeno, **sem migração** (os 5 campos já existem no modelo `Configuracao`; ADR 0008). Expõe os controles de envio pela UI: `GET`/`PATCH /configuracoes` autenticados + tela `(app)/configuracoes` (janela 7 dias + início/fim, 3 limites, pausa geral com confirmação). Semântica de envio inalterada — muda só o meio de edição. **Aprovação §4 (controles de envio) registrada pelo responsável.**
+> **Mergeada em `develop` via PR #51 (`824715f`, 2026-11-10).** Deploy **staging backend+worker+frontend SUCCESS** (head Alembic inalterado — sem migração). **Smoke read-only staging OK:** `GET /configuracoes` sem cookie → 401 JSON; `PATCH` sem cookie → 401; `/health` 200; frontend `/configuracoes` 200. ⏳ **Falta validação FUNCIONAL autenticada (Jefferson, UI staging):** logar (admin `digital@cordoce.com.br` + 2FA) → GET config 200 → PATCH pausa=true (worker para no ciclo) → PATCH limite/janela refletem. Depois promover `develop`→`main`. Branch remota `origin/feat/0018` ainda existe (apagar).
+- **Escopo:** edita janela/limites/pausa; PATCH parcial (null nos opcionais remove limite); auditoria `configuracao.atualizada` por **diff real** (só o que muda, com valores, sem PII). **Fora:** múltiplos perfis, janela cruzando meia-noite, pausa agendada, histórico/rollback na UI, editar IA/env.
+- **Gates:** `/revisar` **1 P1 corrigido** (validação cliente p/ erro legível — helper `pedir` não expõe detail-lista do 422) · `/seguranca` **1 MÉDIO corrigido** (cap `dias` max_length=7 vs DoS) · `/validar` AC-1..AC-10 mapeados. **CI completo local verde:** backend ruff/mypy/migração/pytest **263 passed, 97.58%**/pip-audit; frontend eslint/tsc/vitest **72**/build/npm audit 0 high.
+- **Arquivos:** backend `schemas/configuracao.py`, `api/configuracoes.py` (+registro `main.py`); testes `test_configuracoes_{schema,api,worker}.py`. Frontend `app/(app)/configuracoes/page.tsx`, `lib/api.ts` (tipos+obter/atualizar), `components/{AppShell,icones}.tsx`, `globals.css` (`.dias-semana`).
+- **Pendências:** validar em **staging** (pausar/retomar + limite pela UI) antes de promover `develop`→`main`. Sem migração → deploy é só-código.
+
+## ✅ spec 0017 "Alerta de fluxo crítico ao Sentry" (dívida O1) — EM PRODUÇÃO
+> Tier Pequeno, só backend, sem migração/§4. Flag **`alertar=True`** em `registrar_auditoria` → emite `capture_message` ao Sentry nos eventos `error`/`warning` do disparo (`agendamento.erro_ciclo`/`falhou`/`limite_por_agendamento`/`envio.falhou`; webhook `template_status` pausado/rejeitado). No-op sem DSN. **Ganho de segurança:** `before_send` agora mascara PII também em `contexts` (telefone de `envio.falhou`). **EM PRODUÇÃO** (release PR **#50** `develop`→`main` = `471c095`, 2026-11-09; mergeado pelo Jefferson). Deploy prod backend SUCCESS (frontend SKIPPED), head Alembic inalterado. Smoke prod `/auth/me`→401. Mergeada em develop via #49 (`038b046`). ⏳ **Falta (§4):** rules de alerta no painel Sentry p/ rotear a e-mail.
 - **Escopo (/clarificar):** eventos pontuais ao Sentry. **Fora:** alertas de agregação (worker parado>5min, falhas%) = painel Sentry/§4; IA inativa.
 - **Gates:** `/revisar` 0 P0/P1 · `/seguranca` 0 vuln (PII em contexts mascarada) · `/validar` AC-1..AC-7. CI: pytest **97.43%** (audit.py/observabilidade.py 100%). Arquivos: `core/observabilidade.py` (`alertar_evento`+contexts no before_send), `core/audit.py` (flag), `worker/disparo.py` (4 pontos), `api/webhook_meta.py` (template crítico). Testes: `test_observabilidade.py`+`test_worker_disparo.py`.
 
@@ -126,12 +135,12 @@ _Atualizado: 2026-11-09_
 - **Validar Fase 2 em staging** (DoD 0002): import com `validar_fase2.csv` (scratchpad), esperado total=3/criados=2/erros=1.
 - Pendência de segurança herdada: **cifrar `totp_secret` em repouso**.
 
-## Estado do git (2026-11-09, handoff ~13:35)
-- Branch atual: **`develop`** = **`cf98cba`** (= `origin/develop`), limpo. `main` local fast-forward para **`9a8cf7e`** (= `origin/main`). **Sem PR aberta.**
-- `origin/main` = **`9a8cf7e`** (release **#42**, spec 0013 Modelos, 2026-11-09). 0011/0012/0013 todas em main. PRs: #37/#38 (0011), #39/#40 (0012), #41/#42 (0013) — todos mergeados.
+## Estado do git (2026-11-09, handoff ~19:10)
+- Branch atual: **`develop`** = **`63a011d`** (= `origin/develop`), limpo. `main` local = **`471c095`** (= `origin/main`). **Sem PR aberta.**
+- `origin/main` = **`471c095`** (release **#50**, spec 0017, 2026-11-09). **Specs 0011–0017 todas em main/produção.** Releases da sessão: #42 (0013), #44 (0014), #46 (0015), #48 (0016), #50 (0017) — todos mergeados; branches de feature apagadas.
 - **Remotas: limpas** — só `origin/develop` e `origin/main`.
-- Head Alembic: `4ff11dacdb87` (único) — nada de schema novo (0011/0012/0013 são só frontend).
-- Produção no ar: 0011 + 0012 + 0013 (frontend prod `fd7a5213` SUCCESS, commit `9a8cf7e`).
+- Head Alembic: **`4a3dc85cbaa2`** (migração da 0016 — `limite_por_agendamento_dia` na config; aplicada em staging+produção). 0014/0015/0017 sem schema.
+- Produção no ar: 0011–0017 (backend/worker/frontend, commit `471c095`).
 - Locais não mergeadas (mantidas por decisão): `docs/codebase-map` (`6f03cdc`), `chore/railway-procfile` (`879c09a`, trabalho não integrado).
 
 ## Infra (Railway — projeto `406f04bb-7659-4366-aea0-f9489dbf0b07`)

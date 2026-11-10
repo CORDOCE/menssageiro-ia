@@ -1,8 +1,9 @@
 # CLAUDE.md — Regras de trabalho do repositório Mensageiro
 
 Carregado em toda sessão: é curto de propósito. Detalhes do sistema estão em `BRIEFING.md`
-(produto e arquitetura), `RAILWAY.md` (infra) e `DESIGN-DASHBOARD.md` (interface). Leia-os **sob demanda**,
-só a seção necessária para a tarefa.
+(produto e arquitetura), `RAILWAY.md` (infra), `DESIGN-DASHBOARD.md` (interface) e
+`docs/CODEBASE_MAP.md` (mapa de navegação do código: módulos, fluxos, esquema do banco). Leia-os
+**sob demanda**, só a seção necessária para a tarefa.
 
 **Hierarquia em conflito:** pedido explícito do responsável (Jefferson) > este CLAUDE.md > BRIEFING.md >
 spec ativa (`specs/NNNN-*/spec.md`) > código existente. Conflito real → pare e pergunte.

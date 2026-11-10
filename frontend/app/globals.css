@@ -176,6 +176,18 @@ label {
   margin-top: 0.15rem;
 }
 
+/* Dias da semana da janela de envio (spec 0018): checkboxes em linha. */
+.dias-semana {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  margin-bottom: 0.6rem;
+}
+
+.dias-semana .checkbox {
+  align-items: center;
+}
+
 .aviso {
   display: block;
   color: var(--texto-2);
