@@ -4,10 +4,17 @@
 
 _Atualizado: 2026-11-10_
 
-## ▶️ RETOMAR AQUI (2026-11-10)
-**spec 0018 "Tela de Configurações" EM PRODUÇÃO (release #52).** 0011–0018 todas em produção. Git: `develop`=`main`=`22e3027` (release #52). Sem PR aberta. Mapa do repo em produção (`docs/CODEBASE_MAP.md`); branches limpas (só develop/main).
-- **Próximo passo — escolher a próxima frente:** alertas de **agregação** (worker parado >5min, falhas >5%/dia — painel Sentry/§4), **I1** (paridade env prod×staging, go-live), ou mais telas (Conversas/Sugestões). Abrir com `/nova-feature`.
-- 📌 **Follow-ups abertos (não bloqueiam):** rules de alerta no painel Sentry (0017/§4, org `cordoce-digital`); token Meta de staging expirado (erro 190); P2 layout mobile <640px; smoke funcional de 0013/0016 em prod.
+## ▶️ RETOMAR AQUI (pausado 2026-11-10 — retomar quando Jefferson disser)
+**spec 0019 "Alertas de agregação" EM ANDAMENTO (fase spec, nada escrito ainda).** 0011–0018 em produção (`develop`=`main`=`22e3027`, release #52). Git: branch **`feat/0019-alertas-agregacao`** (a partir de `develop`), **working tree limpo, 0 commits próprios, sem PR**. A pasta `specs/0019-*` ainda NÃO existe.
+- **Próximo passo ao retomar:** escrever `specs/0019-alertas-agregacao/spec.md` + `tasks.md` (Tier Pequeno) com base nas decisões abaixo, e PARAR no gate da spec para review.
+- **Decisões já tomadas (sessão 2026-11-10):**
+  - Tier **Pequeno** (spec.md + tasks.md), sem migração (usa `saude.ultimo_ciclo_em` + eventos da 0017).
+  - **Thresholds oficiais (BRIEFING §12):** worker parado **>5min**; falhas de envio **>5%/dia**. ("Modelo pausado/rejeitado" já é da 0017; "qualidade do número" depende da Meta → fora, Fase 0.)
+  - **Worker parado:** Sentry **Cron Monitor + check-in** do worker a cada ciclo (observador externo detecta ausência). API confirmada: `sentry-sdk 2.74.0` tem `sentry_sdk.crons.capture_checkin` + `MonitorStatus`. Worker já importa `sentry_sdk` (`worker/__main__.py:11`). No-op sem `SENTRY_DSN` (padrão 0017).
+  - **Taxa de falha:** lógica **no código** (worker computa falhas/tentativas nas últimas 24h; alerta via `alertar_evento` quando >5%), com guarda de **idempotência diária** (máx 1 alerta/dia, checar auditoria) e **piso mínimo de volume** (evitar ruído com poucos envios — valor a definir na spec, ~20 tentativas). [[gate-nao-mascarar-exit-code-com-pipe]]
+  - **Config no Sentry:** eu crio o Cron Monitor + alert rules de e-mail **via Sentry MCP** (org `cordoce-digital`) — **aprovação §4 dada por Jefferson** nesta sessão. Isso também fecha o follow-up da 0017 (rotear eventos a e-mail).
+- **Esboço de AC (a formalizar):** AC-1 check-in "ok" por ciclo (com DSN); AC-2 no-op sem DSN; AC-3 ciclo com exceção → check-in "error"; AC-4 taxa>5% (e volume≥piso) → alerta; AC-5 idempotência diária; AC-6 abaixo do piso não alerta; AC-7 taxa≤5% não alerta. A config Sentry é task de config (verificada via MCP `find_monitors`), não pytest.
+- 📌 **Follow-ups abertos (não bloqueiam):** token Meta de staging expirado (erro 190); P2 layout mobile <640px; smoke funcional de 0013/0016 em prod.
 - **Depois da 0018:** escolher a próxima frente — alertas de **agregação** (worker parado >5min, falhas >5%/dia — painel Sentry/§4), **I1** (paridade env prod×staging, go-live), ou mais telas (Conversas/Sugestões). Abrir com `/nova-feature`.
 - **Follow-up da 0017 (§4):** configurar as **rules de alerta no painel Sentry** p/ rotear a e-mail os eventos que o código já emite (org `cordoce-digital`).
 - 📌 **Follow-ups abertos (não bloqueiam):** (a) **token Meta de staging expirado** (erro 190) — Fase 0, renovar `WHATSAPP_TOKEN` staging; (b) Agenda "Enviada" × Histórico "Falhou" (status de entidades distintas — decisão de produto); (c) **P2 layout** barra inferior mobile <640px não verificado; (d) 0013 Sincronizar em prod não exercido; (e) smoke funcional do teto 0016 (configurar limite + disparar grupo) não feito — coberto por teste/CI; (f) configurar as **rules de alerta no painel Sentry** p/ os eventos que a 0017 passou a emitir (§4).
