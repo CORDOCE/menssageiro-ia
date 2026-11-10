@@ -16,6 +16,9 @@ import {
 // janela de envio, limites e pausa geral. Salvar envia o formulário inteiro (PATCH); o backend
 // valida (422) e audita só o que muda. Pausar é ação sensível → confirmação explícita.
 
+// Cap defensivo espelhando o backend (schemas/configuracao.py: _LIMITE_MAX).
+const LIMITE_MAX = 100_000;
+
 // weekday(): 0=segunda … 6=domingo (alinhado ao backend e ao JANELA_PADRAO).
 const DIAS = [
   { v: 0, l: "Seg" },
@@ -87,13 +90,28 @@ export default function ConfiguracoesPage() {
     setErro(null);
     setAviso(null);
 
-    // Validação leve no cliente; o backend é a fonte da verdade (422).
+    // Validação no cliente para dar erro legível (o helper pedir() não expõe o detail-lista
+    // do 422 do Pydantic). O backend continua sendo a fonte da verdade.
+    const limiteValido = (n: number | null) =>
+      n === null || (Number.isInteger(n) && n >= 1 && n <= LIMITE_MAX);
+
     if (dias.length === 0) {
       setErro("Selecione ao menos um dia da janela.");
       return;
     }
-    if (limiteDiario.trim() === "") {
-      setErro("Informe o limite diário.");
+    if (fim <= inicio) {
+      setErro("O fim da janela deve ser maior que o início.");
+      return;
+    }
+    const diario = numOuNull(limiteDiario);
+    if (diario === null || !limiteValido(diario)) {
+      setErro(`Informe o limite diário (inteiro entre 1 e ${LIMITE_MAX}).`);
+      return;
+    }
+    const porContato = numOuNull(limiteContato);
+    const porAgendamento = numOuNull(limiteAgendamento);
+    if (!limiteValido(porContato) || !limiteValido(porAgendamento)) {
+      setErro(`Limites opcionais: inteiro entre 1 e ${LIMITE_MAX}, ou vazio para sem limite.`);
       return;
     }
     // Confirmação ao ativar a pausa geral (ação sensível): só quando passa de ativo → pausado.
@@ -105,9 +123,9 @@ export default function ConfiguracoesPage() {
 
     const patch: ConfiguracaoPatch = {
       janela_envio: { dias, inicio, fim },
-      limite_diario: Number(limiteDiario),
-      limite_por_contato_dia: numOuNull(limiteContato),
-      limite_por_agendamento_dia: numOuNull(limiteAgendamento),
+      limite_diario: diario,
+      limite_por_contato_dia: porContato,
+      limite_por_agendamento_dia: porAgendamento,
       envios_pausados: pausados,
     };
 

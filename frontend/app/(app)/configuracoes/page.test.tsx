@@ -117,14 +117,27 @@ describe("ConfiguracoesPage — salvar (AC-10)", () => {
     expect(api.atualizarConfiguracao).not.toHaveBeenCalled();
   });
 
-  it("mostra erro legível quando o backend recusa (422)", async () => {
+  it("valida no cliente (fim ≤ início) com erro legível, sem chamar o backend", async () => {
     vi.mocked(api.obterConfiguracao).mockResolvedValue(cfg());
-    vi.mocked(api.atualizarConfiguracao).mockRejectedValue(new ApiError(422, "limite inválido"));
+    render(<ConfiguracoesPage />);
+
+    const fim = await screen.findByLabelText("Fim");
+    await userEvent.clear(fim);
+    await userEvent.type(fim, "07:00"); // 07:00 ≤ início 08:00
+    await userEvent.click(screen.getByRole("button", { name: "Salvar" }));
+
+    expect(await screen.findByRole("alert")).toHaveTextContent(/fim.*maior.*início/i);
+    expect(api.atualizarConfiguracao).not.toHaveBeenCalled();
+  });
+
+  it("propaga erro do backend ao salvar (ex.: 500) de forma legível", async () => {
+    vi.mocked(api.obterConfiguracao).mockResolvedValue(cfg());
+    vi.mocked(api.atualizarConfiguracao).mockRejectedValue(new ApiError(500, "Erro 500"));
     render(<ConfiguracoesPage />);
 
     await screen.findByLabelText("Limite diário");
     await userEvent.click(screen.getByRole("button", { name: "Salvar" }));
 
-    expect(await screen.findByText("limite inválido")).toBeInTheDocument();
+    expect(await screen.findByText("Erro 500")).toBeInTheDocument();
   });
 });
