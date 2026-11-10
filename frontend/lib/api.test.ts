@@ -3,11 +3,14 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   ApiError,
   type AgendamentoCriar,
+  type Configuracao,
   type Modelo,
+  atualizarConfiguracao,
   cancelarAgendamento,
   cancelarSerie,
   criarAgendamento,
   listarModelos,
+  obterConfiguracao,
   reenviarAgendamento,
   sincronizarModelos,
 } from "./api";
@@ -121,6 +124,48 @@ describe("ações de agendamento (Agenda, spec 0012)", () => {
     expect(url).toBe("/api/agendamentos/a1/cancelar-serie");
     expect(init.method).toBe("POST");
     expect(r).toEqual({ cancelados: 3 });
+  });
+});
+
+describe("configuração (spec 0018)", () => {
+  const cfg: Configuracao = {
+    janela_envio: { dias: [0, 1, 2, 3, 4, 5], inicio: "08:00", fim: "20:00" },
+    limite_diario: 200,
+    limite_por_contato_dia: null,
+    limite_por_agendamento_dia: null,
+    envios_pausados: false,
+    atualizado_em: "2026-11-10T12:00:00Z",
+  };
+
+  it("obterConfiguracao faz GET /api/configuracoes com credenciais (AC-10)", async () => {
+    const fetchMock = vi.fn().mockResolvedValue(resposta(cfg));
+    vi.stubGlobal("fetch", fetchMock);
+    const r = await obterConfiguracao();
+    expect(fetchMock).toHaveBeenCalledWith(
+      "/api/configuracoes",
+      expect.objectContaining({ credentials: "include" }),
+    );
+    expect(r).toEqual(cfg);
+  });
+
+  it("atualizarConfiguracao faz PATCH /api/configuracoes com o patch no corpo (AC-10)", async () => {
+    const fetchMock = vi.fn().mockResolvedValue(resposta({ ...cfg, envios_pausados: true }));
+    vi.stubGlobal("fetch", fetchMock);
+    const r = await atualizarConfiguracao({ envios_pausados: true });
+    const [url, init] = fetchMock.mock.calls[0] as [string, RequestInit];
+    expect(url).toBe("/api/configuracoes");
+    expect(init.method).toBe("PATCH");
+    expect(init.credentials).toBe("include");
+    expect(JSON.parse(init.body as string)).toEqual({ envios_pausados: true });
+    expect(r).toMatchObject({ envios_pausados: true });
+  });
+
+  it("atualizarConfiguracao propaga ApiError com status (AC-10)", async () => {
+    const fetchMock = vi.fn().mockResolvedValue(resposta({ detail: "limite inválido" }, 422));
+    vi.stubGlobal("fetch", fetchMock);
+    const erro = await atualizarConfiguracao({ limite_diario: 0 }).catch((e) => e);
+    expect(erro).toBeInstanceOf(ApiError);
+    expect(erro).toMatchObject({ status: 422, message: "limite inválido" });
   });
 });
 
