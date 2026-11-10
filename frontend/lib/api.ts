@@ -295,3 +295,37 @@ export async function importarContatos(arquivo: File): Promise<RelatorioImportac
   form.append("arquivo", arquivo);
   return pedir<RelatorioImportacao>("/contatos/importar", { method: "POST", body: form });
 }
+
+// ---- Configuração de envio (spec 0018) -----------------------------------------------------
+
+export interface JanelaEnvio {
+  dias: number[]; // 0=segunda … 6=domingo
+  inicio: string; // "HH:MM"
+  fim: string; // "HH:MM"
+}
+
+export interface Configuracao {
+  janela_envio: JanelaEnvio;
+  limite_diario: number;
+  limite_por_contato_dia: number | null;
+  limite_por_agendamento_dia: number | null;
+  envios_pausados: boolean;
+  atualizado_em: string;
+}
+
+// PATCH parcial: só os campos presentes mudam; `null` nos limites opcionais remove o limite.
+export interface ConfiguracaoPatch {
+  janela_envio?: JanelaEnvio;
+  limite_diario?: number;
+  limite_por_contato_dia?: number | null;
+  limite_por_agendamento_dia?: number | null;
+  envios_pausados?: boolean;
+}
+
+export async function obterConfiguracao(): Promise<Configuracao> {
+  return pedir<Configuracao>("/configuracoes");
+}
+
+export async function atualizarConfiguracao(patch: ConfiguracaoPatch): Promise<Configuracao> {
+  return pedirJson<Configuracao>("/configuracoes", "PATCH", patch);
+}
