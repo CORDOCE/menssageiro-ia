@@ -2,13 +2,21 @@
 
 > Memória volátil do trabalho. Histórico vive no git/ADR. Atualize ao pausar (`/handoff`).
 
-_Atualizado: 2026-11-09_
+_Atualizado: 2026-11-10_
 
-## ▶️ RETOMAR AQUI (handoff 2026-11-09 ~19:10)
-**Fase 5 (telas) + hardening/regra/observabilidade.** **0011–0017 todas EM PRODUÇÃO.** Git: `develop=6c7fd9f`, `main=471c095` (release #50). Sem PR aberta.
-- **Próximo passo — escolher a próxima frente:** alertas de **agregação** (worker parado >5min, falhas >5%/dia — painel Sentry/§4), **I1** (paridade env prod×staging, go-live), ou mais telas (Conversas/Sugestões/Configurações). Abrir com `/nova-feature`.
+## ▶️ RETOMAR AQUI (2026-11-10)
+**spec 0018 "Tela de Configurações" PRONTA PRA PR → develop.** 0011–0017 em produção. Git: branch `feat/0018-tela-configuracoes` (a partir de `develop`); PR aberta para `develop` (ver abaixo). `develop` sincronizada; mapa do repo criado (`docs/CODEBASE_MAP.md`); branches órfãs limpas.
+- **Próximo passo:** validar a 0018 em **staging** após merge→deploy (toca envio: pausar/retomar + limites/janela pela UI), e **só então promover `develop`→`main`** (§4). Smoke sugerido: GET `/configuracoes` 200; PATCH pausa=true → worker para; PATCH limite/janela refletem.
+- **Depois da 0018:** escolher a próxima frente — alertas de **agregação** (worker parado >5min, falhas >5%/dia — painel Sentry/§4), **I1** (paridade env prod×staging, go-live), ou mais telas (Conversas/Sugestões). Abrir com `/nova-feature`.
 - **Follow-up da 0017 (§4):** configurar as **rules de alerta no painel Sentry** p/ rotear a e-mail os eventos que o código já emite (org `cordoce-digital`).
 - 📌 **Follow-ups abertos (não bloqueiam):** (a) **token Meta de staging expirado** (erro 190) — Fase 0, renovar `WHATSAPP_TOKEN` staging; (b) Agenda "Enviada" × Histórico "Falhou" (status de entidades distintas — decisão de produto); (c) **P2 layout** barra inferior mobile <640px não verificado; (d) 0013 Sincronizar em prod não exercido; (e) smoke funcional do teto 0016 (configurar limite + disparar grupo) não feito — coberto por teste/CI; (f) configurar as **rules de alerta no painel Sentry** p/ os eventos que a 0017 passou a emitir (§4).
+
+## 🟡 spec 0018 "Tela de Configurações" — PRONTA PRA PR (develop), aguarda staging
+> Tier Pequeno, **sem migração** (os 5 campos já existem no modelo `Configuracao`; ADR 0008). Expõe os controles de envio pela UI: `GET`/`PATCH /configuracoes` autenticados + tela `(app)/configuracoes` (janela 7 dias + início/fim, 3 limites, pausa geral com confirmação). Semântica de envio inalterada — muda só o meio de edição. **Aprovação §4 (controles de envio) registrada pelo responsável.**
+- **Escopo:** edita janela/limites/pausa; PATCH parcial (null nos opcionais remove limite); auditoria `configuracao.atualizada` por **diff real** (só o que muda, com valores, sem PII). **Fora:** múltiplos perfis, janela cruzando meia-noite, pausa agendada, histórico/rollback na UI, editar IA/env.
+- **Gates:** `/revisar` **1 P1 corrigido** (validação cliente p/ erro legível — helper `pedir` não expõe detail-lista do 422) · `/seguranca` **1 MÉDIO corrigido** (cap `dias` max_length=7 vs DoS) · `/validar` AC-1..AC-10 mapeados. **CI completo local verde:** backend ruff/mypy/migração/pytest **263 passed, 97.58%**/pip-audit; frontend eslint/tsc/vitest **72**/build/npm audit 0 high.
+- **Arquivos:** backend `schemas/configuracao.py`, `api/configuracoes.py` (+registro `main.py`); testes `test_configuracoes_{schema,api,worker}.py`. Frontend `app/(app)/configuracoes/page.tsx`, `lib/api.ts` (tipos+obter/atualizar), `components/{AppShell,icones}.tsx`, `globals.css` (`.dias-semana`).
+- **Pendências:** validar em **staging** (pausar/retomar + limite pela UI) antes de promover `develop`→`main`. Sem migração → deploy é só-código.
 
 ## ✅ spec 0017 "Alerta de fluxo crítico ao Sentry" (dívida O1) — EM PRODUÇÃO
 > Tier Pequeno, só backend, sem migração/§4. Flag **`alertar=True`** em `registrar_auditoria` → emite `capture_message` ao Sentry nos eventos `error`/`warning` do disparo (`agendamento.erro_ciclo`/`falhou`/`limite_por_agendamento`/`envio.falhou`; webhook `template_status` pausado/rejeitado). No-op sem DSN. **Ganho de segurança:** `before_send` agora mascara PII também em `contexts` (telefone de `envio.falhou`). **EM PRODUÇÃO** (release PR **#50** `develop`→`main` = `471c095`, 2026-11-09; mergeado pelo Jefferson). Deploy prod backend SUCCESS (frontend SKIPPED), head Alembic inalterado. Smoke prod `/auth/me`→401. Mergeada em develop via #49 (`038b046`). ⏳ **Falta (§4):** rules de alerta no painel Sentry p/ rotear a e-mail.
