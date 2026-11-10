@@ -11,8 +11,8 @@ description: Quebra de tasks da feature 0018-tela-configuracoes. Cada task mapei
 | 2 | Router `api/configuracoes.py`: `GET /configuracoes` + `PATCH /configuracoes` (parcial), `Depends(usuario_atual)`; registra em `main.py`; reusa `services/janela.py#obter_configuracao` | AC-1, AC-2, AC-3, AC-5 | 1 | `uv run pytest backend/tests/test_configuracoes_api.py` | ✅ feito |
 | 3 | Auditoria `configuracao.atualizada` com **diff real** (só campos alterados + valores, sem PII; no-op não audita) via `core/audit.registrar_auditoria` — **consolidada na task 2** | AC-8 | 2 | `uv run pytest backend/tests/test_configuracoes_api.py -k auditoria` | ✅ feito |
 | 4 | Teste de integração API↔worker: PATCH `envios_pausados=true` → ciclo não dispara; PATCH `limite_diario` novo é respeitado (fonte runtime) | AC-3, AC-4 | 2 | `uv run pytest backend/tests/test_configuracoes_worker.py` | ✅ feito |
-| 5 | [P] Frontend `lib/api.ts`: tipo `Configuracao`, `obterConfiguracao()`, `atualizarConfiguracao(patch)` | AC-10 | 2 | `npm test -- lib/api.test.ts` | todo |
-| 6 | [P] Tela `app/(app)/configuracoes/page.tsx` + form (pausa c/ confirmação, 3 limites, janela: 7 checkboxes + 2 horas); ativa item no `AppShell`; `IconeConfiguracoes` | AC-10 | 5 | `npm test -- 'app/(app)/configuracoes'` | todo |
+| 5 | [P] Frontend `lib/api.ts`: tipo `Configuracao`, `obterConfiguracao()`, `atualizarConfiguracao(patch)` | AC-10 | 2 | `npm test -- lib/api.test.ts` | ✅ feito |
+| 6 | [P] Tela `app/(app)/configuracoes/page.tsx` + form (pausa c/ confirmação, 3 limites, janela: 7 checkboxes + 2 horas); ativa item no `AppShell`; `IconeConfiguracoes` | AC-10 | 5 | `npm test -- 'app/(app)/configuracoes'` | ✅ feito |
 | 7 | Gate completo: CI backend (ruff/mypy/pytest ≥90%) + frontend (eslint/tsc/vitest/build) via Docker; `/revisar` + `/seguranca` + `/validar` | todos | 1-6 | suíte CI completa (`.github/workflows/ci.yml`) | todo |
 
 > `[P]` = pode rodar em paralelo. Sem migração (todos os campos já existem no modelo `Configuracao`).
