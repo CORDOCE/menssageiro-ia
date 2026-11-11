@@ -19,6 +19,8 @@ class StatusEnvio(StrEnum):
     enviado = "enviado"
     entregue = "entregue"
     lido = "lido"
+    aguardando_retry = "aguardando_retry"  # reenvio automático pendente (spec 0020)
+    aguardando_decisao = "aguardando_decisao"  # esgotou/ambíguo → decisão humana (spec 0020)
     falhou = "falhou"
 
 
