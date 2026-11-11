@@ -123,6 +123,30 @@ def test_ac7_metadados_sem_pii(db, contato, monkeypatch):
     assert all(isinstance(v, (int, float)) for v in meta.values())
 
 
+def test_t7_aguardando_decisao_conta_como_falha(db, contato, monkeypatch):
+    """AC-18: aguardando_decisao entra como FALHA na taxa (não-entrega real aguardando humano)."""
+    _spy_capture_message(monkeypatch)
+    for _ in range(18):
+        _envio(db, contato, "enviado", AGORA - timedelta(hours=1))
+    for _ in range(2):
+        _envio(db, contato, "aguardando_decisao", AGORA - timedelta(hours=1))  # 20 tentativas, 10%
+    verificar_taxa_falha(AGORA)
+    assert len(_audits_taxa(db)) == 1
+
+
+def test_t7_aguardando_retry_conta_tentativa_nao_falha(db, contato, monkeypatch):
+    """AC-18: aguardando_retry entra no denominador (tentativa), não no numerador (falha)."""
+    _spy_capture_message(monkeypatch)
+    for _ in range(18):
+        _envio(db, contato, "aguardando_retry", AGORA - timedelta(hours=1))
+    for _ in range(2):
+        _envio(db, contato, "falhou", AGORA - timedelta(hours=1))
+    verificar_taxa_falha(AGORA)
+    aud = _audits_taxa(db)[0]
+    meta = json.loads(aud.metadados)
+    assert meta["tentativas"] == 20 and meta["falhas"] == 2  # retry contou como tentativa, não falha
+
+
 def test_tentativas_zero_nao_quebra_nem_alerta(db, monkeypatch):
     chamadas = _spy_capture_message(monkeypatch)
     verificar_taxa_falha(AGORA)  # sem envios

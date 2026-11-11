@@ -43,7 +43,8 @@ from app.services.whatsapp_client import WhatsappError, enviar_template
 
 _LOTE = 100
 # Status que contam para os limites (reservados ou entregues; não conta falhou/criado).
-_CONTAM_LIMITE = ("enviando", "enviado", "entregue", "lido")
+# `aguardando_retry` conta como envio pretendido (teto/limites e tentativa da taxa 0019 — spec 0020 Q6).
+_CONTAM_LIMITE = ("enviando", "enviado", "entregue", "lido", "aguardando_retry")
 _ATIVOS = ("aprovado", "enviando")
 
 # Reenvio automático (spec 0020 / ADR 0014): até 3 reenvios com backoff crescente curto.
