@@ -19,7 +19,7 @@ from app.models.contato import Contato
 from app.models.envio import Envio
 from app.models.modelo import Modelo
 from app.services.whatsapp_client import WhatsappError
-from app.worker.disparo import processar_ciclo, processar_reenvios
+from app.worker.disparo import processar_ciclo, processar_reenvios, varrer_orfaos
 
 AGORA = datetime(2026, 11, 3, 13, 0, tzinfo=UTC)
 AGORA_FORA = datetime(2026, 11, 8, 15, 0, tzinfo=UTC)
@@ -313,6 +313,28 @@ def test_t4_esgotou_terceira_tentativa_vai_para_decisao(db):
     processar_reenvios(AGORA, None, fake)
     db.expire_all()
     assert db.get(Envio, eid).status == "aguardando_decisao"
+
+
+# --- 0020 T5: sweep de órfãos (AC-12, AC-13) ---
+def _envio_enviando(db, cid, *, criado_em):
+    eid = str(uuid.uuid4())
+    db.add(Envio(id=eid, contato_id=cid, status="enviando", criado_em=criado_em))
+    db.commit()
+    return eid
+
+
+def test_t5_orfao_antigo_vai_para_decisao(db):
+    eid = _envio_enviando(db, _contato(db), criado_em=AGORA - timedelta(minutes=20))
+    varrer_orfaos(AGORA)
+    db.expire_all()
+    assert db.get(Envio, eid).status == "aguardando_decisao"
+
+
+def test_t5_envio_em_voo_nao_e_recolhido(db):
+    eid = _envio_enviando(db, _contato(db), criado_em=AGORA - timedelta(minutes=2))
+    varrer_orfaos(AGORA)
+    db.expire_all()
+    assert db.get(Envio, eid).status == "enviando"
 
 
 def test_ac21_auditoria_sem_pii(db):

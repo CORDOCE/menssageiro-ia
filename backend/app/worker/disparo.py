@@ -49,6 +49,8 @@ _ATIVOS = ("aprovado", "enviando")
 # Reenvio automático (spec 0020 / ADR 0014): até 3 reenvios com backoff crescente curto.
 _MAX_RETRY = 3
 _BACKOFF_RETRY = {1: timedelta(minutes=5), 2: timedelta(minutes=15), 3: timedelta(hours=1)}
+# Sweep de órfãos: envio preso em 'enviando' além desta margem (≫ timeout do client de 30s) → decisão humana.
+_MARGEM_ORFAO = timedelta(minutes=15)
 
 Enviar = Callable[..., str]
 
@@ -119,6 +121,7 @@ def processar_ciclo(
             )
 
     processar_reenvios(agora, limite_contato, enviar)  # spec 0020: retenta os aguardando_retry vencidos
+    varrer_orfaos(agora)  # spec 0020: recolhe envios presos em 'enviando'
 
 
 def _destinatarios(sess: Session, ag: Agendamento) -> list[Contato]:
@@ -514,6 +517,63 @@ def _reenviar_um(envio_id: str, agora: datetime, limite_contato: int | None, env
         _despachar_e_aplicar(
             sess, envio_id, contato.telefone_e164, modelo.nome, modelo.idioma, componentes,
             agora, tel, aid, tentativas_atuais=envio.tentativas, enviar=enviar,
+        )
+    finally:
+        sess.close()
+
+
+def varrer_orfaos(agora: datetime) -> None:
+    """Sweep (spec 0020 / ADR 0014): recolhe envios presos em `enviando` sem `wamid` além da margem
+    (crash/exceção não capturada no meio do envio) → `aguardando_decisao` (ambíguo — pode ter entregue)."""
+    ctrl = _db.SessionLocal()
+    try:
+        ids = list(
+            ctrl.execute(
+                select(Envio.id)
+                .where(
+                    Envio.status == "enviando",
+                    Envio.wamid.is_(None),
+                    Envio.criado_em < agora - _MARGEM_ORFAO,
+                )
+                .limit(_LOTE)
+            ).scalars().all()
+        )
+    finally:
+        ctrl.close()
+    for envio_id in ids:
+        try:
+            _recolher_orfao(envio_id, agora)
+        except Exception:  # um órfão ruim não derruba o sweep
+            registrar_auditoria(
+                "envio.erro_sweep", alvo_tipo="envio", alvo_id=envio_id, status="error", alertar=True
+            )
+
+
+def _recolher_orfao(envio_id: str, agora: datetime) -> None:
+    sess = _db.SessionLocal()
+    try:
+        envio = sess.execute(
+            select(Envio)
+            .where(
+                Envio.id == envio_id,
+                Envio.status == "enviando",
+                Envio.wamid.is_(None),
+                Envio.criado_em < agora - _MARGEM_ORFAO,
+            )
+            .with_for_update(skip_locked=True)
+        ).scalar_one_or_none()
+        if envio is None:  # outro worker pegou / status mudou (envio concluiu nesse meio)
+            return
+        aid = envio.agendamento_id
+        sess.execute(
+            update(Envio)
+            .where(Envio.id == envio_id)
+            .values(status="aguardando_decisao", erro_motivo="órfão: preso em 'enviando' além da margem")
+        )
+        sess.commit()
+        registrar_auditoria(
+            "envio.orfao_detectado", alvo_tipo="envio", alvo_id=envio_id, status="warning",
+            metadados={"agendamento_id": aid}, correlation_id=aid, alertar=True,
         )
     finally:
         sess.close()
