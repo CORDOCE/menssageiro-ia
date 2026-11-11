@@ -337,6 +337,41 @@ def test_t5_envio_em_voo_nao_e_recolhido(db):
     assert db.get(Envio, eid).status == "enviando"
 
 
+# --- 0020 double-check: ciclo completo de retry (cadeia t=1→2→3→decisão) ---
+def test_dc_ciclo_completo_de_retry_esgota_e_vai_para_decisao(db):
+    mid, cid = _modelo(db), _contato(db)
+    aid = _agendamento(db, mid, contato_id=cid)
+    err = WhatsappError(131056, "rate", classe="retentavel")
+
+    processar_ciclo(enviar=FakeEnviar(erro=err), agora=AGORA)  # 1º envio falha
+    e = _um_envio(db, aid)
+    assert e.status == "aguardando_retry" and e.tentativas == 1
+    assert e.proxima_tentativa_em == AGORA + timedelta(minutes=5)
+
+    processar_reenvios(e.proxima_tentativa_em, None, FakeEnviar(erro=err))  # retry 1 falha
+    e = _um_envio(db, aid)
+    assert e.status == "aguardando_retry" and e.tentativas == 2
+
+    processar_reenvios(e.proxima_tentativa_em, None, FakeEnviar(erro=err))  # retry 2 falha
+    e = _um_envio(db, aid)
+    assert e.status == "aguardando_retry" and e.tentativas == 3
+
+    processar_reenvios(e.proxima_tentativa_em, None, FakeEnviar(erro=err))  # retry 3 falha → esgotou
+    e = _um_envio(db, aid)
+    assert e.status == "aguardando_decisao"
+    assert db.query(Envio).filter(Envio.agendamento_id == aid).count() == 1  # at-most-once: 1 linha
+
+
+def test_dc_retry_bem_sucedido_marca_enviado(db):
+    mid, cid = _modelo(db), _contato(db)
+    aid = _agendamento(db, mid, contato_id=cid)
+    processar_ciclo(enviar=FakeEnviar(erro=WhatsappError(131056, "x", classe="retentavel")), agora=AGORA)
+    e = _um_envio(db, aid)
+    processar_reenvios(e.proxima_tentativa_em, None, FakeEnviar())  # retry 1 sucesso
+    e = _um_envio(db, aid)
+    assert e.status == "enviado" and e.wamid
+
+
 # --- 0020 T8: invariantes (AC-17 at-most-once, AC-19 teto) ---
 def test_t8_retry_reusa_a_mesma_linha(db):
     mid, cid = _modelo(db), _contato(db)
