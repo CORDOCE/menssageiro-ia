@@ -224,6 +224,42 @@ def test_ac20_erro_definitivo_marca_falhou(db):
     assert envio.status == "falhou" and envio.erro_codigo == "131000"
 
 
+# --- 0020 T3: roteamento da falha por classe (AC-5, AC-7, AC-8) ---
+def _um_envio(db, aid):
+    db.expire_all()
+    return db.query(Envio).filter(Envio.agendamento_id == aid).one()
+
+
+def test_t3_retentavel_agenda_retry(db):
+    mid = _modelo(db)
+    aid = _agendamento(db, mid, contato_id=_contato(db))
+    fake = FakeEnviar(erro=WhatsappError(131056, "rate limit", classe="retentavel"))
+    processar_ciclo(enviar=fake, agora=AGORA)
+    e = _um_envio(db, aid)
+    assert e.status == "aguardando_retry"
+    assert e.tentativas == 1
+    assert e.proxima_tentativa_em == AGORA + timedelta(minutes=5)
+
+
+def test_t3_ambiguo_vai_para_decisao(db):
+    mid = _modelo(db)
+    aid = _agendamento(db, mid, contato_id=_contato(db))
+    fake = FakeEnviar(erro=WhatsappError(500, "server error", classe="ambiguo"))
+    processar_ciclo(enviar=fake, agora=AGORA)
+    e = _um_envio(db, aid)
+    assert e.status == "aguardando_decisao"
+    assert e.tentativas == 0  # ambíguo não conta como tentativa de retry
+
+
+def test_t3_definitivo_marca_falhou(db):
+    mid = _modelo(db)
+    aid = _agendamento(db, mid, contato_id=_contato(db))
+    fake = FakeEnviar(erro=WhatsappError(131026, "número inválido", classe="definitivo"))
+    processar_ciclo(enviar=fake, agora=AGORA)
+    e = _um_envio(db, aid)
+    assert e.status == "falhou"
+
+
 def test_ac21_auditoria_sem_pii(db):
     from app.core.telefone import mascarar_telefone
 

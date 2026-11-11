@@ -46,6 +46,10 @@ _LOTE = 100
 _CONTAM_LIMITE = ("enviando", "enviado", "entregue", "lido")
 _ATIVOS = ("aprovado", "enviando")
 
+# Reenvio automático (spec 0020 / ADR 0014): até 3 reenvios com backoff crescente curto.
+_MAX_RETRY = 3
+_BACKOFF_RETRY = {1: timedelta(minutes=5), 2: timedelta(minutes=15), 3: timedelta(hours=1)}
+
 Enviar = Callable[..., str]
 
 
@@ -308,6 +312,56 @@ def _criar_proxima_ocorrencia(
         )
 
 
+def _aplicar_falha_envio(
+    sess: Session,
+    envio_id: str,
+    exc: WhatsappError,
+    tentativas_atuais: int,
+    agora: datetime,
+    tel: str,
+    correlation_id: str,
+) -> None:
+    """Roteia a falha de um envio pela **classe** e tentativas (ADR 0014): retentável<3 agenda reenvio;
+    retentável esgotado e ambíguo → decisão humana; definitivo → falhou. Grava status + auditoria."""
+    if exc.classe == "retentavel" and tentativas_atuais < _MAX_RETRY:
+        nova = tentativas_atuais + 1
+        sess.execute(
+            update(Envio)
+            .where(Envio.id == envio_id)
+            .values(
+                status="aguardando_retry",
+                tentativas=nova,
+                proxima_tentativa_em=agora + _BACKOFF_RETRY[nova],
+                erro_codigo=str(exc.codigo),
+                erro_motivo=exc.motivo,
+            )
+        )
+        sess.commit()
+        registrar_auditoria(
+            "envio.retry_agendado", alvo_tipo="envio", alvo_id=envio_id, status="warning",
+            metadados={"telefone": tel, "codigo": str(exc.codigo), "tentativa": nova},
+            correlation_id=correlation_id,
+        )
+        return
+
+    if exc.classe == "definitivo":
+        status, operacao, nivel = "falhou", "envio.falhou", "error"
+    elif exc.classe == "retentavel":  # tentativas == _MAX_RETRY → esgotou
+        status, operacao, nivel = "aguardando_decisao", "envio.retry_esgotado", "warning"
+    else:  # ambiguo
+        status, operacao, nivel = "aguardando_decisao", "envio.falha_ambigua", "warning"
+    sess.execute(
+        update(Envio)
+        .where(Envio.id == envio_id)
+        .values(status=status, erro_codigo=str(exc.codigo), erro_motivo=exc.motivo)
+    )
+    sess.commit()
+    registrar_auditoria(
+        operacao, alvo_tipo="envio", alvo_id=envio_id, status=nivel,
+        metadados={"telefone": tel, "codigo": str(exc.codigo)}, correlation_id=correlation_id, alertar=True,
+    )
+
+
 def _processar_contato(
     sess: Session,
     aid: str,
@@ -355,15 +409,8 @@ def _processar_contato(
             metadados={"telefone": tel}, correlation_id=aid,
         )
     except WhatsappError as exc:
-        sess.execute(
-            update(Envio).where(Envio.id == reservado).values(
-                status="falhou", erro_codigo=str(exc.codigo), erro_motivo=exc.motivo
-            )
-        )
-        sess.commit()
-        registrar_auditoria(
-            "envio.falhou", alvo_tipo="envio", alvo_id=reservado, status="error",
-            metadados={"telefone": tel, "codigo": str(exc.codigo)}, correlation_id=aid, alertar=True,
+        _aplicar_falha_envio(
+            sess, reservado, exc, tentativas_atuais=0, agora=agora, tel=tel, correlation_id=aid
         )
 
 
