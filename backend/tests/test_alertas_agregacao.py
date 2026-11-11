@@ -82,6 +82,15 @@ def test_ac4_taxa_no_limite_nao_alerta(db, contato, monkeypatch):
     assert chamadas == []
 
 
+def test_ac4_taxa_exatamente_5pct_nao_alerta(db, contato, monkeypatch):
+    """Limiar: exatamente 5,0% NÃO alerta (o critério é estritamente > 5%)."""
+    chamadas = _spy_capture_message(monkeypatch)
+    _semear(db, contato, enviados=19, falhas=1)  # 20 tentativas, 1/20 = 5,0%
+    verificar_taxa_falha(AGORA)
+    assert len(_audits_taxa(db)) == 0
+    assert chamadas == []
+
+
 def test_ac5_idempotencia_diaria_nao_emite_segundo(db, contato, monkeypatch):
     db.add(Auditoria(id=str(uuid.uuid4()), operacao=_OP, status="warning", criado_em=AGORA))
     db.commit()

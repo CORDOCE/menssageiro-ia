@@ -28,12 +28,14 @@ from app.worker.disparo import _CONTAM_LIMITE
 
 logger = logging.getLogger(__name__)
 
-# Alerta A — Cron Monitor (upsert inline). Worker faz check-in ~a cada 60 s; sem check-in além da
+# Alerta A — Cron Monitor (upsert inline). Worker faz check-in a cada ciclo; sem check-in além da
 # margem (= worker parado > 5 min) o monitor dispara "missed".
+# OBS: o `schedule` assume o intervalo padrão do worker (`worker_intervalo_s=60` → 1 min). Se esse
+# intervalo mudar, revise o `schedule` aqui para o monitor não acusar "missed" falso.
 _MONITOR_SLUG = "worker-ciclo"
 _MONITOR_CONFIG: dict[str, Any] = {
     "schedule": {"type": "interval", "value": 1, "unit": "minute"},
-    "checkin_margin": 5,  # minutos de tolerância antes de marcar "missed"
+    "checkin_margin": 5,  # minutos de tolerância antes de marcar "missed" (= parado > 5 min)
     "max_runtime": 5,
     "failure_issue_threshold": 1,
     "recovery_threshold": 1,
