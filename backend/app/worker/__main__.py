@@ -15,6 +15,7 @@ from app.core.audit import registrar_auditoria
 from app.core.config import get_settings
 from app.core.observabilidade import configurar_sentry
 from app.models.saude import Saude
+from app.worker.alertas import ciclo_alertas
 from app.worker.disparo import processar_ciclo
 
 _ID_WORKER = "worker"
@@ -60,6 +61,7 @@ def executar(ciclos: int | None = None, intervalo_s: float | None = None) -> Non
             sentry_sdk.capture_exception()
             registrar_auditoria("worker.ciclo_erro", status="error")
         gravar_heartbeat()
+        ciclo_alertas()  # alertas de agregação (spec 0019): check-in de liveness + taxa de falha
         feitos += 1
         if ciclos is not None and feitos >= ciclos:
             break
