@@ -73,14 +73,9 @@ agendada simplesmente não sai. Esta feature faz o worker **retentar** esse tipo
 - ~~**Q5b — Onde o humano decide?**~~ ✅ **RESOLVIDA:** estado/ação por envio. (ver Decisões acima)
 - ~~**Q6 — `aguardando_retry` na taxa da 0019.**~~ ✅ **RESOLVIDA:** tentativa em trânsito, não falha.
 
-- **Q7 — Entrega dupla / at-most-once (ADR) [ABERTA — crux do ADR].** Reenviar transitória pode entregar 2x se a
-  Meta processou mas um `5xx`/timeout escondeu o `wamid` (tensiona §5.2). Opções: (A) **at-most-once estrito** —
-  só reenvia o que sabemos que NÃO entregou (429/limite, conexão que falhou antes do request); 5xx/timeout fica
-  `falhou`. (B) **investigar chave de idempotência** da Cloud API (/meta-whatsapp + doc) p/ a Meta deduplicar e
-  então reenviar 5xx com segurança; se não existir, cai no A. (C) **at-least-once** — reenvia tudo, aceita
-  duplicata rara (enfraquece §5.2, exige §4 explícito).
-  → **Recomendado: (A)**, com (B) como investigação no design que pode ampliar p/ 5xx se a idempotência existir.
-  **Bloqueia a escrita do `design.md`/ADR** (define quais falhas são retentáveis no Q4).
+- ~~**Q7 — Entrega dupla / at-most-once (ADR).**~~ ✅ **RESOLVIDA:** at-most-once estrito — só reenvia com certeza
+  de não-entrega (429/limite + conexão pré-request + allowlist curta); `5xx`/timeout fica `falhou`. Formalizada no
+  **ADR 0014** e no `design.md`.
 
 ### Gates/processo
 - **G1 — Aprovação §4** do Jefferson da regra de envio — ✅ **DADA** ("ok", 2026-11-11). Registrar no ADR.
@@ -93,6 +88,6 @@ agendada simplesmente não sai. Esta feature faz o worker **retentar** esse tipo
 - Mudar o retry HTTP nosso→Meta (3x/backoff no `whatsapp_client`) — já existe, continua.
 
 ## Próximos passos
-1. ✅ Q1–Q6+Q5b respondidas · ✅ G1 (§4) · ✅ G2 (branches separadas) · ✅ `product.md` escrito.
-2. **Responder Q7** (crux do ADR) — bloqueia o `design.md`.
-3. Escrever `design.md` + **ADR 0014** + `spec.md` + `tasks.md` (Tier Arquitetural), parando nos gates.
+1. ✅ Q1–Q7+Q5b respondidas · ✅ G1 (§4) · ✅ G2 (branches) · ✅ `product.md` · ✅ `design.md` + **ADR 0014**.
+2. **Gate de design:** Jefferson revisa `design.md` + ADR 0014 (parada atual).
+3. Aprovado → escrever `spec.md` (AC em Given/When/Then) + `tasks.md` + `/migracao` + `/meta-whatsapp` (allowlist).
