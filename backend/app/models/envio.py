@@ -11,7 +11,7 @@ from __future__ import annotations
 from datetime import datetime
 from typing import Any
 
-from sqlalchemy import DateTime, ForeignKey, Index, String, Text, func, text
+from sqlalchemy import DateTime, ForeignKey, Index, Integer, String, Text, func, text
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -42,6 +42,11 @@ class Envio(Base):
     conversation: Mapped[dict[str, Any] | None] = mapped_column(JSONB, nullable=True)
     erro_codigo: Mapped[str | None] = mapped_column(String(50), nullable=True)
     erro_motivo: Mapped[str | None] = mapped_column(Text, nullable=True)
+    # Reenvio automático (spec 0020 / ADR 0014): nº de reenvios já feitos e quando retentar.
+    tentativas: Mapped[int] = mapped_column(Integer, nullable=False, server_default=text("0"))
+    proxima_tentativa_em: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
     criado_em: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), nullable=False
     )

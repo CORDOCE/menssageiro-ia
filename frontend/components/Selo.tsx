@@ -44,6 +44,10 @@ export function seloEnvio(status: string): { tom: Tom; texto: string } {
       return { tom: "entregue", texto: "Entregue" };
     case "lido":
       return { tom: "entregue", texto: "Lido" };
+    case "aguardando_retry":
+      return { tom: "aguardando", texto: "Reenviando" };
+    case "aguardando_decisao":
+      return { tom: "erro", texto: "Precisa decisão" };
     case "falhou":
       return { tom: "erro", texto: "Falhou" };
     default:

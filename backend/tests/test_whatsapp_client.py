@@ -101,6 +101,47 @@ def test_falha_transporte_vira_whatsapp_error(cfg, exc):
     assert ei.value.codigo == "transporte"
 
 
+# --- 0020 T2: classe da falha (AC-1..AC-4) ---
+@pytest.mark.parametrize(
+    "exc,classe",
+    [
+        (httpx.ConnectError("x"), "retentavel"),  # AC-1: antes do request, nada entregue
+        (httpx.ConnectTimeout("x"), "retentavel"),  # subtipo de ConnectError
+        (httpx.ReadTimeout("x"), "ambiguo"),  # AC-2: request pode ter chegado
+        (httpx.PoolTimeout("x"), "ambiguo"),
+    ],
+)
+def test_classe_falha_transporte(cfg, exc, classe):
+    def handler(req: httpx.Request) -> httpx.Response:
+        raise exc
+
+    client = httpx.Client(transport=httpx.MockTransport(handler))
+    with pytest.raises(WhatsappError) as ei:
+        enviar_template("+5511987654321", "t", "pt_BR", [], client=client)
+    assert ei.value.classe == classe
+
+
+@pytest.mark.parametrize(
+    "status,codigo,classe",
+    [
+        (429, 130429, "retentavel"),  # AC-4: HTTP 429 (limite) → retenta
+        (400, 131056, "retentavel"),  # AC-4: código Meta na allowlist (pair rate limit)
+        (503, 999999, "ambiguo"),  # AC-2: 5xx → ambíguo (pode ter processado)
+        (400, 131026, "definitivo"),  # AC-3: código fora da allowlist (número inválido)
+    ],
+)
+def test_classe_erro_http(cfg, monkeypatch, status, codigo, classe):
+    monkeypatch.setattr("app.services.whatsapp_client.time.sleep", lambda _s: None)
+
+    def handler(req: httpx.Request) -> httpx.Response:
+        return httpx.Response(status, json={"error": {"code": codigo, "message": "x"}})
+
+    client = httpx.Client(transport=httpx.MockTransport(handler))
+    with pytest.raises(WhatsappError) as ei:
+        enviar_template("+5511987654321", "t", "pt_BR", [], client=client)
+    assert ei.value.classe == classe
+
+
 # --- AC-4: upload de mídia + cabeçalho DOCUMENT ---
 def test_upload_midia_e_componente_documento(cfg):
     capturado = {}

@@ -42,7 +42,10 @@ _MONITOR_CONFIG: dict[str, Any] = {
 }
 
 # Alerta B — taxa de falha nas últimas 24 h.
-_TENTATIVAS = (*_CONTAM_LIMITE, "falhou")  # reservados/entregues + falhou (exclui 'criado' não despachado)
+# tentativas = reservados/entregues/retry + não-entregas (falhou, aguardando_decisao); exclui 'criado'.
+# falhas = não-entregas reais (spec 0020 Q8: aguardando_decisao conta como falha; aguardando_retry não).
+_FALHAS = ("falhou", "aguardando_decisao")
+_TENTATIVAS = (*_CONTAM_LIMITE, *_FALHAS)
 _PISO_VOLUME = 20  # abaixo disto não alerta (anti-ruído) — decisão da spec
 _LIMITE_PCT = 5.0
 _OP_TAXA = "envios.taxa_falha_alta"
@@ -73,7 +76,7 @@ def _contar_24h(sess: Session, agora: datetime) -> tuple[int, int]:
     falhas = sess.execute(
         select(func.count())
         .select_from(Envio)
-        .where(Envio.status == "falhou", Envio.criado_em >= desde)
+        .where(Envio.status.in_(_FALHAS), Envio.criado_em >= desde)
     ).scalar_one()
     return int(tentativas), int(falhas)
 
