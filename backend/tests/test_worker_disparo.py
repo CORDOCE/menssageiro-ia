@@ -19,7 +19,7 @@ from app.models.contato import Contato
 from app.models.envio import Envio
 from app.models.modelo import Modelo
 from app.services.whatsapp_client import WhatsappError
-from app.worker.disparo import processar_ciclo
+from app.worker.disparo import processar_ciclo, processar_reenvios
 
 AGORA = datetime(2026, 11, 3, 13, 0, tzinfo=UTC)
 AGORA_FORA = datetime(2026, 11, 8, 15, 0, tzinfo=UTC)
@@ -258,6 +258,61 @@ def test_t3_definitivo_marca_falhou(db):
     processar_ciclo(enviar=fake, agora=AGORA)
     e = _um_envio(db, aid)
     assert e.status == "falhou"
+
+
+# --- 0020 T4: passo de reenvio (AC-6, AC-9, AC-10, AC-11) ---
+def _envio_retry(db, *, aid, cid, mid, tentativas=1, proxima=None):
+    eid = str(uuid.uuid4())
+    db.add(
+        Envio(
+            id=eid, agendamento_id=aid, contato_id=cid, modelo_id=mid,
+            status="aguardando_retry", tentativas=tentativas,
+            proxima_tentativa_em=proxima or (AGORA - timedelta(minutes=1)),
+        )
+    )
+    db.commit()
+    return eid
+
+
+def test_t4_reenvio_no_horario_sucesso(db):
+    mid, cid = _modelo(db), _contato(db)
+    aid = _agendamento(db, mid, contato_id=cid)
+    eid = _envio_retry(db, aid=aid, cid=cid, mid=mid, tentativas=1)
+    fake = FakeEnviar()
+    processar_reenvios(AGORA, None, fake)
+    db.expire_all()
+    e = db.get(Envio, eid)
+    assert e.status == "enviado" and e.wamid and len(fake.chamadas) == 1
+
+
+def test_t4_reenvio_futuro_nao_dispara(db):
+    mid, cid = _modelo(db), _contato(db)
+    aid = _agendamento(db, mid, contato_id=cid)
+    eid = _envio_retry(db, aid=aid, cid=cid, mid=mid, proxima=AGORA + timedelta(minutes=10))
+    fake = FakeEnviar()
+    processar_reenvios(AGORA, None, fake)
+    db.expire_all()
+    assert db.get(Envio, eid).status == "aguardando_retry" and len(fake.chamadas) == 0
+
+
+def test_t4_reenvio_contato_descadastrado_falhou(db):
+    mid, cid = _modelo(db), _contato(db, descadastrado=True)
+    aid = _agendamento(db, mid, contato_id=cid)
+    eid = _envio_retry(db, aid=aid, cid=cid, mid=mid)
+    fake = FakeEnviar()
+    processar_reenvios(AGORA, None, fake)
+    db.expire_all()
+    assert db.get(Envio, eid).status == "falhou" and len(fake.chamadas) == 0
+
+
+def test_t4_esgotou_terceira_tentativa_vai_para_decisao(db):
+    mid, cid = _modelo(db), _contato(db)
+    aid = _agendamento(db, mid, contato_id=cid)
+    eid = _envio_retry(db, aid=aid, cid=cid, mid=mid, tentativas=3)
+    fake = FakeEnviar(erro=WhatsappError(131056, "rate", classe="retentavel"))
+    processar_reenvios(AGORA, None, fake)
+    db.expire_all()
+    assert db.get(Envio, eid).status == "aguardando_decisao"
 
 
 def test_ac21_auditoria_sem_pii(db):

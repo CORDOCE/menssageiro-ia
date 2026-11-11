@@ -118,6 +118,8 @@ def processar_ciclo(
                 alertar=True,
             )
 
+    processar_reenvios(agora, limite_contato, enviar)  # spec 0020: retenta os aguardando_retry vencidos
+
 
 def _destinatarios(sess: Session, ag: Agendamento) -> list[Contato]:
     if ag.contato_id is not None:
@@ -312,6 +314,33 @@ def _criar_proxima_ocorrencia(
         )
 
 
+def _despachar_e_aplicar(
+    sess: Session,
+    envio_id: str,
+    telefone: str,
+    nome: str,
+    idioma: str,
+    componentes: list[dict[str, Any]],
+    agora: datetime,
+    tel: str,
+    correlation_id: str,
+    tentativas_atuais: int,
+    enviar: Enviar,
+) -> None:
+    """Envia e aplica o desfecho na linha `envio_id`: sucesso → `enviado`+`wamid`; falha → roteia pela
+    classe (`_aplicar_falha_envio`). Usado no 1º envio e no reenvio (spec 0020)."""
+    try:
+        wamid = enviar(telefone, nome, idioma, componentes)
+        sess.execute(update(Envio).where(Envio.id == envio_id).values(status="enviado", wamid=wamid))
+        sess.commit()
+        registrar_auditoria(
+            "envio.enviado", alvo_tipo="envio", alvo_id=envio_id,
+            metadados={"telefone": tel}, correlation_id=correlation_id,
+        )
+    except WhatsappError as exc:
+        _aplicar_falha_envio(sess, envio_id, exc, tentativas_atuais, agora, tel, correlation_id)
+
+
 def _aplicar_falha_envio(
     sess: Session,
     envio_id: str,
@@ -400,18 +429,10 @@ def _processar_contato(
         return
 
     tel = mascarar_telefone(contato.telefone_e164)
-    try:
-        wamid = enviar(contato.telefone_e164, nome, idioma, componentes)
-        sess.execute(update(Envio).where(Envio.id == reservado).values(status="enviado", wamid=wamid))
-        sess.commit()
-        registrar_auditoria(
-            "envio.enviado", alvo_tipo="envio", alvo_id=reservado,
-            metadados={"telefone": tel}, correlation_id=aid,
-        )
-    except WhatsappError as exc:
-        _aplicar_falha_envio(
-            sess, reservado, exc, tentativas_atuais=0, agora=agora, tel=tel, correlation_id=aid
-        )
+    _despachar_e_aplicar(
+        sess, reservado, contato.telefone_e164, nome, idioma, componentes,
+        agora, tel, aid, tentativas_atuais=0, enviar=enviar,
+    )
 
 
 def _motivo_inelegivel(
@@ -424,3 +445,75 @@ def _motivo_inelegivel(
     if limite_contato is not None and _enviados_em_24h(sess, agora, contato.id) >= limite_contato:
         return "limite_por_contato"
     return None
+
+
+def processar_reenvios(agora: datetime, limite_contato: int | None, enviar: Enviar) -> None:
+    """Passo de reenvio (spec 0020 / ADR 0014): retenta os envios `aguardando_retry` vencidos. Cada envio é
+    travado com `FOR UPDATE SKIP LOCKED`; a elegibilidade do contato é reavaliada antes de cada tentativa."""
+    ctrl = _db.SessionLocal()
+    try:
+        ids = list(
+            ctrl.execute(
+                select(Envio.id)
+                .where(Envio.status == "aguardando_retry", Envio.proxima_tentativa_em <= agora)
+                .order_by(Envio.proxima_tentativa_em)
+                .limit(_LOTE)
+            ).scalars().all()
+        )
+    finally:
+        ctrl.close()
+    for envio_id in ids:
+        try:
+            _reenviar_um(envio_id, agora, limite_contato, enviar)
+        except Exception:  # um reenvio ruim não derruba o passo
+            registrar_auditoria(
+                "envio.erro_reenvio", alvo_tipo="envio", alvo_id=envio_id, status="error", alertar=True
+            )
+
+
+def _reenviar_um(envio_id: str, agora: datetime, limite_contato: int | None, enviar: Enviar) -> None:
+    sess = _db.SessionLocal()
+    try:
+        envio = sess.execute(
+            select(Envio)
+            .where(
+                Envio.id == envio_id,
+                Envio.status == "aguardando_retry",
+                Envio.proxima_tentativa_em <= agora,
+            )
+            .with_for_update(skip_locked=True)
+        ).scalar_one_or_none()
+        if envio is None:  # outro worker já pegou, ou o status mudou
+            return
+        contato = sess.get(Contato, envio.contato_id)
+        ag = sess.get(Agendamento, envio.agendamento_id) if envio.agendamento_id else None
+        modelo = sess.get(Modelo, envio.modelo_id) if envio.modelo_id else None
+        if contato is None or ag is None or modelo is None:
+            return  # dados insuficientes (envio avulso) — não reenvia
+        aid = ag.id
+        tel = mascarar_telefone(contato.telefone_e164)
+        motivo = _motivo_inelegivel(sess, contato, agora, limite_contato)
+        if motivo is not None:  # descadastro/consentimento/limite mudou desde a 1ª tentativa (§5.4)
+            sess.execute(
+                update(Envio)
+                .where(Envio.id == envio_id)
+                .values(status="falhou", erro_motivo=f"inelegível no reenvio: {motivo}")
+            )
+            sess.commit()
+            registrar_auditoria(
+                "envio.reenvio_inelegivel", alvo_tipo="envio", alvo_id=envio_id, status="warning",
+                metadados={"telefone": tel, "motivo": motivo}, correlation_id=aid, alertar=True,
+            )
+            return
+        variaveis = list(ag.variaveis)
+        componentes: list[dict[str, Any]] = (
+            [{"type": "body", "parameters": [{"type": "text", "text": v} for v in variaveis]}]
+            if variaveis
+            else []
+        )
+        _despachar_e_aplicar(
+            sess, envio_id, contato.telefone_e164, modelo.nome, modelo.idioma, componentes,
+            agora, tel, aid, tentativas_atuais=envio.tentativas, enviar=enviar,
+        )
+    finally:
+        sess.close()
