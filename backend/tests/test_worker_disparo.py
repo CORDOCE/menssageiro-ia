@@ -368,7 +368,10 @@ def test_t8_aguardando_retry_conta_no_limite_por_contato(db):
     mid, cid = _modelo(db), _contato(db)
     _config(db, limite_por_contato_dia=1)
     db.add(
-        Envio(id=str(uuid.uuid4()), contato_id=cid, status="aguardando_retry", criado_em=AGORA - timedelta(hours=1))
+        Envio(
+            id=str(uuid.uuid4()), contato_id=cid, status="aguardando_retry",
+            criado_em=AGORA - timedelta(hours=1),
+        )
     )
     db.commit()
     _agendamento(db, mid, contato_id=cid)
