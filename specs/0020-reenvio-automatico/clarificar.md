@@ -73,12 +73,19 @@ agendada simplesmente não sai. Esta feature faz o worker **retentar** esse tipo
 - ~~**Q5b — Onde o humano decide?**~~ ✅ **RESOLVIDA:** estado/ação por envio. (ver Decisões acima)
 - ~~**Q6 — `aguardando_retry` na taxa da 0019.**~~ ✅ **RESOLVIDA:** tentativa em trânsito, não falha.
 
-> ✅ **Sabatina /clarificar ENCERRADA** (Q1–Q6 + Q5b). Restam só os gates G1/G2 abaixo.
+- **Q7 — Entrega dupla / at-most-once (ADR) [ABERTA — crux do ADR].** Reenviar transitória pode entregar 2x se a
+  Meta processou mas um `5xx`/timeout escondeu o `wamid` (tensiona §5.2). Opções: (A) **at-most-once estrito** —
+  só reenvia o que sabemos que NÃO entregou (429/limite, conexão que falhou antes do request); 5xx/timeout fica
+  `falhou`. (B) **investigar chave de idempotência** da Cloud API (/meta-whatsapp + doc) p/ a Meta deduplicar e
+  então reenviar 5xx com segurança; se não existir, cai no A. (C) **at-least-once** — reenvia tudo, aceita
+  duplicata rara (enfraquece §5.2, exige §4 explícito).
+  → **Recomendado: (A)**, com (B) como investigação no design que pode ampliar p/ 5xx se a idempotência existir.
+  **Bloqueia a escrita do `design.md`/ADR** (define quais falhas são retentáveis no Q4).
 
-### Gates/processo (não são /clarificar, mas travam a implementação)
-- **G1 — Aprovação §4** do Jefferson da **regra de envio final** (reenvio altera §5.2) — obrigatória antes de codar.
-- **G2 — Ordem de git:** commitar a spec 0019 e mover o scaffold da 0020 para **branch própria de `develop`**
-  (`feat/0020-reenvio-automatico`) — hoje 0019+0020 estão uncommitted juntos na branch `feat/0019`.
+### Gates/processo
+- **G1 — Aprovação §4** do Jefferson da regra de envio — ✅ **DADA** ("ok", 2026-11-11). Registrar no ADR.
+- **G2 — Ordem de git:** ✅ **FEITO** — spec 0019 commitada em `feat/0019-alertas-agregacao` (`f83cac5`);
+  scaffold da 0020 em branch própria `feat/0020-reenvio-automatico` (`d70c9b7`) a partir de `develop`.
 
 ## Fora de escopo (vinculante)
 - Reenvio de **falha de entrega** (webhook) e de **erro definitivo** — Q1.
@@ -86,6 +93,6 @@ agendada simplesmente não sai. Esta feature faz o worker **retentar** esse tipo
 - Mudar o retry HTTP nosso→Meta (3x/backoff no `whatsapp_client`) — já existe, continua.
 
 ## Próximos passos
-1. Responder **Q3–Q6** via **/clarificar** + liberar **G1 (§4)**.
-2. Escrever `product.md` + `design.md` + **ADR** + `spec.md` + `tasks.md` (Tier Arquitetural).
-3. Resolver **G2** (branch própria a partir de `develop`) antes de implementar.
+1. ✅ Q1–Q6+Q5b respondidas · ✅ G1 (§4) · ✅ G2 (branches separadas) · ✅ `product.md` escrito.
+2. **Responder Q7** (crux do ADR) — bloqueia o `design.md`.
+3. Escrever `design.md` + **ADR 0014** + `spec.md` + `tasks.md` (Tier Arquitetural), parando nos gates.
