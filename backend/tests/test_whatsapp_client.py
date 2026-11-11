@@ -81,6 +81,26 @@ def test_erro_definitivo_levanta_sem_retry(cfg):
     assert exc.value.codigo == 131026
 
 
+@pytest.mark.parametrize(
+    "exc",
+    [httpx.ConnectError("sem conexão"), httpx.ReadTimeout("estourou o tempo")],
+)
+def test_falha_transporte_vira_whatsapp_error(cfg, exc):
+    """Erro de transporte (conexão/timeout) não vaza httpx: vira WhatsappError.
+
+    Sem isto, a exceção httpx escapa até o worker e deixa o envio reservado preso em 'enviando'
+    (órfão), pois `_enviar_um` só trata `WhatsappError`.
+    """
+
+    def handler(req: httpx.Request) -> httpx.Response:
+        raise exc
+
+    client = httpx.Client(transport=httpx.MockTransport(handler))
+    with pytest.raises(WhatsappError) as ei:
+        enviar_template("+5511987654321", "t", "pt_BR", [], client=client)
+    assert ei.value.codigo == "transporte"
+
+
 # --- AC-4: upload de mídia + cabeçalho DOCUMENT ---
 def test_upload_midia_e_componente_documento(cfg):
     capturado = {}

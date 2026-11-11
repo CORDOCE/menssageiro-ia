@@ -124,7 +124,12 @@ def _post_com_retry(
     client: httpx.Client, url: str, corpo: dict[str, Any], headers: dict[str, str]
 ) -> dict[str, Any]:
     for tentativa in range(_MAX_TENTATIVAS):
-        resposta = client.post(url, json=corpo, headers=headers)
+        try:
+            resposta = client.post(url, json=corpo, headers=headers)
+        except httpx.RequestError as exc:
+            # Falha de transporte (conexão/timeout): não deixa a exceção httpx vazar — o chamador
+            # só trata WhatsappError e, sem isto, a linha reservada fica presa em 'enviando' (órfão).
+            raise WhatsappError("transporte", f"falha de transporte: {type(exc).__name__}") from exc
         if resposta.status_code < 400:
             dados: dict[str, Any] = resposta.json()
             return dados
