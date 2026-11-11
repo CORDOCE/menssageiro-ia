@@ -337,6 +337,46 @@ def test_t5_envio_em_voo_nao_e_recolhido(db):
     assert db.get(Envio, eid).status == "enviando"
 
 
+# --- 0020 T8: invariantes (AC-17 at-most-once, AC-19 teto) ---
+def test_t8_retry_reusa_a_mesma_linha(db):
+    mid, cid = _modelo(db), _contato(db)
+    aid = _agendamento(db, mid, contato_id=cid)
+    _envio_retry(db, aid=aid, cid=cid, mid=mid)
+    processar_reenvios(AGORA, None, FakeEnviar())
+    db.expire_all()
+    assert db.query(Envio).filter(Envio.agendamento_id == aid).count() == 1  # nunca 2ª linha (§5.2)
+
+
+def test_t8_aguardando_decisao_nao_e_auto_retentado(db):
+    mid, cid = _modelo(db), _contato(db)
+    aid = _agendamento(db, mid, contato_id=cid)
+    eid = str(uuid.uuid4())
+    db.add(
+        Envio(
+            id=eid, agendamento_id=aid, contato_id=cid, modelo_id=mid,
+            status="aguardando_decisao", proxima_tentativa_em=AGORA - timedelta(hours=1),
+        )
+    )
+    db.commit()
+    fake = FakeEnviar()
+    processar_reenvios(AGORA, None, fake)
+    db.expire_all()
+    assert db.get(Envio, eid).status == "aguardando_decisao" and len(fake.chamadas) == 0
+
+
+def test_t8_aguardando_retry_conta_no_limite_por_contato(db):
+    mid, cid = _modelo(db), _contato(db)
+    _config(db, limite_por_contato_dia=1)
+    db.add(
+        Envio(id=str(uuid.uuid4()), contato_id=cid, status="aguardando_retry", criado_em=AGORA - timedelta(hours=1))
+    )
+    db.commit()
+    _agendamento(db, mid, contato_id=cid)
+    fake = FakeEnviar()
+    processar_ciclo(enviar=fake, agora=AGORA)
+    assert len(fake.chamadas) == 0  # o retry pendente já atingiu o limite → novo envio pulado
+
+
 def test_ac21_auditoria_sem_pii(db):
     from app.core.telefone import mascarar_telefone
 
