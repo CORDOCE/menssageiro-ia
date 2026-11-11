@@ -2,11 +2,18 @@
 
 > Memória volátil do trabalho. Histórico vive no git/ADR. Atualize ao pausar (`/handoff`).
 
-_Atualizado: 2026-11-10_
+_Atualizado: 2026-11-11_
 
-## ▶️ RETOMAR AQUI (pausado 2026-11-10 — retomar quando Jefferson disser)
-**spec 0019 "Alertas de agregação" EM ANDAMENTO (fase spec, nada escrito ainda).** 0011–0018 em produção (`develop`=`main`=`22e3027`, release #52). Git: branch **`feat/0019-alertas-agregacao`** (a partir de `develop`), **working tree limpo, 0 commits próprios, sem PR**. A pasta `specs/0019-*` ainda NÃO existe.
-- **Próximo passo ao retomar:** escrever `specs/0019-alertas-agregacao/spec.md` + `tasks.md` (Tier Pequeno) com base nas decisões abaixo, e PARAR no gate da spec para review.
+## ▶️ RETOMAR AQUI (pausado 2026-11-11)
+**Duas frentes abertas nesta sessão, nenhuma commitada (working tree sujo na branch `feat/0019-alertas-agregacao`):**
+
+**(1) spec 0019 "Alertas de agregação" — ESCRITA, no gate da spec para review.** Arquivos criados: `specs/0019-alertas-agregacao/spec.md` + `tasks.md` (Tier Pequeno). Decisões travadas: piso de volume **20 tentativas**; **upsert inline** do Cron Monitor via `monitor_config` no `capture_checkin`; checagem de taxa **a cada ciclo** com idempotência diária. A definição de "tentativa" foi ajustada para explicar o retry HTTP (whatsapp_client 3x) e o webhook (enviado→falhou) — blip transitório recuperado NÃO conta como falha. **Próximo passo:** Jefferson revisa a spec; aprovada → implementar por TDD (T1→T5).
+
+**(2) spec 0020 "Reenvio automático" — /clarificar ENCERRADA, aguarda gates §4/git.** Arquivo: `specs/0020-reenvio-automatico/clarificar.md`. Tier **Arquitetural** (muda invariante §5.2 → ADR; regra de envio → §4). **Decisões fechadas (Q1–Q6+Q5b):** Q1 só falhas transitórias de envio (429/5xx esgotado), não reenvia definitivo nem falha de entrega da Meta; Q2 até 3x (+5min/+15min/+1h); Q3 reusar linha de `envios` (`tentativas`/`proxima_tentativa_em`/status `aguardando_retry`); Q4 classificar por transporte 429/5xx + allowlist curta de códigos Meta (montar com /meta-whatsapp); Q5 ao esgotar → **decisão humana**; Q5b decisão **por envio** (`aguardando_decisao` na linha do envio + ação nova "reenviar este envio"); Q6 `aguardando_retry` conta como tentativa-em-trânsito na taxa da 0019 (não falha) → **task da 0020 atualiza a definição de tentativa da 0019**. **Pendente:** gates **G1 aprovação §4** da regra e **G2 ordem de git**. **Próximo passo:** liberar §4 → escrever product.md/design.md/ADR/spec.md/tasks.md; branch própria `feat/0020` a partir de `develop`.
+
+> ⚠️ **Git:** 0019 e 0020 estão **ambos uncommitted na branch feat/0019**. Antes de implementar, decidir: commitar a spec 0019, e mover o scaffold da 0020 para sua própria branch de `develop`.
+
+- **Próximo passo (frente 0019):** Jefferson revisa `spec.md`+`tasks.md`; aprovada → implementar por TDD.
 - **Decisões já tomadas (sessão 2026-11-10):**
   - Tier **Pequeno** (spec.md + tasks.md), sem migração (usa `saude.ultimo_ciclo_em` + eventos da 0017).
   - **Thresholds oficiais (BRIEFING §12):** worker parado **>5min**; falhas de envio **>5%/dia**. ("Modelo pausado/rejeitado" já é da 0017; "qualidade do número" depende da Meta → fora, Fase 0.)
