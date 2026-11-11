@@ -18,20 +18,27 @@ depois. Falta recuperação automática — **sem** reintroduzir risco de entreg
    terminal: o envio entra em ciclo de reenvio na **mesma linha** (`(agendamento, contato)` continua único). A
    garantia "nunca entregar 2x ao mesmo contato" é mantida porque só se reenvia o que comprovadamente **não**
    entregou.
-2. **Retentável = certeza de não-entrega** (Q4+Q7): HTTP **429** (limite), **falha de conexão antes do request**,
-   e uma **allowlist curta** de códigos Meta temporários-e-de-não-entrega (montada com /meta-whatsapp + doc
-   oficial). **Não retentável:** `5xx`/timeout após o request (ambíguo → poderia duplicar) e todo erro definitivo.
+2. **Três baldes de falha** (Q4+Q7+Q9):
+   - **Retentável** (certeza de não-entrega): HTTP **429**, **`ConnectError`/DNS antes do request**, allowlist
+     curta de códigos Meta temporários-e-de-não-entrega (/meta-whatsapp + doc). → auto-retry.
+   - **Ambíguo** (pode ter entregue): `5xx`/**timeout após o request**, **órfão** preso em `enviando` (crash).
+     → `aguardando_decisao` direto, **sem** auto-retry (duplicaria, veda §5.2/Q7); humano decide.
+   - **Definitivo** (número inválido, não-usuário, descadastrado, template rejeitado): → `falhou` terminal.
 3. **Cadência limitada** (Q2): até **3 reenvios**, backoff `{1: +5min, 2: +15min, 3: +1h}`. Campos novos em
    `envios`: `tentativas` (int) e `proxima_tentativa_em` (timestamptz). Status novo `aguardando_retry`.
 4. **Reavaliar elegibilidade a cada reenvio** (§5.4/§5.9/§5.3): consentimento, descadastro e janela/template
    checados no momento de retentar — contato que saiu nesse meio não recebe.
-5. **Esgotou → decisão humana por envio** (Q5/Q5b): status novo `aguardando_decisao` **na linha do envio** +
-   endpoint `POST /envios/{id}/reenviar` (autenticado) + botão no Histórico. Reusar o `aguardando_decisao` do
-   agendamento foi rejeitado (a idempotência `(agendamento, contato)` bloquearia re-disparar só o contato que
-   falhou; em grupo pausaria o agendamento todo).
-6. **Contagem/observabilidade** (Q6): `aguardando_retry` entra em `_CONTAM_LIMITE` — conta para os tetos (0016) e
-   para o denominador de "tentativas" da 0019, **sem** contar como falha até esgotar. Eventos de auditoria
-   `envio.retry_agendado` / `envio.retry_esgotado` (este alerta via `alertar_evento`), sem PII.
+5. **Decisão humana por envio** (Q5/Q5b/Q9): esgotou o auto-retry **ou** falha ambígua → status novo
+   `aguardando_decisao` **na linha do envio** + endpoint `POST /envios/{id}/reenviar` (autenticado) + botão no
+   Histórico. Reusar o `aguardando_decisao` do agendamento foi rejeitado (a idempotência `(agendamento, contato)`
+   bloquearia re-disparar só o contato que falhou; em grupo pausaria o agendamento todo).
+6. **Sweep de órfãos** (ataque ao buraco latente): novo passo do worker recolhe `enviando` sem `wamid` preso além
+   de uma margem conservadora (≫ timeout 30s; proposta 15min, configurável) → `aguardando_decisao` (ambíguo) +
+   alerta. Conserta um bug pré-existente (hoje `ConnectError`/`TimeoutException` propagam e deixam órfão).
+7. **Contagem/observabilidade** (Q6/Q8): `aguardando_retry` entra em `_CONTAM_LIMITE` — conta para os tetos
+   (0016) e para "tentativas" da 0019, **sem** falha; `aguardando_decisao` **conta como falha** na taxa da 0019
+   (Q8). Eventos `envio.retry_agendado` / `envio.retry_esgotado` / `envio.falha_ambigua` / `envio.orfao_detectado`
+   (alertam via `alertar_evento`), sem PII.
 
 ## Alternativas
 - **At-least-once (reenviar 5xx/timeout):** recupera mais blips, mas pode **entregar 2x** quando a Meta processou
@@ -42,14 +49,13 @@ depois. Falta recuperação automática — **sem** reintroduzir risco de entreg
 - **Decisão humana no agendamento** (reusar fluxo existente): esbarra na idempotência por contato. Rejeitado (Q5b).
 
 ## Consequências
-- Toca o **worker** (novo passo de reenvio com `FOR UPDATE SKIP LOCKED`; refatorar "enviar-1-contato + aplicar
-  desfecho" em `disparo.py:331-367` num helper reusável — reenvio não re-reserva), o **client** (sinalizar
-  `retentavel` na falha + capturar conexão pré-request, hoje não capturada), a **API** (`POST /envios/{id}/reenviar`)
-  e a **UI** (botão no Histórico). Mapear todos os pontos de status para não deixar `aguardando_retry`/
-  `aguardando_decisao` órfãos.
-- **Dependência da 0019:** a 0019 entra antes e não conhece `aguardando_retry`; **task da 0020 atualiza a
-  definição de "tentativa" da 0019** (incluir em `_CONTAM_LIMITE`). Proposta a confirmar: `aguardando_decisao`
-  (esgotado) conta como **falha** na taxa.
+- Toca o **worker** (passo de reenvio + **passo de sweep de órfãos**, ambos `FOR UPDATE SKIP LOCKED`; refatorar
+  "enviar-1-contato + aplicar desfecho" em `disparo.py:331-367` num helper reusável — reenvio não re-reserva), o
+  **client** (classificar a falha em retentável/ambíguo/definitivo + capturar `ConnectError`/`TimeoutException`,
+  hoje não capturadas), a **API** (`POST /envios/{id}/reenviar`) e a **UI** (botão no Histórico). Mapear todos os
+  pontos de status para não deixar `aguardando_retry`/`aguardando_decisao` órfãos.
+- **Dependência da 0019:** a 0019 entra antes e não conhece os status novos; **task da 0020 atualiza a 0019** —
+  `aguardando_retry` nas tentativas (não-falha, Q6) e `aguardando_decisao` nas falhas (Q8).
 - **Migração aditiva** (duas colunas + default) com downgrade trivial (/migracao).
 - **Limitação conhecida (aceita):** 5xx/timeout ambíguo não é recuperado automaticamente — cai em
   `aguardando_decisao` para reenvio manual (o humano assume o risco de duplicata, cientemente).

@@ -46,6 +46,14 @@ agendada simplesmente não sai. Esta feature faz o worker **retentar** esse tipo
 - **Q6 — `aguardando_retry` na taxa de falha da 0019 [CONFIRMADO]:** conta como **tentativa em trânsito** — entra
   no **denominador** (tentativas), **não** no numerador (falhas); só vira falha se esgotar (`falhou`). Exige
   incluir `aguardando_retry` na definição de "tentativa" da 0019 (`_CONTAM_LIMITE`).
+- **Q7 — at-most-once [CONFIRMADO]:** at-most-once estrito (só reenvia certeza de não-entrega). ADR 0014.
+- **Q8 — `aguardando_decisao` na taxa da 0019 [CONFIRMADO]:** **conta como falha** (não-entrega real aguardando
+  humano).
+- **Q9 — falha ambígua (5xx/timeout/órfão) [RECOMENDADO, aguarda confirmação]:** → `aguardando_decisao` (humano
+  decide reenviar ciente do risco), **sem** auto-retry. Avançado por diretriz do Jefferson ("ataque o órfão").
+- **Ataque ao órfão `enviando` [design]:** (a) client captura `ConnectError`→retentável e `TimeoutException`→
+  ambíguo; (b) **sweep** no worker recolhe `enviando` sem `wamid` preso >15min (configurável) → `aguardando_decisao`
+  + alerta. Fecha bug pré-existente (hoje essas exceções propagam e deixam órfão; `grep` confirmou sem reaper).
 
 ## A resolver no design.md (consequências técnicas, não perguntas de produto)
 1. **Como distinguir "transitória" de "definitiva" no momento da falha.** Hoje `WhatsappError` agrupa as duas
