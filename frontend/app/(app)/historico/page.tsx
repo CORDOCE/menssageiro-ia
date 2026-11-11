@@ -7,7 +7,7 @@ import { EstadoVazio } from "@/components/EstadoVazio";
 import { ListaEsqueleto } from "@/components/Esqueleto";
 import { Selo, seloEnvio } from "@/components/Selo";
 import { FUSO_SAO_PAULO, saoPauloParaIso } from "@/lib/datas";
-import { ApiError, type Envio, listarEnvios } from "@/lib/api";
+import { ApiError, type Envio, listarEnvios, reenviarEnvio } from "@/lib/api";
 
 // Tela Histórico (spec 0014): lista os envios realizados para auditoria. Só leitura; filtros de
 // status e período; mais recentes primeiro (o backend ordena por criado_em desc).
@@ -19,6 +19,8 @@ const STATUS_OPCOES = [
   { valor: "enviado", texto: "Enviado" },
   { valor: "entregue", texto: "Entregue" },
   { valor: "lido", texto: "Lido" },
+  { valor: "aguardando_retry", texto: "Reenviando" },
+  { valor: "aguardando_decisao", texto: "Precisa decisão" },
   { valor: "falhou", texto: "Falhou" },
 ];
 
@@ -35,6 +37,7 @@ export default function HistoricoPage() {
   const [desde, setDesde] = useState("");
   const [ate, setAte] = useState("");
   const [erro, setErro] = useState<string | null>(null);
+  const [reenviando, setReenviando] = useState<string | null>(null);
 
   const carregar = useCallback(() => {
     setEnvios(null);
@@ -60,6 +63,24 @@ export default function HistoricoPage() {
         setErro(e instanceof Error ? e.message : "Falha ao carregar");
       });
   }, [status, desde, ate, router]);
+
+  const reenviar = useCallback(
+    (id: string) => {
+      setReenviando(id);
+      setErro(null);
+      reenviarEnvio(id)
+        .then(() => carregar())
+        .catch((e: unknown) => {
+          if (e instanceof ApiError && e.status === 401) {
+            router.replace("/login");
+            return;
+          }
+          setErro(e instanceof Error ? e.message : "Falha ao reenviar");
+        })
+        .finally(() => setReenviando(null));
+    },
+    [carregar, router],
+  );
 
   useEffect(carregar, [carregar]);
 
@@ -113,10 +134,21 @@ export default function HistoricoPage() {
             {e.modelo_nome ? ` · ${e.modelo_nome}` : " · (sem modelo)"}
             {` · ${FMT.format(new Date(e.criado_em))}`}
           </div>
-          {e.status === "falhou" && (e.erro_motivo || e.erro_codigo) ? (
+          {(e.status === "falhou" || e.status === "aguardando_decisao") && (e.erro_motivo || e.erro_codigo) ? (
             <p className="erro" style={{ margin: 0, fontSize: "0.8rem" }}>
               Falha{e.erro_codigo ? ` (${e.erro_codigo})` : ""}: {e.erro_motivo ?? "sem detalhe"}
             </p>
+          ) : null}
+          {e.status === "aguardando_decisao" ? (
+            <button
+              type="button"
+              className="fantasma"
+              style={{ marginTop: "0.5rem" }}
+              disabled={reenviando === e.id}
+              onClick={() => reenviar(e.id)}
+            >
+              {reenviando === e.id ? "Reenviando…" : "Reenviar"}
+            </button>
           ) : null}
         </div>
       ))}
