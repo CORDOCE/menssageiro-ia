@@ -49,8 +49,8 @@ agendada simplesmente não sai. Esta feature faz o worker **retentar** esse tipo
 - **Q7 — at-most-once [CONFIRMADO]:** at-most-once estrito (só reenvia certeza de não-entrega). ADR 0014.
 - **Q8 — `aguardando_decisao` na taxa da 0019 [CONFIRMADO]:** **conta como falha** (não-entrega real aguardando
   humano).
-- **Q9 — falha ambígua (5xx/timeout/órfão) [RECOMENDADO, aguarda confirmação]:** → `aguardando_decisao` (humano
-  decide reenviar ciente do risco), **sem** auto-retry. Avançado por diretriz do Jefferson ("ataque o órfão").
+- **Q9 — falha ambígua (5xx/timeout/órfão) [CONFIRMADO]:** → `aguardando_decisao` (humano decide reenviar ciente
+  do risco), **sem** auto-retry.
 - **Ataque ao órfão `enviando` [design]:** (a) client captura `ConnectError`→retentável e `TimeoutException`→
   ambíguo; (b) **sweep** no worker recolhe `enviando` sem `wamid` preso >15min (configurável) → `aguardando_decisao`
   + alerta. Fecha bug pré-existente (hoje essas exceções propagam e deixam órfão; `grep` confirmou sem reaper).
