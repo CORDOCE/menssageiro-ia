@@ -2,12 +2,22 @@
 
 > Memória volátil do trabalho. Histórico vive no git/ADR. Atualize ao pausar (`/handoff`).
 
-_Atualizado: 2026-11-10_
+_Atualizado: 2026-11-11_
 
-## ▶️ RETOMAR AQUI (2026-11-10)
-**spec 0018 "Tela de Configurações" EM PRODUÇÃO (release #52).** 0011–0018 todas em produção. Git: `develop`=`main`=`22e3027` (release #52). Sem PR aberta. Mapa do repo em produção (`docs/CODEBASE_MAP.md`); branches limpas (só develop/main).
-- **Próximo passo — escolher a próxima frente:** alertas de **agregação** (worker parado >5min, falhas >5%/dia — painel Sentry/§4), **I1** (paridade env prod×staging, go-live), ou mais telas (Conversas/Sugestões). Abrir com `/nova-feature`.
-- 📌 **Follow-ups abertos (não bloqueiam):** rules de alerta no painel Sentry (0017/§4, org `cordoce-digital`); token Meta de staging expirado (erro 190); P2 layout mobile <640px; smoke funcional de 0013/0016 em prod.
+## ▶️ RETOMAR AQUI (2026-11-11)
+**Fix do órfão EM PRODUÇÃO-track:** PR **#53** mergeado em `develop` (`4c3e343`) — conexão/timeout httpx vira `WhatsappError` (não deixa envio preso em `enviando`). `develop` local atualizado.
+
+**(1) spec 0019 "Alertas de agregação" — IMPLEMENTADA, gates verdes, PRONTA P/ PR.** Branch `feat/0019-alertas-agregacao` (rebaseada em `develop`=`4c3e343`). Novo `app/worker/alertas.py`: **check-in** de liveness ao Sentry Cron Monitor (`worker-ciclo`, `monitor_config` upsert inline, margem 5min) + **taxa de falha** 24h (piso 20, >5%, idempotência diária por auditoria SP) via `alertar_evento`. Ligado no loop `__main__.executar()` (`ciclo_alertas()`, não-bloqueante). **Gates verdes:** `/revisar` 0 P0/P1 · `/seguranca` ok · CI Docker completo (ruff/mypy/migrações/pytest **275 passed, 97.66%**, alertas.py+__main__.py 100%/pip-audit). Sem migração. **Próximo passo:** commitar impl + abrir PR p/ `develop`. **§4 manual pós-merge:** criar/rotear o monitor `worker-ciclo` + alerta de taxa no painel Sentry (e-mail/push, org `cordoce-digital`).
+
+**(2) spec 0020 "Reenvio automático" — design/ADR prontos, no gate de design.** Branch `feat/0020-reenvio-automatico` (de `develop`). product.md + design.md + **ADR 0014** + `clarificar.md` escritos; `/clarificar` Q1–Q9 fechadas. Tier Arquitetural (muda §5.2; §4 aprovada por Jefferson). Resumo: só reenvia **certeza de não-entrega** (429/conexão pré-request + allowlist Meta); até 3x (+5/+15min/+1h); reusa linha de `envios` (`tentativas`/`proxima_tentativa_em`/`aguardando_retry`); ambíguo (5xx/timeout/órfão) + esgotado → `aguardando_decisao` por envio + `POST /envios/{id}/reenviar`; **sweep de órfãos**; at-most-once preservado. **Próximo passo:** Jefferson revisa design/ADR → escrever spec.md + tasks.md → implementar (precisa da 0019 em develop: task atualiza a definição de tentativa da 0019 p/ incluir `aguardando_retry`).
+- **Decisões já tomadas (sessão 2026-11-10):**
+  - Tier **Pequeno** (spec.md + tasks.md), sem migração (usa `saude.ultimo_ciclo_em` + eventos da 0017).
+  - **Thresholds oficiais (BRIEFING §12):** worker parado **>5min**; falhas de envio **>5%/dia**. ("Modelo pausado/rejeitado" já é da 0017; "qualidade do número" depende da Meta → fora, Fase 0.)
+  - **Worker parado:** Sentry **Cron Monitor + check-in** do worker a cada ciclo (observador externo detecta ausência). API confirmada: `sentry-sdk 2.74.0` tem `sentry_sdk.crons.capture_checkin` + `MonitorStatus`. Worker já importa `sentry_sdk` (`worker/__main__.py:11`). No-op sem `SENTRY_DSN` (padrão 0017).
+  - **Taxa de falha:** lógica **no código** (worker computa falhas/tentativas nas últimas 24h; alerta via `alertar_evento` quando >5%), com guarda de **idempotência diária** (máx 1 alerta/dia, checar auditoria) e **piso mínimo de volume** (evitar ruído com poucos envios — valor a definir na spec, ~20 tentativas). [[gate-nao-mascarar-exit-code-com-pipe]]
+  - **Config no Sentry:** eu crio o Cron Monitor + alert rules de e-mail **via Sentry MCP** (org `cordoce-digital`) — **aprovação §4 dada por Jefferson** nesta sessão. Isso também fecha o follow-up da 0017 (rotear eventos a e-mail).
+- **Esboço de AC (a formalizar):** AC-1 check-in "ok" por ciclo (com DSN); AC-2 no-op sem DSN; AC-3 ciclo com exceção → check-in "error"; AC-4 taxa>5% (e volume≥piso) → alerta; AC-5 idempotência diária; AC-6 abaixo do piso não alerta; AC-7 taxa≤5% não alerta. A config Sentry é task de config (verificada via MCP `find_monitors`), não pytest.
+- 📌 **Follow-ups abertos (não bloqueiam):** token Meta de staging expirado (erro 190); P2 layout mobile <640px; smoke funcional de 0013/0016 em prod.
 - **Depois da 0018:** escolher a próxima frente — alertas de **agregação** (worker parado >5min, falhas >5%/dia — painel Sentry/§4), **I1** (paridade env prod×staging, go-live), ou mais telas (Conversas/Sugestões). Abrir com `/nova-feature`.
 - **Follow-up da 0017 (§4):** configurar as **rules de alerta no painel Sentry** p/ rotear a e-mail os eventos que o código já emite (org `cordoce-digital`).
 - 📌 **Follow-ups abertos (não bloqueiam):** (a) **token Meta de staging expirado** (erro 190) — Fase 0, renovar `WHATSAPP_TOKEN` staging; (b) Agenda "Enviada" × Histórico "Falhou" (status de entidades distintas — decisão de produto); (c) **P2 layout** barra inferior mobile <640px não verificado; (d) 0013 Sincronizar em prod não exercido; (e) smoke funcional do teto 0016 (configurar limite + disparar grupo) não feito — coberto por teste/CI; (f) configurar as **rules de alerta no painel Sentry** p/ os eventos que a 0017 passou a emitir (§4).
