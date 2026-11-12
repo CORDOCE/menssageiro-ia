@@ -34,8 +34,10 @@ envios do dia e quanto gastou no mês. Esta spec entrega essa visão com o que j
 - **AC-1 (authz)** — Dado nenhuma sessão, Quando `GET /admin/health/deep`, Então **401** (dependência de auth do router).
 - **AC-2 (retrato)** — Dada uma sessão válida, Quando `GET /admin/health/deep`, Então **200** com as 6 seções
   (banco, worker, envios_hoje, taxa_falha_hoje, fila, gasto_mes_estimado).
-- **AC-3 (banco degrada)** — Dado que o `SELECT 1` de verificação lança, Quando o deep roda, Então `banco = "erro"`
-  e o endpoint **não** retorna 500 (as demais seções ainda vêm).
+- **AC-3 (checagem de banco degradável)** — Dado que o `SELECT 1` da checagem lança, Quando `_checar_banco` roda,
+  Então devolve `banco = "erro"` (com `rollback`) **sem propagar** — a verificação de banco não derruba o endpoint
+  por si. (Banco totalmente indisponível ainda falha a sessão/queries, como em qualquer endpoint autenticado;
+  provado no nível da função, não exercitando um Postgres morto.)
 - **AC-4 (worker vivo/parado)** — Dado `ultimo_ciclo_em` há ≤ 5 min, Então `worker.status = "vivo"`; dado há > 5 min,
   Então `"parado"`.
 - **AC-5 (worker desconhecido)** — Dada a tabela `saude` vazia, Então `worker.status = "desconhecido"` (sem erro).

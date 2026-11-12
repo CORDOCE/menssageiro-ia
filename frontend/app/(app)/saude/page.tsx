@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useCallback, useEffect, useState } from "react";
+import { type CSSProperties, useCallback, useEffect, useState } from "react";
 
 import { ListaEsqueleto } from "@/components/Esqueleto";
 import { FUSO_SAO_PAULO } from "@/lib/datas";
@@ -22,8 +22,8 @@ const WORKER_TXT: Record<string, string> = {
   desconhecido: "Desconhecido",
 };
 
-const CARTAO: React.CSSProperties = { marginBottom: 0 };
-const TITULO: React.CSSProperties = { fontSize: "0.9rem", margin: "0 0 0.4rem" };
+const CARTAO: CSSProperties = { marginBottom: 0 };
+const TITULO: CSSProperties = { fontSize: "0.9rem", margin: "0 0 0.4rem" };
 
 export default function SaudePage() {
   const router = useRouter();
