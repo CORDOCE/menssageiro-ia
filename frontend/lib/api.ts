@@ -369,3 +369,21 @@ export interface SaudeDeep {
 export async function obterSaude(): Promise<SaudeDeep> {
   return pedir<SaudeDeep>("/admin/health/deep");
 }
+
+// ---- Notificações push (spec 0023 / Web Push) ----------------------------------------------
+
+export interface ChavePush {
+  chave: string | null; // VAPID public key (null = push não configurado no backend)
+}
+export interface InscricaoPush {
+  endpoint: string;
+  keys: { p256dh: string; auth: string };
+}
+
+export async function obterChavePush(): Promise<ChavePush> {
+  return pedir<ChavePush>("/push/chave-publica");
+}
+
+export async function inscreverPush(sub: InscricaoPush): Promise<void> {
+  await pedirJson<{ status: string }>("/push/inscrever", "POST", sub);
+}

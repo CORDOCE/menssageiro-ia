@@ -135,3 +135,22 @@ def test_alertar_sem_pii_na_mensagem(db, monkeypatch):  # AC-7
     registrar_auditoria("envio.falhou", status="error", metadados={"codigo": "190"}, alertar=True)
     msg, _ = chamadas[0]
     assert not re.search(r"\d{8,}", msg)  # sem telefone na mensagem
+
+
+# --- push nos eventos §12 (spec 0023, AC-7/AC-8) ---
+
+
+def test_alertar_dispara_push_em_error(monkeypatch):  # AC-7 (0023)
+    pushes: list[dict] = []
+    monkeypatch.setattr("app.services.push.enviar_push", lambda **k: pushes.append(k))
+    obs.alertar_evento("evt.critico", "error")
+    assert len(pushes) == 1
+    assert pushes[0]["titulo"] == "evt.critico"  # título = operação (sem PII)
+    assert not re.search(r"\d{8,}", pushes[0]["corpo"])  # corpo sem telefone (AC-8)
+
+
+def test_alertar_nao_dispara_push_em_ok(monkeypatch):  # AC-7 (0023)
+    pushes: list[dict] = []
+    monkeypatch.setattr("app.services.push.enviar_push", lambda **k: pushes.append(k))
+    obs.alertar_evento("evt.ok", "ok")
+    assert pushes == []  # ok/info não geram alerta nem push

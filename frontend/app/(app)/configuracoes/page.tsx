@@ -11,6 +11,16 @@ import {
   atualizarConfiguracao,
   obterConfiguracao,
 } from "@/lib/api";
+import { type EstadoPush, ativarPush, suportaPush } from "@/lib/push";
+
+// Mensagem por estado da inscrição de push (spec 0023).
+const PUSH_MSG: Record<EstadoPush, string> = {
+  ok: "Notificações ativadas neste dispositivo.",
+  negado: "Permissão negada. Ative as notificações nas configurações do navegador.",
+  indisponivel: "Este navegador não suporta push (no iPhone, instale o app na tela inicial).",
+  "sem-vapid": "Notificações ainda não configuradas no servidor.",
+  erro: "Falha ao ativar. Tente novamente.",
+};
 
 // Tela Configurações (spec 0018): edita os controles que o worker lê a cada ciclo (ADR 0008) —
 // janela de envio, limites e pausa geral. Salvar envia o formulário inteiro (PATCH); o backend
@@ -52,6 +62,19 @@ export default function ConfiguracoesPage() {
   const [salvando, setSalvando] = useState(false);
   const [erro, setErro] = useState<string | null>(null);
   const [aviso, setAviso] = useState<string | null>(null);
+
+  // Notificações push (spec 0023): independente do formulário de envio.
+  const [estadoPush, setEstadoPush] = useState<EstadoPush | null>(null);
+  const [ativandoPush, setAtivandoPush] = useState(false);
+
+  async function ativarNotificacoes() {
+    setAtivandoPush(true);
+    try {
+      setEstadoPush(await ativarPush());
+    } finally {
+      setAtivandoPush(false);
+    }
+  }
 
   const preencher = useCallback((c: Configuracao) => {
     setConfig(c);
@@ -246,6 +269,35 @@ export default function ConfiguracoesPage() {
           </button>
         </form>
       ) : null}
+
+      <section className="painel" style={{ marginTop: "0.75rem" }}>
+        <h2 className="pagina-sub" style={{ marginTop: 0 }}>Notificações</h2>
+        <p className="texto-2" style={{ fontSize: "0.85rem", marginTop: 0 }}>
+          Receba os alertas do sistema (modelo rejeitado, falhas) neste dispositivo, além do e-mail.
+        </p>
+        <button
+          type="button"
+          className="secundario"
+          disabled={ativandoPush || !suportaPush()}
+          onClick={() => void ativarNotificacoes()}
+        >
+          {ativandoPush ? "Ativando…" : "Ativar notificações"}
+        </button>
+        {estadoPush ? (
+          <p
+            role="status"
+            className={estadoPush === "ok" ? "aviso" : "erro"}
+            style={{ marginBottom: 0 }}
+          >
+            {PUSH_MSG[estadoPush]}
+          </p>
+        ) : null}
+        {!suportaPush() ? (
+          <p className="texto-2" style={{ fontSize: "0.8rem", marginBottom: 0 }}>
+            {PUSH_MSG.indisponivel}
+          </p>
+        ) : null}
+      </section>
     </div>
   );
 }

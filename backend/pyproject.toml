@@ -19,6 +19,7 @@ dependencies = [
     "python-dateutil>=2.9",
     "cryptography>=43",
     "sentry-sdk>=2.0",
+    "pywebpush>=2.5.0",
 ]
 
 [dependency-groups]
