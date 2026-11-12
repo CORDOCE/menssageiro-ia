@@ -75,6 +75,14 @@ export function IconeConfiguracoes(props: Props) {
   );
 }
 
+export function IconeSaude(props: Props) {
+  return (
+    <svg {...base(props)}>
+      <path d="M3 12h4l2 5 4-10 2 5h4" />
+    </svg>
+  );
+}
+
 export function IconeRecorrencia(props: Props) {
   return (
     <svg {...base({ width: 16, height: 16, ...props })}>

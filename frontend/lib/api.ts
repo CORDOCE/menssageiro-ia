@@ -334,3 +334,38 @@ export async function obterConfiguracao(): Promise<Configuracao> {
 export async function atualizarConfiguracao(patch: ConfiguracaoPatch): Promise<Configuracao> {
   return pedirJson<Configuracao>("/configuracoes", "PATCH", patch);
 }
+
+// ---- Saúde do sistema (spec 0021 / §12) ----------------------------------------------------
+
+export interface SaudeBanco {
+  status: string; // "ok" | "erro"
+}
+export interface SaudeWorker {
+  status: string; // "vivo" | "parado" | "desconhecido"
+  ultimo_ciclo_em: string | null;
+  segundos_desde: number | null;
+}
+export interface SaudeTaxaFalha {
+  tentativas: number;
+  falhas: number;
+  percentual: number;
+}
+export interface SaudeGastoMes {
+  valor: number;
+  moeda: string;
+  estimado: boolean;
+  base: string;
+}
+export interface SaudeDeep {
+  banco: SaudeBanco;
+  worker: SaudeWorker;
+  envios_hoje: Record<string, number>;
+  taxa_falha_hoje: SaudeTaxaFalha;
+  fila: number;
+  gasto_mes_estimado: SaudeGastoMes;
+}
+
+// Retrato de saúde operacional (read-only). Token/qualidade do número da Meta ficam fora até a Fase 0.
+export async function obterSaude(): Promise<SaudeDeep> {
+  return pedir<SaudeDeep>("/admin/health/deep");
+}
