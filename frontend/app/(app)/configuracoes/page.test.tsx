@@ -4,12 +4,15 @@ import userEvent from "@testing-library/user-event";
 
 import { ApiError, type Configuracao } from "@/lib/api";
 import * as api from "@/lib/api";
+import * as pushLib from "@/lib/push";
 import ConfiguracoesPage from "./page";
 
 vi.mock("@/lib/api", async (importOriginal) => {
   const real = await importOriginal<typeof import("@/lib/api")>();
   return { ...real, obterConfiguracao: vi.fn(), atualizarConfiguracao: vi.fn() };
 });
+
+vi.mock("@/lib/push", () => ({ ativarPush: vi.fn(), suportaPush: vi.fn(() => true) }));
 
 // Router estável (ver Agenda): senão o useEffect de carga entraria em loop.
 const { replace, router } = vi.hoisted(() => {
@@ -139,5 +142,30 @@ describe("ConfiguracoesPage — salvar (AC-10)", () => {
     await userEvent.click(screen.getByRole("button", { name: "Salvar" }));
 
     expect(await screen.findByText("Erro 500")).toBeInTheDocument();
+  });
+});
+
+describe("ConfiguracoesPage — notificações push (AC-9)", () => {
+  it("ativa push e mostra confirmação", async () => {
+    vi.mocked(api.obterConfiguracao).mockResolvedValue(cfg());
+    vi.mocked(pushLib.suportaPush).mockReturnValue(true);
+    vi.mocked(pushLib.ativarPush).mockResolvedValue("ok");
+    render(<ConfiguracoesPage />);
+
+    const botao = await screen.findByRole("button", { name: "Ativar notificações" });
+    await userEvent.click(botao);
+
+    expect(pushLib.ativarPush).toHaveBeenCalled();
+    expect(await screen.findByText("Notificações ativadas neste dispositivo.")).toBeInTheDocument();
+  });
+
+  it("navegador sem suporte: botão desabilitado + aviso", async () => {
+    vi.mocked(api.obterConfiguracao).mockResolvedValue(cfg());
+    vi.mocked(pushLib.suportaPush).mockReturnValue(false);
+    render(<ConfiguracoesPage />);
+
+    const botao = await screen.findByRole("button", { name: "Ativar notificações" });
+    expect(botao).toBeDisabled();
+    expect(screen.getByText(/não suporta push/)).toBeInTheDocument();
   });
 });
