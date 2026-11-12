@@ -20,6 +20,7 @@ dependencies = [
     "cryptography>=43",
     "sentry-sdk>=2.0",
     "prometheus-fastapi-instrumentator>=8.1.0",
+    "pywebpush>=2.5.0",
 ]
 
 [dependency-groups]
