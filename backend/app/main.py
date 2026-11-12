@@ -10,6 +10,7 @@ from pydantic import BaseModel
 
 from app.api.admin_health import router as admin_health_router
 from app.api.agendamentos import router as agendamentos_router
+from app.api.anexos import router as anexos_router
 from app.api.auth import router as auth_router
 from app.api.configuracoes import router as configuracoes_router
 from app.api.contatos import router as contatos_router
@@ -47,6 +48,7 @@ app.include_router(configuracoes_router)
 app.include_router(webhook_router)
 app.include_router(admin_health_router)
 app.include_router(push_router)
+app.include_router(anexos_router)
 
 
 class HealthResponse(BaseModel):

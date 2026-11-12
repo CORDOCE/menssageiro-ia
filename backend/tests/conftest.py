@@ -26,6 +26,7 @@ from app.core.config import get_settings  # noqa: E402
 from app.db.database import Base  # noqa: E402
 from app.main import app  # noqa: E402
 from app.models.agendamento import Agendamento  # noqa: E402, F401 (registra a tabela no create_all)
+from app.models.anexo import Anexo  # noqa: E402, F401 (registra a tabela no create_all)
 from app.models.configuracao import Configuracao  # noqa: E402, F401 (registra a tabela no create_all)
 from app.models.contato import Contato  # noqa: E402, F401 (registra a tabela no create_all)
 from app.models.envio import Envio  # noqa: E402, F401 (registra a tabela no create_all)
@@ -68,7 +69,7 @@ def db():
     sessao.execute(
         text(
             "TRUNCATE usuarios, sessoes_usuario, auditoria, saude, contatos, modelos, envios, "
-            "agendamentos, configuracoes, push_subscriptions RESTART IDENTITY CASCADE"
+            "agendamentos, configuracoes, push_subscriptions, anexos RESTART IDENTITY CASCADE"
         )
     )
     sessao.commit()

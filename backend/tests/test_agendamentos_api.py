@@ -9,6 +9,7 @@ from datetime import UTC, datetime, timedelta
 from sqlalchemy import select
 
 from app.models.agendamento import Agendamento
+from app.models.anexo import Anexo
 from app.models.contato import Contato
 from app.models.modelo import Modelo
 
@@ -229,3 +230,59 @@ def test_criar_variaveis_no_limite_201(client, auth_headers, db):  # AC-4
         headers=auth_headers,
     )
     assert r.status_code == 201
+
+
+# --- coerência anexo × cabeçalho DOCUMENT (spec 0024, AC-5..AC-8 / tabela-verdade) ---
+
+
+def _modelo_doc(db) -> str:
+    mid = str(uuid.uuid4())
+    db.add(
+        Modelo(
+            id=mid, nome=f"doc_{mid[:8]}", corpo="oi", status="aprovado", cabecalho_tipo="DOCUMENT"
+        )
+    )
+    db.commit()
+    return mid
+
+
+def _anexo(db) -> str:
+    aid = str(uuid.uuid4())
+    db.add(
+        Anexo(id=aid, nome_arquivo="b.pdf", mime="application/pdf", tamanho=5, conteudo=b"%PDF-")
+    )
+    db.commit()
+    return aid
+
+
+def test_document_com_anexo_201(client, auth_headers, db):  # AC-5
+    mid, cid, anexo = _modelo_doc(db), _contato(db), _anexo(db)
+    r = client.post(
+        "/agendamentos", json=_payload(mid, contato_id=cid, anexo_id=anexo), headers=auth_headers
+    )
+    assert r.status_code == 201
+    assert r.json()["anexo_id"] == anexo
+
+
+def test_document_sem_anexo_422(client, auth_headers, db):  # AC-6
+    mid, cid = _modelo_doc(db), _contato(db)
+    r = client.post("/agendamentos", json=_payload(mid, contato_id=cid), headers=auth_headers)
+    assert r.status_code == 422
+
+
+def test_nao_document_com_anexo_422(client, auth_headers, db):  # AC-7
+    mid, cid, anexo = _modelo(db), _contato(db), _anexo(db)
+    r = client.post(
+        "/agendamentos", json=_payload(mid, contato_id=cid, anexo_id=anexo), headers=auth_headers
+    )
+    assert r.status_code == 422
+
+
+def test_anexo_inexistente_422(client, auth_headers, db):  # AC-8
+    mid, cid = _modelo_doc(db), _contato(db)
+    r = client.post(
+        "/agendamentos",
+        json=_payload(mid, contato_id=cid, anexo_id="nao-existe"),
+        headers=auth_headers,
+    )
+    assert r.status_code == 422
