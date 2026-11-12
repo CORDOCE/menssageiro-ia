@@ -76,6 +76,10 @@ class Settings(BaseSettings):
     # Fuso (BRIEFING §9: exibição em America/Sao_Paulo)
     tz: str = "America/Sao_Paulo"
 
+    # Tela Saúde (spec 0021 / §12): tarifa UTILITY p/ estimar o gasto do mês (não há coluna de
+    # custo — só `pricing` JSONB; §4.4). Estimativa reversível; precisão real virá com a Fase 0.
+    tarifa_utility_brl: float = 0.035
+
 
 @lru_cache
 def get_settings() -> Settings:
