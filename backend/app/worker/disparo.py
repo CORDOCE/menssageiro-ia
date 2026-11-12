@@ -43,8 +43,15 @@ from app.services.whatsapp_client import WhatsappError, enviar_template
 
 _LOTE = 100
 # Status que contam para os limites (reservados ou entregues; não conta falhou/criado).
-_CONTAM_LIMITE = ("enviando", "enviado", "entregue", "lido")
+# `aguardando_retry` conta como envio pretendido (teto/limites e tentativa da taxa 0019 — spec 0020 Q6).
+_CONTAM_LIMITE = ("enviando", "enviado", "entregue", "lido", "aguardando_retry")
 _ATIVOS = ("aprovado", "enviando")
+
+# Reenvio automático (spec 0020 / ADR 0014): até 3 reenvios com backoff crescente curto.
+_MAX_RETRY = 3
+_BACKOFF_RETRY = {1: timedelta(minutes=5), 2: timedelta(minutes=15), 3: timedelta(hours=1)}
+# Sweep de órfãos: envio preso em 'enviando' além desta margem (≫ timeout do client de 30s) → decisão humana.
+_MARGEM_ORFAO = timedelta(minutes=15)
 
 Enviar = Callable[..., str]
 
@@ -113,6 +120,9 @@ def processar_ciclo(
                 correlation_id=aid,
                 alertar=True,
             )
+
+    processar_reenvios(agora, limite_contato, enviar)  # spec 0020: retenta os aguardando_retry vencidos
+    varrer_orfaos(agora)  # spec 0020: recolhe envios presos em 'enviando'
 
 
 def _destinatarios(sess: Session, ag: Agendamento) -> list[Contato]:
@@ -308,6 +318,83 @@ def _criar_proxima_ocorrencia(
         )
 
 
+def _despachar_e_aplicar(
+    sess: Session,
+    envio_id: str,
+    telefone: str,
+    nome: str,
+    idioma: str,
+    componentes: list[dict[str, Any]],
+    agora: datetime,
+    tel: str,
+    correlation_id: str,
+    tentativas_atuais: int,
+    enviar: Enviar,
+) -> None:
+    """Envia e aplica o desfecho na linha `envio_id`: sucesso → `enviado`+`wamid`; falha → roteia pela
+    classe (`_aplicar_falha_envio`). Usado no 1º envio e no reenvio (spec 0020)."""
+    try:
+        wamid = enviar(telefone, nome, idioma, componentes)
+        sess.execute(update(Envio).where(Envio.id == envio_id).values(status="enviado", wamid=wamid))
+        sess.commit()
+        registrar_auditoria(
+            "envio.enviado", alvo_tipo="envio", alvo_id=envio_id,
+            metadados={"telefone": tel}, correlation_id=correlation_id,
+        )
+    except WhatsappError as exc:
+        _aplicar_falha_envio(sess, envio_id, exc, tentativas_atuais, agora, tel, correlation_id)
+
+
+def _aplicar_falha_envio(
+    sess: Session,
+    envio_id: str,
+    exc: WhatsappError,
+    tentativas_atuais: int,
+    agora: datetime,
+    tel: str,
+    correlation_id: str,
+) -> None:
+    """Roteia a falha de um envio pela **classe** e tentativas (ADR 0014): retentável<3 agenda reenvio;
+    retentável esgotado e ambíguo → decisão humana; definitivo → falhou. Grava status + auditoria."""
+    if exc.classe == "retentavel" and tentativas_atuais < _MAX_RETRY:
+        nova = tentativas_atuais + 1
+        sess.execute(
+            update(Envio)
+            .where(Envio.id == envio_id)
+            .values(
+                status="aguardando_retry",
+                tentativas=nova,
+                proxima_tentativa_em=agora + _BACKOFF_RETRY[nova],
+                erro_codigo=str(exc.codigo),
+                erro_motivo=exc.motivo,
+            )
+        )
+        sess.commit()
+        registrar_auditoria(
+            "envio.retry_agendado", alvo_tipo="envio", alvo_id=envio_id, status="warning",
+            metadados={"telefone": tel, "codigo": str(exc.codigo), "tentativa": nova},
+            correlation_id=correlation_id,
+        )
+        return
+
+    if exc.classe == "definitivo":
+        status, operacao, nivel = "falhou", "envio.falhou", "error"
+    elif exc.classe == "retentavel":  # tentativas == _MAX_RETRY → esgotou
+        status, operacao, nivel = "aguardando_decisao", "envio.retry_esgotado", "warning"
+    else:  # ambiguo
+        status, operacao, nivel = "aguardando_decisao", "envio.falha_ambigua", "warning"
+    sess.execute(
+        update(Envio)
+        .where(Envio.id == envio_id)
+        .values(status=status, erro_codigo=str(exc.codigo), erro_motivo=exc.motivo)
+    )
+    sess.commit()
+    registrar_auditoria(
+        operacao, alvo_tipo="envio", alvo_id=envio_id, status=nivel,
+        metadados={"telefone": tel, "codigo": str(exc.codigo)}, correlation_id=correlation_id, alertar=True,
+    )
+
+
 def _processar_contato(
     sess: Session,
     aid: str,
@@ -346,25 +433,10 @@ def _processar_contato(
         return
 
     tel = mascarar_telefone(contato.telefone_e164)
-    try:
-        wamid = enviar(contato.telefone_e164, nome, idioma, componentes)
-        sess.execute(update(Envio).where(Envio.id == reservado).values(status="enviado", wamid=wamid))
-        sess.commit()
-        registrar_auditoria(
-            "envio.enviado", alvo_tipo="envio", alvo_id=reservado,
-            metadados={"telefone": tel}, correlation_id=aid,
-        )
-    except WhatsappError as exc:
-        sess.execute(
-            update(Envio).where(Envio.id == reservado).values(
-                status="falhou", erro_codigo=str(exc.codigo), erro_motivo=exc.motivo
-            )
-        )
-        sess.commit()
-        registrar_auditoria(
-            "envio.falhou", alvo_tipo="envio", alvo_id=reservado, status="error",
-            metadados={"telefone": tel, "codigo": str(exc.codigo)}, correlation_id=aid, alertar=True,
-        )
+    _despachar_e_aplicar(
+        sess, reservado, contato.telefone_e164, nome, idioma, componentes,
+        agora, tel, aid, tentativas_atuais=0, enviar=enviar,
+    )
 
 
 def _motivo_inelegivel(
@@ -377,3 +449,132 @@ def _motivo_inelegivel(
     if limite_contato is not None and _enviados_em_24h(sess, agora, contato.id) >= limite_contato:
         return "limite_por_contato"
     return None
+
+
+def processar_reenvios(agora: datetime, limite_contato: int | None, enviar: Enviar) -> None:
+    """Passo de reenvio (spec 0020 / ADR 0014): retenta os envios `aguardando_retry` vencidos. Cada envio é
+    travado com `FOR UPDATE SKIP LOCKED`; a elegibilidade do contato é reavaliada antes de cada tentativa."""
+    ctrl = _db.SessionLocal()
+    try:
+        ids = list(
+            ctrl.execute(
+                select(Envio.id)
+                .where(Envio.status == "aguardando_retry", Envio.proxima_tentativa_em <= agora)
+                .order_by(Envio.proxima_tentativa_em)
+                .limit(_LOTE)
+            ).scalars().all()
+        )
+    finally:
+        ctrl.close()
+    for envio_id in ids:
+        try:
+            _reenviar_um(envio_id, agora, limite_contato, enviar)
+        except Exception:  # um reenvio ruim não derruba o passo
+            registrar_auditoria(
+                "envio.erro_reenvio", alvo_tipo="envio", alvo_id=envio_id, status="error", alertar=True
+            )
+
+
+def _reenviar_um(envio_id: str, agora: datetime, limite_contato: int | None, enviar: Enviar) -> None:
+    sess = _db.SessionLocal()
+    try:
+        envio = sess.execute(
+            select(Envio)
+            .where(
+                Envio.id == envio_id,
+                Envio.status == "aguardando_retry",
+                Envio.proxima_tentativa_em <= agora,
+            )
+            .with_for_update(skip_locked=True)
+        ).scalar_one_or_none()
+        if envio is None:  # outro worker já pegou, ou o status mudou
+            return
+        contato = sess.get(Contato, envio.contato_id)
+        ag = sess.get(Agendamento, envio.agendamento_id) if envio.agendamento_id else None
+        modelo = sess.get(Modelo, envio.modelo_id) if envio.modelo_id else None
+        if contato is None or ag is None or modelo is None:
+            return  # dados insuficientes (envio avulso) — não reenvia
+        aid = ag.id
+        tel = mascarar_telefone(contato.telefone_e164)
+        motivo = _motivo_inelegivel(sess, contato, agora, limite_contato)
+        if motivo is not None:  # descadastro/consentimento/limite mudou desde a 1ª tentativa (§5.4)
+            sess.execute(
+                update(Envio)
+                .where(Envio.id == envio_id)
+                .values(status="falhou", erro_motivo=f"inelegível no reenvio: {motivo}")
+            )
+            sess.commit()
+            registrar_auditoria(
+                "envio.reenvio_inelegivel", alvo_tipo="envio", alvo_id=envio_id, status="warning",
+                metadados={"telefone": tel, "motivo": motivo}, correlation_id=aid, alertar=True,
+            )
+            return
+        variaveis = list(ag.variaveis)
+        componentes: list[dict[str, Any]] = (
+            [{"type": "body", "parameters": [{"type": "text", "text": v} for v in variaveis]}]
+            if variaveis
+            else []
+        )
+        _despachar_e_aplicar(
+            sess, envio_id, contato.telefone_e164, modelo.nome, modelo.idioma, componentes,
+            agora, tel, aid, tentativas_atuais=envio.tentativas, enviar=enviar,
+        )
+    finally:
+        sess.close()
+
+
+def varrer_orfaos(agora: datetime) -> None:
+    """Sweep (spec 0020 / ADR 0014): recolhe envios presos em `enviando` sem `wamid` além da margem
+    (crash/exceção não capturada no meio do envio) → `aguardando_decisao` (ambíguo — pode ter entregue)."""
+    ctrl = _db.SessionLocal()
+    try:
+        ids = list(
+            ctrl.execute(
+                select(Envio.id)
+                .where(
+                    Envio.status == "enviando",
+                    Envio.wamid.is_(None),
+                    Envio.criado_em < agora - _MARGEM_ORFAO,
+                )
+                .limit(_LOTE)
+            ).scalars().all()
+        )
+    finally:
+        ctrl.close()
+    for envio_id in ids:
+        try:
+            _recolher_orfao(envio_id, agora)
+        except Exception:  # um órfão ruim não derruba o sweep
+            registrar_auditoria(
+                "envio.erro_sweep", alvo_tipo="envio", alvo_id=envio_id, status="error", alertar=True
+            )
+
+
+def _recolher_orfao(envio_id: str, agora: datetime) -> None:
+    sess = _db.SessionLocal()
+    try:
+        envio = sess.execute(
+            select(Envio)
+            .where(
+                Envio.id == envio_id,
+                Envio.status == "enviando",
+                Envio.wamid.is_(None),
+                Envio.criado_em < agora - _MARGEM_ORFAO,
+            )
+            .with_for_update(skip_locked=True)
+        ).scalar_one_or_none()
+        if envio is None:  # outro worker pegou / status mudou (envio concluiu nesse meio)
+            return
+        aid = envio.agendamento_id
+        sess.execute(
+            update(Envio)
+            .where(Envio.id == envio_id)
+            .values(status="aguardando_decisao", erro_motivo="órfão: preso em 'enviando' além da margem")
+        )
+        sess.commit()
+        registrar_auditoria(
+            "envio.orfao_detectado", alvo_tipo="envio", alvo_id=envio_id, status="warning",
+            metadados={"agendamento_id": aid}, correlation_id=aid, alertar=True,
+        )
+    finally:
+        sess.close()

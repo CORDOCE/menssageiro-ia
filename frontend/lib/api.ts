@@ -210,6 +210,11 @@ export async function listarEnvios(params: {
   return pedir<Envio[]>(`/envios${sufixo}`);
 }
 
+// Reenvio manual (spec 0020): reabre um envio em `aguardando_decisao` para nova tentativa automática.
+export async function reenviarEnvio(id: string): Promise<Envio> {
+  return pedir<Envio>(`/envios/${encodeURIComponent(id)}/reenviar`, { method: "POST" });
+}
+
 // ---- Contatos ------------------------------------------------------------------------------
 
 export interface Contato {

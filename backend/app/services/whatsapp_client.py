@@ -19,12 +19,37 @@ _BACKOFF_BASE_S = 0.5
 
 
 class WhatsappError(Exception):
-    """Falha definitiva da Cloud API (ou resposta inesperada), com código e motivo legível."""
+    """Falha da Cloud API (ou resposta inesperada), com código, motivo legível e **classe** de reenvio
+    (spec 0020 / ADR 0014): `retentavel` (certeza de não-entrega) · `ambiguo` (pode ter entregue) ·
+    `definitivo` (não adianta reenviar). Default `definitivo` (conservador)."""
 
-    def __init__(self, codigo: int | str, motivo: str) -> None:
+    def __init__(self, codigo: int | str, motivo: str, classe: str = "definitivo") -> None:
         super().__init__(f"[{codigo}] {motivo}")
         self.codigo = codigo
         self.motivo = motivo
+        self.classe = classe
+
+
+# Códigos Meta temporários **e de não-entrega** (retentáveis). Fonte: Cloud API error codes,
+# https://developers.facebook.com/docs/whatsapp/cloud-api/support/error-codes/ (consultado 2026-11-11).
+# Só limite de taxa e serviço indisponível — mensagem rejeitada antes da entrega (at-most-once, ADR 0014).
+_ALLOWLIST_RETENTAVEL: frozenset[str] = frozenset(
+    {
+        "4", "80007", "130429", "131056", "131057", "133016",  # limites de taxa
+        "2", "131016", "133004", "2494100",  # serviço temporariamente indisponível
+    }
+)
+
+
+def _classificar(status: int, codigo: int | str) -> str:
+    """Classe de reenvio da falha HTTP/aplicacional (ADR 0014). Retentável só com certeza de não-entrega."""
+    if status == 429:
+        return "retentavel"
+    if status >= 500:
+        return "ambiguo"  # 5xx: a Meta pode ter processado — não reenvia automaticamente
+    if str(codigo) in _ALLOWLIST_RETENTAVEL:
+        return "retentavel"
+    return "definitivo"
 
 
 def enviar_template(
@@ -124,7 +149,17 @@ def _post_com_retry(
     client: httpx.Client, url: str, corpo: dict[str, Any], headers: dict[str, str]
 ) -> dict[str, Any]:
     for tentativa in range(_MAX_TENTATIVAS):
-        resposta = client.post(url, json=corpo, headers=headers)
+        try:
+            resposta = client.post(url, json=corpo, headers=headers)
+        except httpx.RequestError as exc:
+            # Falha de transporte (conexão/timeout): não deixa a exceção httpx vazar — o chamador
+            # só trata WhatsappError e, sem isto, a linha reservada fica presa em 'enviando' (órfão).
+            # Falha na fase de conexão = nada enviado (retentável); demais = pode ter chegado (ambíguo).
+            conexao = isinstance(exc, (httpx.ConnectError, httpx.ConnectTimeout))
+            classe = "retentavel" if conexao else "ambiguo"
+            raise WhatsappError(
+                "transporte", f"falha de transporte: {type(exc).__name__}", classe=classe
+            ) from exc
         if resposta.status_code < 400:
             dados: dict[str, Any] = resposta.json()
             return dados
@@ -151,4 +186,4 @@ def _erro_da_resposta(resposta: httpx.Response) -> WhatsappError:
             codigo = err["code"]
         if "message" in err:
             motivo = str(err["message"])
-    return WhatsappError(codigo, motivo)
+    return WhatsappError(codigo, motivo, classe=_classificar(resposta.status_code, codigo))

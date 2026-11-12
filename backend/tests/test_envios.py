@@ -114,3 +114,32 @@ def test_limit_invalido_422(client, auth_headers, db):  # AC-7
 
 def test_status_invalido_422(client, auth_headers, db):  # borda
     assert client.get("/envios?status=banana", headers=auth_headers).status_code == 422
+
+
+# --- 0020 T6: reenvio manual (AC-14, AC-15, AC-16) ---
+def test_reenviar_manual_reabre_o_envio(client, auth_headers, db):  # AC-14
+    from app.models.auditoria import Auditoria
+
+    cid = _contato(db)
+    eid = _envio(db, cid, status="aguardando_decisao")
+    r = client.post(f"/envios/{eid}/reenviar", headers=auth_headers)
+    assert r.status_code == 200 and r.json()["status"] == "aguardando_retry"
+    db.expire_all()
+    e = db.get(Envio, eid)
+    assert e.status == "aguardando_retry" and e.tentativas == 0 and e.proxima_tentativa_em is not None
+    aud = db.query(Auditoria).filter(Auditoria.operacao == "envio.reenvio_manual").one()
+    assert aud.ator_email == "admin@teste.com" and aud.alvo_id == eid
+
+
+def test_reenviar_manual_estado_invalido_409(client, auth_headers, db):  # AC-15
+    cid = _contato(db)
+    eid = _envio(db, cid, status="enviado")
+    assert client.post(f"/envios/{eid}/reenviar", headers=auth_headers).status_code == 409
+    db.expire_all()
+    assert db.get(Envio, eid).status == "enviado"
+
+
+def test_reenviar_manual_sem_auth_401(client, db):  # AC-16
+    cid = _contato(db)
+    eid = _envio(db, cid, status="aguardando_decisao")
+    assert client.post(f"/envios/{eid}/reenviar").status_code == 401

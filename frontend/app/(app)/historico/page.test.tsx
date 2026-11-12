@@ -8,7 +8,7 @@ import HistoricoPage from "./page";
 
 vi.mock("@/lib/api", async (importOriginal) => {
   const real = await importOriginal<typeof import("@/lib/api")>();
-  return { ...real, listarEnvios: vi.fn() };
+  return { ...real, listarEnvios: vi.fn(), reenviarEnvio: vi.fn() };
 });
 
 // Router estável (ver Agenda/Modelos): senão o useEffect de carga entraria em loop.
@@ -79,6 +79,25 @@ describe("HistoricoPage — erro só quando falhou (AC-8/AC-6)", () => {
     render(<HistoricoPage />);
     await screen.findByText("Alice");
     expect(screen.queryByText(/^Falha/)).not.toBeInTheDocument();
+  });
+});
+
+describe("HistoricoPage — reenvio manual (spec 0020, AC-14)", () => {
+  it("mostra 'Reenviar' só em aguardando_decisao e reenvia ao clicar", async () => {
+    vi.mocked(api.listarEnvios).mockResolvedValue([envio({ status: "aguardando_decisao" })]);
+    vi.mocked(api.reenviarEnvio).mockResolvedValue(envio({ status: "aguardando_retry" }));
+    render(<HistoricoPage />);
+    await screen.findByText("Alice");
+    const botao = screen.getByRole("button", { name: "Reenviar" });
+    await userEvent.setup().click(botao);
+    await waitFor(() => expect(api.reenviarEnvio).toHaveBeenCalledWith("e1"));
+  });
+
+  it("não mostra 'Reenviar' quando o envio não está em aguardando_decisao", async () => {
+    vi.mocked(api.listarEnvios).mockResolvedValue([envio({ status: "entregue" })]);
+    render(<HistoricoPage />);
+    await screen.findByText("Alice");
+    expect(screen.queryByRole("button", { name: "Reenviar" })).not.toBeInTheDocument();
   });
 });
 

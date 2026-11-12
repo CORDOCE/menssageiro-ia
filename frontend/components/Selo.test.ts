@@ -1,6 +1,14 @@
 import { describe, expect, it } from "vitest";
 
-import { seloAgendamento, seloModelo } from "./Selo";
+import { seloAgendamento, seloEnvio, seloModelo } from "./Selo";
+
+describe("seloEnvio", () => {
+  it("mapeia os status de reenvio (spec 0020)", () => {
+    expect(seloEnvio("aguardando_retry")).toEqual({ tom: "aguardando", texto: "Reenviando" });
+    expect(seloEnvio("aguardando_decisao")).toEqual({ tom: "erro", texto: "Precisa decisão" });
+    expect(seloEnvio("falhou")).toEqual({ tom: "erro", texto: "Falhou" });
+  });
+});
 
 describe("seloModelo", () => {
   it("mapeia os status de modelo para tom + texto (AC-1)", () => {
