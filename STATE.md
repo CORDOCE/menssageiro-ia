@@ -2,9 +2,14 @@
 
 > Memória volátil do trabalho. Histórico vive no git/ADR. Atualize ao pausar (`/handoff`).
 
-_Atualizado: 2026-11-12_
+_Atualizado: 2026-11-12 (handoff)_
 
-## ▶️ 0024 — Expor `/metrics` p/ Central de Observabilidade: IMPLEMENTADO + VALIDADO (branch `feat/0024-metrics-prometheus`, PR aberto p/ develop)
+## ▶️ RETOMAR AQUI — próxima sessão: **2026-11-13, Fase 0 com o cliente**
+A primeira ação ao reabrir é **passar as instruções da sessão de ativação do número +55** (ver bloco "⏰ FASE 0" abaixo) — Jefferson fará a etapa com o cliente (celular + cartão em mãos). Reconferir a doc da Meta no dia (menus mudam). Depois que ele mandar os 4 valores (`PHONE_NUMBER_ID`/`WABA_ID`/`WHATSAPP_TOKEN`/`APP_SECRET`), eu faço a fiação (Railway staging + webhook) e conduzimos o 1º envio real. [[fase0-sessao-ativacao-cliente-2026-11-13]]
+- **Estado do repo:** `develop` = `origin/develop`, árvore limpa, **sem PR aberta**. **Produção (`main`) roda specs 0011–0025 + `/metrics`** (último go-live: release #63, `main`=`6c9b25c`). Head Alembic prod = `0cc4c21580b1` (0025 anexos).
+- **Pendências do Jefferson (não bloqueiam a Fase 0):** gravar o `METRICS_TOKEN` na Central de Observabilidade (o `/metrics` já serve em prod); as VAPID já setadas (push ativo).
+
+## ✅ 0024 — `/metrics` p/ Central de Observabilidade: EM PRODUÇÃO (release #63, outra sessão)
 Pedido do Jefferson: integrar o mensageiro-ia à **Central de Observabilidade** (repo externo, Prometheus). spec **0024** Tier Pequeno (spec+tasks). Expõe `GET /metrics` via `prometheus-fastapi-instrumentator` (dep aprovada §4), protegido por Bearer `METRICS_TOKEN`, **fail-closed** (404 sem token), fora do OpenAPI; token comparado em tempo constante (`compare_digest` em **bytes** — robusto a header não-ASCII, bug P1 pego no `/revisar` e corrigido).
 - **Gates verdes:** `ruff check .` · `mypy app` · `pytest --cov` (≥90) · `pip-audit` sem CVE. `/revisar` (1 P1 corrigido, zero aberto) + `/seguranca` (zero CRÍTICO/ALTO) limpos. 10 testes (1/AC + bordas).
 - **process_\*** (memória/CPU) só aparecem em Linux (Railway/CI), não no macOS — o painel de memória da central funciona em produção.
