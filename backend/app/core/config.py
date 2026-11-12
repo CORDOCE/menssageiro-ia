@@ -40,6 +40,9 @@ class Settings(BaseSettings):
     frontend_url: str | None = None
     api_url: str | None = None
     sentry_dsn: str | None = None
+    # Token (Bearer) que protege o GET /metrics raspado pela Central de Observabilidade (spec 0024).
+    # Sem ele, o endpoint nem é registrado (fail-closed; não expõe métricas sem proteção).
+    metrics_token: str | None = None
     vapid_public_key: str | None = None
     vapid_private_key: str | None = None
 

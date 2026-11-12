@@ -4,6 +4,12 @@
 
 _Atualizado: 2026-11-12_
 
+## ▶️ 0024 — Expor `/metrics` p/ Central de Observabilidade: IMPLEMENTADO + VALIDADO (branch `feat/0024-metrics-prometheus`, PR aberto p/ develop)
+Pedido do Jefferson: integrar o mensageiro-ia à **Central de Observabilidade** (repo externo, Prometheus). spec **0024** Tier Pequeno (spec+tasks). Expõe `GET /metrics` via `prometheus-fastapi-instrumentator` (dep aprovada §4), protegido por Bearer `METRICS_TOKEN`, **fail-closed** (404 sem token), fora do OpenAPI; token comparado em tempo constante (`compare_digest` em **bytes** — robusto a header não-ASCII, bug P1 pego no `/revisar` e corrigido).
+- **Gates verdes:** `ruff check .` · `mypy app` · `pytest --cov` (≥90) · `pip-audit` sem CVE. `/revisar` (1 P1 corrigido, zero aberto) + `/seguranca` (zero CRÍTICO/ALTO) limpos. 10 testes (1/AC + bordas).
+- **process_\*** (memória/CPU) só aparecem em Linux (Railway/CI), não no macOS — o painel de memória da central funciona em produção.
+- **Falta (seu, pós-merge, fora do escopo da spec):** (1) revisar/mergear o PR `feat/0024`→`develop`; (2) Railway: setar `METRICS_TOKEN` no serviço `api` + **deploy**; (3) fiação na central: `novo-sistema.sh mensageiro-ia menssageiro-ia-backend-production.up.railway.app <health-frontend>` + `segredos/mensageiro-ia.metrics_token` + `recarregar.sh`.
+
 ## ▶️ BLOCO A — pendências de frentes fechadas (A1/A2/A3/A5 ✅ FEITOS; A4 adiado)
 Investigação de causa-raiz (via `/hipotese`): as 5 são **exclusões conscientes de escopo adiadas sem dono/gatilho** (evidência em `specs/0001,0004,0005,0006,0010,0013`), não bugs. Atacadas na ordem por valor÷custo.
 **✅ GO-LIVE FEITO (2026-11-12, release #60, `main`=`b4e9332`):** 0021 (Saúde) + 0022 (job sync) + 0023 (push) **EM PRODUÇÃO**. Deploy backend/worker/frontend todos SUCCESS; **migração `f65dbe8cffc3` (0023) aplicada** (head prod avançou; log `Running upgrade 6004b696cead -> f65dbe8cffc3`). Smoke prod OK: `/admin/health/deep`→401, `/push/chave-publica`→401, `/push/inscrever`→401, `/health`→200, frontend `/configuracoes`→200.

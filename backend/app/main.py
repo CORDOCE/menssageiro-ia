@@ -18,6 +18,7 @@ from app.api.modelos import router as modelos_router
 from app.api.push import router as push_router
 from app.api.webhook_meta import router as webhook_router
 from app.core.config import get_settings
+from app.core.metrics import instrumentar
 from app.core.observabilidade import configurar_sentry
 
 # Observabilidade (§7): inicializa o Sentry antes de criar o app (auto-instrumenta FastAPI).
@@ -47,6 +48,10 @@ app.include_router(configuracoes_router)
 app.include_router(webhook_router)
 app.include_router(admin_health_router)
 app.include_router(push_router)
+
+# Expõe GET /metrics (Prometheus) protegido por token, raspado pela Central de Observabilidade
+# (spec 0024). No-op fail-closed sem METRICS_TOKEN.
+instrumentar(app)
 
 
 class HealthResponse(BaseModel):
