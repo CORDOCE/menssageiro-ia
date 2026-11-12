@@ -59,6 +59,8 @@ class Settings(BaseSettings):
 
     # Worker (task 8): intervalo do loop de heartbeat.
     worker_intervalo_s: int = 60
+    # Job diário de sincronização de modelos (spec 0022 / §10.3): hora SP a partir da qual roda, 1×/dia.
+    sync_modelos_hora: int = 6
 
     # Disparo (spec 0004 / ADR 0008): a env `LIMITE_DIARIO` é só a **semente** do `limite_diario`
     # inicial da linha de `configuracoes`. A fonte runtime é a tabela (operador muda sem redeploy).
