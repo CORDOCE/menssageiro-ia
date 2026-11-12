@@ -50,10 +50,11 @@
 10. **Sincronizar modelos** pela tela Modelos (`POST /modelos/sincronizar`) → lê os templates da WABA.
 11. **Criar/aprovar 1 template UTILITY `pt_BR`** (ex.: um comunicado simples; o cliente fornece o texto).
     Aguardar `message_template_status_update` → `aprovado`.
-12. **Teste de ponta a ponta:** cadastrar **um contato de teste = o próprio +55** (com consentimento registrado),
-    agendar um envio desse template para daqui a 1–2 min, e confirmar: envio sai no horário, chega no celular, e
-    os **status** (enviado/entregue/lido) voltam pelo webhook e aparecem no Histórico. (**§4: enviar a número real
-    exige seu OK no momento.**)
+12. **Teste de ponta a ponta:** cadastrar **um contato de teste = um número de DESTINO diferente do número
+    operador** (ex.: o celular pessoal do responsável; o número do mensageiro é o remetente, não envia para si),
+    com consentimento registrado; agendar um envio desse template para daqui a 1–2 min, e confirmar: envio sai no
+    horário, chega no celular de destino, e os **status** (enviado/entregue/lido) voltam pelo webhook e aparecem
+    no Histórico. (**§4: enviar a número real exige seu OK no momento.**)
 
 ## Fase D — Produção
 13. Repetir o passo 7 (credenciais) no **produção** (backend + worker) + webhook apontando para
