@@ -19,9 +19,9 @@ Web Push padrão (VAPID), com o backend enviando as notificações e o service w
    `alertar=True` da 0017/0019 (modelo rejeitado, taxa, envio falhou, erro de ciclo) viram push de uma vez.
 5. **Frontend**:
    - `public/sw.js` — handlers `push` (exibe `showNotification`) e `notificationclick` (foca/abre a PWA).
-   - UI de inscrição — um card **"Notificações"** na tela **Saúde** (0021): botão "Ativar notificações"
-     → `Notification.requestPermission()` → `pushManager.subscribe({applicationServerKey})` → `POST /push/inscrever`.
-     Estados: indisponível (browser sem suporte / iOS sem PWA) → aviso + "use o e-mail".
+   - UI de inscrição — um card **"Notificações"** na tela **Configurações** (0018, já em produção): botão
+     "Ativar notificações" → `Notification.requestPermission()` → `pushManager.subscribe({applicationServerKey})`
+     → `POST /push/inscrever`. Estados: indisponível (browser sem suporte / iOS sem PWA) → aviso + "use o e-mail".
 
 ## Alternativas consideradas
 - **Webhook do Sentry → backend → push** (cobriria "worker parado"): acopla ao Sentry, exige endpoint
