@@ -62,8 +62,8 @@ def alertar_evento(
     correlation_id: str | None = None,
     metadados: dict[str, Any] | None = None,
 ) -> None:
-    """Emite um evento de fluxo crítico ao Sentry (spec 0017 / §12). Só alerta em `error`/`warning`;
-    no-op sem Sentry inicializado (o `sentry_sdk` já é no-op sem `init`). Passa apenas `operacao` +
+    """Emite um evento de fluxo crítico ao Sentry (spec 0017 / §12) e um push ao operador (spec 0023).
+    Só alerta em `error`/`warning`; no-op sem Sentry inicializado / sem VAPID. Passa apenas `operacao` +
     `metadados` (sem PII); `before_send` ainda mascara dígitos. Nunca levanta."""
     nivel = _NIVEL_SENTRY.get(status)
     if nivel is None:
@@ -77,6 +77,13 @@ def alertar_evento(
         )
     except Exception:  # pragma: no cover — alerta nunca derruba o fluxo
         logger.warning("falha ao alertar evento ao Sentry: %s", operacao)
+    # Push ao operador (spec 0023): mesmos eventos §12. No-op sem VAPID; corpo sem PII (só operação+status).
+    try:
+        from app.services.push import enviar_push
+
+        enviar_push(titulo=operacao, corpo=f"Alerta de fluxo crítico ({status}).")
+    except Exception:  # pragma: no cover — push nunca derruba o fluxo
+        logger.warning("falha ao enviar push do evento: %s", operacao)
 
 
 def configurar_sentry() -> bool:

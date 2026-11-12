@@ -13,6 +13,7 @@ import {
   IconeHistorico,
   IconeHoje,
   IconeModelos,
+  IconeSaude,
 } from "./icones";
 import { SeletorTema } from "./SeletorTema";
 
@@ -24,6 +25,7 @@ const ITENS: Item[] = [
   { href: "/contatos", rotulo: "Contatos", icone: IconeContatos },
   { href: "/modelos", rotulo: "Modelos", icone: IconeModelos },
   { href: "/historico", rotulo: "Histórico", icone: IconeHistorico },
+  { href: "/saude", rotulo: "Saúde", icone: IconeSaude },
   { href: "/configuracoes", rotulo: "Configurações", icone: IconeConfiguracoes },
 ];
 

@@ -7,6 +7,7 @@ from app.models.configuracao import Configuracao
 from app.models.contato import Contato
 from app.models.envio import Envio
 from app.models.modelo import Modelo
+from app.models.push_subscription import PushSubscription
 from app.models.saude import Saude
 from app.models.usuario import SessaoUsuario, Usuario
 
@@ -17,6 +18,7 @@ __all__ = [
     "Contato",
     "Envio",
     "Modelo",
+    "PushSubscription",
     "Saude",
     "SessaoUsuario",
     "Usuario",

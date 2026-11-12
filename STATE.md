@@ -2,15 +2,25 @@
 
 > Memória volátil do trabalho. Histórico vive no git/ADR. Atualize ao pausar (`/handoff`).
 
-_Atualizado: 2026-11-11_
+_Atualizado: 2026-11-12_
 
-## ▶️ RETOMAR AQUI (pausado 2026-11-11 via /handoff)
-**TUDO EM `develop` (`d82572d`), 3 frentes mergeadas nesta sessão:** fix do órfão (**#53**: transporte httpx→WhatsappError) · **0019 Alertas de agregação** (**#54**: check-in liveness `worker-ciclo` + taxa de falha 24h) · **0020 Reenvio automático** (**#55**, **ADR 0014**: at-most-once, 3 baldes de falha, retry até 3x, sweep de órfãos, `POST /envios/{id}/reenviar`+UI). Cada uma com `/revisar`+`/seguranca`+`/validar` (skills invocadas) + CI completo verde + double-check onde pedido.
-- **§4 Sentry FEITO** (org `cordoce-digital`, projeto `python-django`): Cron Monitor `worker-ciclo` **auto-criado** pelo upsert inline e **HEALTHY em staging** (worker de develop já deploya e faz check-in — valida o 0019 na prática). 2 alert rules de e-mail, ambas ativas, **escopadas a `environment=production`** (cap 1 e-mail/h): **6328618** (worker parado = issue `monitor_check_in_failure`) · **6328617** (taxa = message contém `envios.taxa_falha_alta`).
-- **Pendências pós-handoff RESOLVIDAS (2026-11-11):** (P-A) `develop` pushado, `origin/develop`=`3fe2222` sincronizado; (P-B) alertas escopados a `production` (tira ruído de staging); (P-C) e-mail duplicado — decisão consciente de **manter os dois** (meu específico + rule genérica "high priority issues" 3711577), *fail-safe*: duplicata num incidente real > perder o alerta. A rule genérica (sua, env=null) pode ainda pegar high-priority de staging — não mexi nela; escopar a `production` também é opção sua.
-- **Git:** `develop`=`dcc9373` (= `origin/develop`, sincronizada), working tree limpo. Código das 3 frentes no merge `d82572d`; commits depois são só STATE. Branches `feat/0019`/`feat/0020` apagadas; só `develop`/`main`. **Sem PR aberta.**
-- **✅ VALIDAÇÃO EM STAGING FEITA (2026-11-11):** 0019 Alerta A (check-in) validado ao vivo — monitor `worker-ciclo` saudável (1 check-in/min, 0 missed; stats 48/60/60/46/h). 0020 deploy #55 SUCCESS + migração aplicada + endpoint `POST /envios/{id}/reenviar`→401 (smoke). **0020 reenvio manual (AC-14) validado ao vivo pela UI** (Jefferson): envio semeado em `aguardando_decisao` → botão "Reenviar" → `aguardando_retry`. Pulados por combinado (baixo valor): teste "worker parado→missed" e a conclusão real do retry (precisa de agendamento). Dado de teste limpo via `railway ssh`.
-- **▶️ PRÓXIMO PASSO: promover `develop`→`main` (go-live 0019+0020+fix)** quando Jefferson quiser. Abrir release PR `develop`→`main`; **conferir envvars de produção** (sem novas p/ 0019/0020 — sem segredo novo; 0020 só adiciona colunas via migração que roda no deploy do backend). Pós-promoção: validar smoke em prod + o monitor `worker-ciclo` passar a reportar env `production` (os 2 alert rules de e-mail já escopados a `production`).
+## ▶️ BLOCO A — pendências de frentes fechadas (A1/A2/A3/A5 ✅ FEITOS; A4 adiado)
+Investigação de causa-raiz (via `/hipotese`): as 5 são **exclusões conscientes de escopo adiadas sem dono/gatilho** (evidência em `specs/0001,0004,0005,0006,0010,0013`), não bugs. Atacadas na ordem por valor÷custo.
+**▶️ PRÓXIMO PASSO: go-live `develop→main`** das 4 specs prontas em develop — **0021** (tela Saúde), **0022** (job 06:00 sync), **0023** (push VAPID). Antes do go-live: setar as **chaves VAPID** (backend+worker/prod) e conferir que nada mais de env é novo (0021/0022 sem segredo; 0023 só VAPID). A migração do 0023 (`f65dbe8cffc3`) roda no deploy do backend.
+- **A5 — Backup Postgres: ✅ FEITO (PITR ativo).** Jefferson habilitou o PITR e **deployou a mudança staged** (redeploy do Postgres `ce764b1e` SUCCESS 14:52). Confirmado por evidência objetiva: bucket **`Postgres-PITR`** agora existe e está **`live`** (antes não havia nenhum bucket) → WAL archiving rodando. "No coverage yet" é só o tempo de completar a 1ª cobertura (minutos). Volume backup agendado (belt-and-braces) é extra opcional não feito.
+- **A2 — Tela Saúde + `/admin/health/deep`: ✅ EM DEVELOP (mergeado #57, `eda2a3e`).** spec **0021** (Pequeno, sem migração). v1 sem Meta (banco, worker-heartbeat, envios do dia/status, taxa, fila, gasto estimado do mês = nº entregues × R$0,035 §4.4; token/qualidade Meta = follow-up Fase 0). Gates verdes, cobertura 100% nos módulos novos. Produção só no próximo go-live `develop→main`.
+- **A1 — Job 06:00 sincronizar modelos: ✅ EM DEVELOP (mergeado #58, `d0aa8e4`).** spec **0022** (Pequeno, sem migração). Extraiu `services/modelos_sync.py` (reusado pelo endpoint manual + worker); novo passo `ciclo_jobs_diarios` no loop (1×/dia ≥06:00 SP, idempotência por auditoria). **No-op sem credenciais Meta** (Fase 0/testes → sem rede, §5.7 — resolveu a flakiness que o job criaria nos testes de `executar()`). Cobertura 100% em `modelos_sync`/`jobs_diarios`; `/revisar`+`/seguranca` limpos. AC-1..AC-7. Produção só no próximo go-live.
+- **A3 — Push VAPID: ✅ EM DEVELOP (mergeado #59, `46663fb`).** spec **0023** Arquitetural, **ADR 0015**. Web Push: tabela `push_subscriptions` (migração `f65dbe8cffc3`, aditiva); `services/push.py` (`chave_publica`/`inscrever`/`enviar_push` — no-op sem VAPID, remove 404/410, nunca levanta); `api/push.py` (`GET /push/chave-publica`+`POST /push/inscrever`); enganche central em `alertar_evento` (cobre os alertas que o **código** emite; "worker parado" fica no e-mail); frontend `sw.js` handlers + card **"Notificações"** em **Configurações**. Cobertura 100% nos módulos novos; `pip-audit` 0; `/revisar`(P2 consciente: envio síncrono no fluxo de alerta)+`/seguranca`(endpoint https+cap; admin único; payload cifrado) limpos. AC-1..AC-9. **PENDENTE JEFFERSON:** setar `VAPID_PUBLIC_KEY`/`VAPID_PRIVATE_KEY` na Railway (**backend + worker**, por ambiente) — par gerado nesta sessão (chaves passadas no chat, fora do repo); inerte até isso.
+- **A4 — Anexos: ADIADO até a Fase 0** (sem +55 real não valida envio com anexo DOCUMENT; §4 regra de envio). Recomendação registrada; Jefferson pode contrariar.
+- **Follow-up técnico (do /revisar do A1):** extrair `_inicio_dia_sp` (hoje duplicado em `worker/alertas.py`, `api/admin_health.py`, `worker/jobs_diarios.py`) para um util comum em `core/`.
+
+## ✅ GO-LIVE 0019 + 0020 + fix do órfão — EM PRODUÇÃO (2026-11-12)
+**Promovido `develop`→`main` via release PR #56 (`main`=`d850a62`), mergeado por Jefferson.** As 3 frentes (fix do órfão #53: transporte httpx→WhatsappError · **0019 Alertas de agregação** #54: check-in liveness `worker-ciclo` + taxa de falha 24h · **0020 Reenvio automático** #55, **ADR 0014**: at-most-once, 3 baldes de falha, retry até 3x, sweep de órfãos, `POST /envios/{id}/reenviar`+UI) estavam validadas em staging.
+- **Deploy prod (todos SUCCESS):** backend `519ea0ca` + worker `e9259379` + frontend `f45c0976`. **Migração do 0020 aplicada:** logs do backend mostram `Running upgrade 4a3dc85cbaa2 -> 6004b696cead, 0020: reenvio automatico` → Uvicorn running. Head Alembic prod avançou p/ **`6004b696cead`**.
+- **Smoke read-only prod OK:** `POST /envios/{id}/reenviar` sem cookie → **401** (rota nova no ar; antes do deploy dava 404) · `/health` → 200 · `/auth/me` → 401 · frontend `/` → 200.
+- **✅ 0019 validado em PRODUÇÃO:** monitor Sentry `worker-ciclo` com check-ins **ok em `environment=production`** (lastCheckIn 12:45:32Z, 1/min). Os 2 alert rules de e-mail (6328618 worker parado · 6328617 taxa) já escopados a `production` → armados.
+- **§4 Sentry** (org `cordoce-digital`, projeto `python-django`): Cron Monitor `worker-ciclo` auto-criado pelo upsert inline. **Pendência aberta (sua, não bloqueia):** rule genérica "high priority issues" 3711577 (env=null) pode pegar high-priority de staging — escopar a `production` é opção sua.
+- **▶️ PRÓXIMO PASSO: escolher a próxima frente** com `/nova-feature`. Candidatas: **I1** (paridade env prod×staging / go-live pleno), mais telas (Conversas/Sugestões), ou dívidas pendentes. Follow-ups abertos (não bloqueiam): token Meta staging expirado (erro 190); P2 layout mobile <640px; smoke funcional de 0013/0016 em prod; a conclusão real do retry do 0020 ao vivo (precisa de agendamento) segue não exercida em prod.
 - **Decisões já tomadas (sessão 2026-11-10):**
   - Tier **Pequeno** (spec.md + tasks.md), sem migração (usa `saude.ultimo_ciclo_em` + eventos da 0017).
   - **Thresholds oficiais (BRIEFING §12):** worker parado **>5min**; falhas de envio **>5%/dia**. ("Modelo pausado/rejeitado" já é da 0017; "qualidade do número" depende da Meta → fora, Fase 0.)
@@ -150,12 +160,11 @@ _Atualizado: 2026-11-11_
 - **Validar Fase 2 em staging** (DoD 0002): import com `validar_fase2.csv` (scratchpad), esperado total=3/criados=2/erros=1.
 - Pendência de segurança herdada: **cifrar `totp_secret` em repouso**.
 
-## Estado do git (2026-11-09, handoff ~19:10)
-- Branch atual: **`develop`** = **`63a011d`** (= `origin/develop`), limpo. `main` local = **`471c095`** (= `origin/main`). **Sem PR aberta.**
-- `origin/main` = **`471c095`** (release **#50**, spec 0017, 2026-11-09). **Specs 0011–0017 todas em main/produção.** Releases da sessão: #42 (0013), #44 (0014), #46 (0015), #48 (0016), #50 (0017) — todos mergeados; branches de feature apagadas.
-- **Remotas: limpas** — só `origin/develop` e `origin/main`.
-- Head Alembic: **`4a3dc85cbaa2`** (migração da 0016 — `limite_por_agendamento_dia` na config; aplicada em staging+produção). 0014/0015/0017 sem schema.
-- Produção no ar: 0011–0017 (backend/worker/frontend, commit `471c095`).
+## Estado do git (2026-11-12, pós go-live #56)
+- Branch atual: **`develop`**, limpo. **`origin/main`** = **`d850a62`** (release **#56**, go-live 0019+0020+fix, 2026-11-12). **Sem PR aberta.**
+- Releases anteriores: #50 (0017), #52 (0018) — mergeados; branches de feature apagadas.
+- Head Alembic: **`6004b696cead`** (migração da 0020 — `tentativas`/`proxima_tentativa_em` + status `aguardando_retry`/`aguardando_decisao`; aplicada em staging+produção).
+- Produção no ar: 0011–0020 (backend/worker/frontend, commit `d850a62`).
 - Locais não mergeadas (mantidas por decisão): `docs/codebase-map` (`6f03cdc`), `chore/railway-procfile` (`879c09a`, trabalho não integrado).
 
 ## Infra (Railway — projeto `406f04bb-7659-4366-aea0-f9489dbf0b07`)
