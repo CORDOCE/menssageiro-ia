@@ -4,6 +4,12 @@
 
 _Atualizado: 2026-11-12_
 
+## ▶️ BLOCO A — pendências de frentes fechadas (ordem A5→A2→A1→A3→A4)
+Investigação de causa-raiz (via `/hipotese`): as 5 são **exclusões conscientes de escopo adiadas sem dono/gatilho** (evidência em `specs/0001,0004,0005,0006,0010,0013`), não bugs. Atacando na ordem por valor÷custo.
+- **A5 — Backup Postgres: PENDENTE COM JEFFERSON.** Verificado que prod está **sem backup** (sem schedule, sem bucket p/ PITR — agente Railway read-only). §4 aprovado (você: "eu ativo"), mas o harness **bloqueou** mudança de infra de prod via automação. **Ação sua no painel:** production → Postgres → aba **Backups** (Daily) + ligar **PITR**. Confirmar aqui p/ fechar.
+- **A2 — Tela Saúde + `/admin/health/deep`: PRONTO, PR ABERTA (#57).** spec **0021** (Tier Pequeno, sem migração). Escopo v1 **sem Meta** (banco, worker-heartbeat, envios do dia/status, taxa de falha, fila, gasto estimado do mês = nº entregues × R$0,035 §4.4 — não há coluna de custo, só `pricing`; token/qualidade Meta = follow-up Fase 0). **Gates verdes:** backend ruff/mypy/pytest **cobertura 100%** nos módulos novos; frontend eslint/tsc/vitest(79)/build/audit 0. `/revisar` (2 P2 corrigidos: AC-3 alinhado, CSSProperties) + `/seguranca` (sem vuln; resposta 100% agregada, sem PII) limpos. AC-1..AC-10 mapeados a teste. Branch `feat/0021-saude-sistema`.
+- **A1/A3/A4 pendentes:** A1 job 06:00 sync (Pequeno) · A3 push VAPID (Alto, §4 dep) · A4 anexos (Alto, §4+Fase 0).
+
 ## ✅ GO-LIVE 0019 + 0020 + fix do órfão — EM PRODUÇÃO (2026-11-12)
 **Promovido `develop`→`main` via release PR #56 (`main`=`d850a62`), mergeado por Jefferson.** As 3 frentes (fix do órfão #53: transporte httpx→WhatsappError · **0019 Alertas de agregação** #54: check-in liveness `worker-ciclo` + taxa de falha 24h · **0020 Reenvio automático** #55, **ADR 0014**: at-most-once, 3 baldes de falha, retry até 3x, sweep de órfãos, `POST /envios/{id}/reenviar`+UI) estavam validadas em staging.
 - **Deploy prod (todos SUCCESS):** backend `519ea0ca` + worker `e9259379` + frontend `f45c0976`. **Migração do 0020 aplicada:** logs do backend mostram `Running upgrade 4a3dc85cbaa2 -> 6004b696cead, 0020: reenvio automatico` → Uvicorn running. Head Alembic prod avançou p/ **`6004b696cead`**.
