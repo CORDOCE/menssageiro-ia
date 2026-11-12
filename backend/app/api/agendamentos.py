@@ -18,6 +18,7 @@ from app.core.audit import registrar_auditoria
 from app.core.auth_deps import usuario_atual
 from app.db.database import get_db
 from app.models.agendamento import Agendamento
+from app.models.anexo import Anexo
 from app.models.contato import Contato
 from app.models.modelo import Modelo
 from app.models.usuario import Usuario
@@ -37,11 +38,20 @@ def criar(
     db: Session = Depends(get_db),
     usuario: Usuario = Depends(usuario_atual),
 ) -> Agendamento:
-    if db.get(Modelo, payload.modelo_id) is None:
+    modelo = db.get(Modelo, payload.modelo_id)
+    if modelo is None:
         raise HTTPException(status_code=404, detail="Modelo não encontrado")
     # §6/R1: contato_id inexistente dava 500 (FK viola no commit); valida antes → 404.
     if payload.contato_id is not None and db.get(Contato, payload.contato_id) is None:
         raise HTTPException(status_code=404, detail="Contato não encontrado")
+    # Coerência anexo × cabeçalho DOCUMENT (spec 0025 / ADR 0016).
+    exige_documento = modelo.cabecalho_tipo == "DOCUMENT"
+    if exige_documento and payload.anexo_id is None:
+        raise HTTPException(status_code=422, detail="Este modelo exige um anexo (PDF)")
+    if not exige_documento and payload.anexo_id is not None:
+        raise HTTPException(status_code=422, detail="Este modelo não aceita anexo")
+    if payload.anexo_id is not None and db.get(Anexo, payload.anexo_id) is None:
+        raise HTTPException(status_code=422, detail="Anexo não encontrado")
     if payload.recorrencia is not None:
         try:
             validar_regra(payload.recorrencia)
@@ -52,6 +62,7 @@ def criar(
         contato_id=payload.contato_id,
         grupo=payload.grupo,
         modelo_id=payload.modelo_id,
+        anexo_id=payload.anexo_id,
         variaveis=payload.variaveis,
         executar_em=payload.executar_em,
         origem=payload.origem,

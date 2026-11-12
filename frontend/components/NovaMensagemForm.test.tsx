@@ -14,6 +14,7 @@ vi.mock("@/lib/api", async (importOriginal) => {
     listarModelos: vi.fn(),
     listarContatos: vi.fn(),
     criarAgendamento: vi.fn(),
+    enviarAnexo: vi.fn(),
   };
 });
 
@@ -279,5 +280,42 @@ describe("NovaMensagemForm — estados vazios (bordas)", () => {
     render(<NovaMensagemForm />);
     expect(await screen.findByText(/nenhum contato com consentimento/i)).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /ir para contatos/i })).toHaveAttribute("href", "/contatos");
+  });
+});
+
+describe("NovaMensagemForm — anexo PDF (AC-12)", () => {
+  it("mostra o input de PDF quando o modelo tem cabeçalho DOCUMENT", async () => {
+    mockarCarga([modelo({ cabecalho_tipo: "DOCUMENT", variaveis: [] })], [contato()]);
+    render(<NovaMensagemForm />);
+    const user = userEvent.setup();
+    await user.selectOptions(await screen.findByLabelText("Modelo"), "m1");
+    expect(screen.getByLabelText(/Boleto/i)).toBeInTheDocument();
+    expect(screen.getByText(/exige um PDF/i)).toBeInTheDocument();
+  });
+
+  it("não mostra o input de PDF quando o modelo não é DOCUMENT", async () => {
+    mockarCarga([modelo({ cabecalho_tipo: null, variaveis: [] })], [contato()]);
+    render(<NovaMensagemForm />);
+    const user = userEvent.setup();
+    await user.selectOptions(await screen.findByLabelText("Modelo"), "m1");
+    expect(screen.queryByLabelText(/Boleto/i)).not.toBeInTheDocument();
+  });
+
+  it("sobe o PDF e vincula o anexo_id ao agendar (AC-12)", async () => {
+    mockarCarga([modelo({ cabecalho_tipo: "DOCUMENT", variaveis: [] })], [contato()]);
+    vi.mocked(api.enviarAnexo).mockResolvedValue({ id: "ax1", nome_arquivo: "b.pdf", tamanho: 10 });
+    vi.mocked(api.criarAgendamento).mockResolvedValue({} as never);
+    render(<NovaMensagemForm />);
+    const user = userEvent.setup();
+    await user.selectOptions(await screen.findByLabelText("Modelo"), "m1");
+    await user.selectOptions(screen.getByLabelText("Contato"), "c1");
+    const pdf = new File([new Uint8Array([0x25, 0x50, 0x44, 0x46])], "b.pdf", { type: "application/pdf" });
+    await user.upload(screen.getByLabelText(/Boleto/i), pdf);
+    await user.type(screen.getByLabelText(/Quando enviar/i), "2026-11-07T08:00");
+    await user.click(screen.getByRole("button", { name: /agendar envio/i }));
+    await waitFor(() => expect(api.enviarAnexo).toHaveBeenCalledWith(pdf));
+    expect(api.criarAgendamento).toHaveBeenCalledWith(
+      expect.objectContaining({ anexo_id: "ax1" }),
+    );
   });
 });

@@ -19,6 +19,8 @@ class AgendamentoCriar(BaseModel):
     contato_id: str | None = None
     grupo: str | None = None
     modelo_id: str
+    # Anexo PDF (spec 0025): obrigatório se o modelo tem cabeçalho DOCUMENT; proibido caso contrário.
+    anexo_id: str | None = None
     variaveis: list[_Variavel] = Field(default_factory=list, max_length=50)
     executar_em: datetime
     origem: str = "operador"
@@ -39,6 +41,7 @@ class AgendamentoRead(BaseModel):
     contato_id: str | None
     grupo: str | None
     modelo_id: str
+    anexo_id: str | None
     variaveis: list[str]
     executar_em: datetime
     status: str

@@ -10,6 +10,7 @@ from pydantic import BaseModel
 
 from app.api.admin_health import router as admin_health_router
 from app.api.agendamentos import router as agendamentos_router
+from app.api.anexos import router as anexos_router
 from app.api.auth import router as auth_router
 from app.api.configuracoes import router as configuracoes_router
 from app.api.contatos import router as contatos_router
@@ -18,6 +19,7 @@ from app.api.modelos import router as modelos_router
 from app.api.push import router as push_router
 from app.api.webhook_meta import router as webhook_router
 from app.core.config import get_settings
+from app.core.metrics import instrumentar
 from app.core.observabilidade import configurar_sentry
 
 # Observabilidade (§7): inicializa o Sentry antes de criar o app (auto-instrumenta FastAPI).
@@ -47,6 +49,11 @@ app.include_router(configuracoes_router)
 app.include_router(webhook_router)
 app.include_router(admin_health_router)
 app.include_router(push_router)
+app.include_router(anexos_router)
+
+# Expõe GET /metrics (Prometheus) protegido por token, raspado pela Central de Observabilidade
+# (spec 0024). No-op fail-closed sem METRICS_TOKEN.
+instrumentar(app)
 
 
 class HealthResponse(BaseModel):

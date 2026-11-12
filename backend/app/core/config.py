@@ -40,6 +40,9 @@ class Settings(BaseSettings):
     frontend_url: str | None = None
     api_url: str | None = None
     sentry_dsn: str | None = None
+    # Token (Bearer) que protege o GET /metrics raspado pela Central de Observabilidade (spec 0024).
+    # Sem ele, o endpoint nem é registrado (fail-closed; não expõe métricas sem proteção).
+    metrics_token: str | None = None
     vapid_public_key: str | None = None
     vapid_private_key: str | None = None
 
@@ -74,6 +77,9 @@ class Settings(BaseSettings):
     # Importação de contatos (spec 0002): limites configuráveis do upload (AC-17).
     import_max_bytes: int = 5 * 1024 * 1024  # 5 MB
     import_max_linhas: int = 5000
+
+    # Anexos (spec 0025 / ADR 0016): tamanho máximo do PDF de boleto (§6 anti-DoS).
+    anexo_max_bytes: int = 5 * 1024 * 1024  # 5 MB
 
     # Fuso (BRIEFING §9: exibição em America/Sao_Paulo)
     tz: str = "America/Sao_Paulo"
