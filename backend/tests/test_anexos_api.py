@@ -1,4 +1,4 @@
-"""Upload de anexos PDF (spec 0024, AC-1..AC-4): POST /anexos autenticado, valida tipo/tamanho/magic."""
+"""Upload de anexos PDF (spec 0025, AC-1..AC-4): POST /anexos autenticado, valida tipo/tamanho/magic."""
 
 from app.core.config import get_settings
 from app.models.anexo import Anexo

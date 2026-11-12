@@ -232,7 +232,7 @@ def _processar_agendamento(
             if variaveis
             else []
         )
-        # Anexo (spec 0024 / ADR 0016): sobe o PDF à Meta **1× por disparo** e monta o cabeçalho DOCUMENT.
+        # Anexo (spec 0025 / ADR 0016): sobe o PDF à Meta **1× por disparo** e monta o cabeçalho DOCUMENT.
         # Falha ao obter/subir o documento → nenhum contato é enviado (`falhou` + alerta): não dá para
         # mandar uma cobrança sem o boleto.
         if anexo_id is not None:

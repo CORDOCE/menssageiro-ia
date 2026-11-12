@@ -1,4 +1,4 @@
-# Spec — 0024 Anexos (PDF/boleto no cabeçalho DOCUMENT) — dívida A4
+# Spec — 0025 Anexos (PDF/boleto no cabeçalho DOCUMENT) — dívida A4
 
 > Tier **Arquitetural** (regra de envio §5 + migração + §4 + Cloud API + superfície de upload §6).
 > **ADR 0016.** Ver `product.md`/`design.md`. Decisões aprovadas: **mock** (validação real = Fase 0),

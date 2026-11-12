@@ -649,7 +649,7 @@ def test_teto_atingido_alerta_sentry(db, monkeypatch):  # spec 0017 AC-5
     )
 
 
-# --- anexos no disparo (spec 0024, AC-9..AC-11) ---
+# --- anexos no disparo (spec 0025, AC-9..AC-11) ---
 
 
 class _FakeEnviarComp:

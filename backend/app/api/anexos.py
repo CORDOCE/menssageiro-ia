@@ -1,4 +1,4 @@
-"""Upload de anexos PDF (spec 0024 / ADR 0016): `POST /anexos`, autenticado por sessão.
+"""Upload de anexos PDF (spec 0025 / ADR 0016): `POST /anexos`, autenticado por sessão.
 
 Guarda o PDF (bytea) até o disparo; o worker o sobe à Meta no envio. §6: valida mime + magic bytes +
 tamanho e **nunca executa/parseia** o conteúdo — só o repassa. Lê no máximo `anexo_max_bytes + 1` do

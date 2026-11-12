@@ -232,7 +232,7 @@ def test_criar_variaveis_no_limite_201(client, auth_headers, db):  # AC-4
     assert r.status_code == 201
 
 
-# --- coerência anexo × cabeçalho DOCUMENT (spec 0024, AC-5..AC-8 / tabela-verdade) ---
+# --- coerência anexo × cabeçalho DOCUMENT (spec 0025, AC-5..AC-8 / tabela-verdade) ---
 
 
 def _modelo_doc(db) -> str:

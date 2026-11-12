@@ -1,4 +1,4 @@
-"""0024 anexos
+"""0025 anexos
 
 Revision ID: 0cc4c21580b1
 Revises: f65dbe8cffc3
@@ -22,7 +22,7 @@ _FK = "fk_agendamentos_anexo_id"
 
 
 def upgrade() -> None:
-    """Cria `anexos` (bytea) e `agendamentos.anexo_id` (spec 0024 / ADR 0016)."""
+    """Cria `anexos` (bytea) e `agendamentos.anexo_id` (spec 0025 / ADR 0016)."""
     op.create_table(
         "anexos",
         sa.Column("id", sa.String(length=36), nullable=False),

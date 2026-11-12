@@ -44,7 +44,7 @@ def criar(
     # §6/R1: contato_id inexistente dava 500 (FK viola no commit); valida antes → 404.
     if payload.contato_id is not None and db.get(Contato, payload.contato_id) is None:
         raise HTTPException(status_code=404, detail="Contato não encontrado")
-    # Coerência anexo × cabeçalho DOCUMENT (spec 0024 / ADR 0016).
+    # Coerência anexo × cabeçalho DOCUMENT (spec 0025 / ADR 0016).
     exige_documento = modelo.cabecalho_tipo == "DOCUMENT"
     if exige_documento and payload.anexo_id is None:
         raise HTTPException(status_code=422, detail="Este modelo exige um anexo (PDF)")

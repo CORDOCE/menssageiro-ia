@@ -75,7 +75,7 @@ class Settings(BaseSettings):
     import_max_bytes: int = 5 * 1024 * 1024  # 5 MB
     import_max_linhas: int = 5000
 
-    # Anexos (spec 0024 / ADR 0016): tamanho máximo do PDF de boleto (§6 anti-DoS).
+    # Anexos (spec 0025 / ADR 0016): tamanho máximo do PDF de boleto (§6 anti-DoS).
     anexo_max_bytes: int = 5 * 1024 * 1024  # 5 MB
 
     # Fuso (BRIEFING §9: exibição em America/Sao_Paulo)

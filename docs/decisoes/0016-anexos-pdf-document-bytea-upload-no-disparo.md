@@ -1,6 +1,6 @@
 # ADR 0016 — Anexos PDF (DOCUMENT): bytea no banco + upload no disparo
 
-Data: 2026-11-12 · Status: proposto (spec 0024 / dívida A4) · Responsável: Jefferson
+Data: 2026-11-12 · Status: proposto (spec 0025 / dívida A4) · Responsável: Jefferson
 
 ## Contexto
 Cobranças precisam levar o boleto em PDF no cabeçalho DOCUMENT do template. O `whatsapp_client` já sobe

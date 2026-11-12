@@ -1,4 +1,4 @@
-"""Anexo de agendamento (spec 0024 / ADR 0016): PDF (boleto) guardado em `bytea` até o disparo.
+"""Anexo de agendamento (spec 0025 / ADR 0016): PDF (boleto) guardado em `bytea` até o disparo.
 
 O worker sobe à Meta (`upload_midia`) no momento do envio e o inclui no cabeçalho DOCUMENT do template.
 Só PDF no v1. O backend nunca executa/parseia o conteúdo — só valida o header e o repassa.

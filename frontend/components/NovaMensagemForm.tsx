@@ -32,7 +32,7 @@ export function NovaMensagemForm() {
   const [valores, setValores] = useState<Record<string, string>>({});
   const [contatoId, setContatoId] = useState("");
   const [quando, setQuando] = useState("");
-  const [anexo, setAnexo] = useState<File | null>(null); // PDF, quando o modelo é DOCUMENT (spec 0024)
+  const [anexo, setAnexo] = useState<File | null>(null); // PDF, quando o modelo é DOCUMENT (spec 0025)
 
   const [enviando, setEnviando] = useState(false);
   const [erroEnvio, setErroEnvio] = useState<string | null>(null);
@@ -60,7 +60,7 @@ export function NovaMensagemForm() {
     [modelos, modeloId],
   );
 
-  // O modelo exige anexo PDF quando tem cabeçalho DOCUMENT (spec 0024).
+  // O modelo exige anexo PDF quando tem cabeçalho DOCUMENT (spec 0025).
   const exigeAnexo = modelo?.cabecalho_tipo === "DOCUMENT";
 
   // Troca de modelo recria os campos de variável: descarta valores do template anterior (sem órfãos).
@@ -97,7 +97,7 @@ export function NovaMensagemForm() {
     setErroEnvio(null);
     setEnviando(true);
     try {
-      // Modelo com cabeçalho DOCUMENT: sobe o PDF primeiro e vincula pelo id (spec 0024).
+      // Modelo com cabeçalho DOCUMENT: sobe o PDF primeiro e vincula pelo id (spec 0025).
       let anexoId: string | undefined;
       if (exigeAnexo && anexo) {
         anexoId = (await enviarAnexo(anexo)).id;

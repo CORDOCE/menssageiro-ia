@@ -1,4 +1,4 @@
-# Tasks — 0024 Anexos (PDF/boleto no cabeçalho DOCUMENT)
+# Tasks — 0025 Anexos (PDF/boleto no cabeçalho DOCUMENT)
 
 | # | Task | AC | Gate (teste) | Status |
 |---|---|---|---|---|
@@ -13,7 +13,7 @@
 - Backend: `ruff` + `mypy` + `pytest` (cobertura 90%+ nos módulos novos + regra de envio) + migração up/down + `pip-audit`.
 - Frontend: `eslint` + `tsc` + `vitest` + `build` + `npm audit`.
 - `/meta-whatsapp` (confere limites de documento/mime da Meta) · `/revisar` · `/seguranca` (upload = superfície §6:
-  tipo/tamanho/conteúdo, SSRF/zip-bomba) · `/validar` (AC-1..AC-12) · CI Docker. PR `feat/0024` → `develop`.
+  tipo/tamanho/conteúdo, SSRF/zip-bomba) · `/validar` (AC-1..AC-12) · CI Docker. PR `feat/0025` → `develop`.
 
 ## Notas
 - Upload **nunca executa/parseia** o PDF — só valida header + repassa à Meta no disparo (mock nos testes).

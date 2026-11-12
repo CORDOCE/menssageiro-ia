@@ -1,4 +1,4 @@
-"""Schemas de anexo (spec 0024). Resposta do upload — nunca devolve o conteúdo (bytes)."""
+"""Schemas de anexo (spec 0025). Resposta do upload — nunca devolve o conteúdo (bytes)."""
 
 from __future__ import annotations
 

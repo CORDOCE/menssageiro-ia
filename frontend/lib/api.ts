@@ -119,14 +119,14 @@ export interface AgendamentoCriar {
   modelo_id: string;
   variaveis: string[];
   executar_em: string;
-  anexo_id?: string; // PDF obrigatório quando o modelo tem cabeçalho DOCUMENT (spec 0024)
+  anexo_id?: string; // PDF obrigatório quando o modelo tem cabeçalho DOCUMENT (spec 0025)
 }
 
 export async function criarAgendamento(dados: AgendamentoCriar): Promise<Agendamento> {
   return pedirJson<Agendamento>("/agendamentos", "POST", dados);
 }
 
-// Upload de anexo PDF (spec 0024): devolve o id para vincular ao agendamento. Multipart (sem JSON).
+// Upload de anexo PDF (spec 0025): devolve o id para vincular ao agendamento. Multipart (sem JSON).
 export interface AnexoRead {
   id: string;
   nome_arquivo: string;
