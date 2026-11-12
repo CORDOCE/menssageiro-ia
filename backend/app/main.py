@@ -1,13 +1,14 @@
 """Aplicação FastAPI (processo `api`). Ponto de entrada: `app.main:app`.
 
-Nesta fase expõe apenas o healthcheck shallow `/health` (RAILWAY §4). O `/admin/health/deep`
-(BRIEFING §12) e os routers de domínio entram nas fases seguintes.
+Expõe o healthcheck shallow `/health` (RAILWAY §4) e o `/admin/health/deep` (BRIEFING §12,
+spec 0021), além dos routers de domínio.
 """
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
+from app.api.admin_health import router as admin_health_router
 from app.api.agendamentos import router as agendamentos_router
 from app.api.auth import router as auth_router
 from app.api.configuracoes import router as configuracoes_router
@@ -43,6 +44,7 @@ app.include_router(agendamentos_router)
 app.include_router(envios_router)
 app.include_router(configuracoes_router)
 app.include_router(webhook_router)
+app.include_router(admin_health_router)
 
 
 class HealthResponse(BaseModel):
