@@ -17,6 +17,7 @@ from app.core.observabilidade import configurar_sentry
 from app.models.saude import Saude
 from app.worker.alertas import ciclo_alertas
 from app.worker.disparo import processar_ciclo
+from app.worker.jobs_diarios import ciclo_jobs_diarios
 
 _ID_WORKER = "worker"
 
@@ -62,6 +63,7 @@ def executar(ciclos: int | None = None, intervalo_s: float | None = None) -> Non
             registrar_auditoria("worker.ciclo_erro", status="error")
         gravar_heartbeat()
         ciclo_alertas()  # alertas de agregação (spec 0019): check-in de liveness + taxa de falha
+        ciclo_jobs_diarios()  # jobs diários (spec 0022): 06:00 sincronizar modelos
         feitos += 1
         if ciclos is not None and feitos >= ciclos:
             break
