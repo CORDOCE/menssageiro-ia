@@ -4,6 +4,13 @@
 
 _Atualizado: 2026-11-12_
 
+## ▶️ 0024 — Expor `/metrics` p/ Central de Observabilidade: IMPLEMENTADO + VALIDADO (branch `feat/0024-metrics-prometheus`, não mergeado)
+Pedido do Jefferson: integrar o mensageiro-ia à **Central de Observabilidade** (repo externo, Prometheus). spec **0024** Tier Pequeno (spec+tasks). Expõe `GET /metrics` via `prometheus-fastapi-instrumentator` (dep aprovada §4), protegido por Bearer `METRICS_TOKEN`, **fail-closed** (404 sem token), fora do OpenAPI; token comparado em tempo constante (`compare_digest` em **bytes** — robusto a header não-ASCII, bug P1 pego no `/revisar` e corrigido).
+- **Gates verdes:** `ruff check .` · `mypy app` (49) · `pytest --cov` **332 passed / 97,58%** (≥90) · `pip-audit` sem CVE. `/revisar` (1 P1 corrigido, zero aberto) + `/seguranca` (zero CRÍTICO/ALTO) limpos. 10 testes (1/AC + bordas).
+- **process_\*** (memória/CPU) só aparecem em Linux (Railway/CI), não no macOS — o painel de memória da central funciona em produção.
+- **Falta (seu, pós-merge, fora do escopo da spec):** (1) PR `feat/0024`→`develop` (push exige identidade **CORDOCE**); (2) Railway: setar `METRICS_TOKEN` no serviço `api` + **deploy**; (3) fiação na central: `novo-sistema.sh mensageiro-ia menssageiro-ia-backend-production.up.railway.app <health-frontend>` + `segredos/mensageiro-ia.metrics_token` + `recarregar.sh`.
+- Commit `feat(metrics): …` no worktree (não pushado).
+
 ## ▶️ BLOCO A — pendências de frentes fechadas (ordem A5→A2→A1→A3→A4)
 Investigação de causa-raiz (via `/hipotese`): as 5 são **exclusões conscientes de escopo adiadas sem dono/gatilho** (evidência em `specs/0001,0004,0005,0006,0010,0013`), não bugs. Atacadas na ordem por valor÷custo.
 - **A5 — Backup Postgres: ✅ FEITO (PITR ativo).** Jefferson habilitou o PITR e **deployou a mudança staged** (redeploy do Postgres `ce764b1e` SUCCESS 14:52). Confirmado por evidência objetiva: bucket **`Postgres-PITR`** agora existe e está **`live`** (antes não havia nenhum bucket) → WAL archiving rodando. "No coverage yet" é só o tempo de completar a 1ª cobertura (minutos). Volume backup agendado (belt-and-braces) é extra opcional não feito.
