@@ -2,6 +2,7 @@
 (o autogenerate do Alembic depende disso)."""
 
 from app.models.agendamento import Agendamento
+from app.models.anexo import Anexo
 from app.models.auditoria import Auditoria
 from app.models.configuracao import Configuracao
 from app.models.contato import Contato
@@ -13,6 +14,7 @@ from app.models.usuario import SessaoUsuario, Usuario
 
 __all__ = [
     "Agendamento",
+    "Anexo",
     "Auditoria",
     "Configuracao",
     "Contato",

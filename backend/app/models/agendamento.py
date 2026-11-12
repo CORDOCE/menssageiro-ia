@@ -39,6 +39,8 @@ class Agendamento(Base):
     contato_id: Mapped[str | None] = mapped_column(ForeignKey("contatos.id"), nullable=True)
     grupo: Mapped[str | None] = mapped_column(String(255), nullable=True)
     modelo_id: Mapped[str] = mapped_column(ForeignKey("modelos.id"), nullable=False)
+    # Anexo PDF (spec 0025 / ADR 0016): obrigatório quando o modelo tem cabeçalho DOCUMENT (NULL se não).
+    anexo_id: Mapped[str | None] = mapped_column(ForeignKey("anexos.id"), nullable=True)
     variaveis: Mapped[list[str]] = mapped_column(JSONB, nullable=False, default=list)
     executar_em: Mapped[datetime] = mapped_column(DateTime(timezone=True), index=True, nullable=False)
     status: Mapped[str] = mapped_column(String(20), default="aprovado", nullable=False)

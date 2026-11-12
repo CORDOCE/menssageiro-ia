@@ -29,6 +29,7 @@ from app.core.audit import registrar_auditoria
 from app.core.config import get_settings
 from app.core.telefone import mascarar_telefone
 from app.models.agendamento import Agendamento
+from app.models.anexo import Anexo
 from app.models.contato import Contato
 from app.models.envio import Envio
 from app.models.modelo import Modelo
@@ -39,7 +40,12 @@ from app.services.janela import (
     proximo_inicio,
 )
 from app.services.recorrencia import proxima_ocorrencia
-from app.services.whatsapp_client import WhatsappError, enviar_template
+from app.services.whatsapp_client import (
+    WhatsappError,
+    componente_documento,
+    enviar_template,
+    upload_midia,
+)
 
 _LOTE = 100
 # Status que contam para os limites (reservados ou entregues; não conta falhou/criado).
@@ -208,7 +214,7 @@ def _processar_agendamento(
         nome, idioma, modelo_id, variaveis = modelo.nome, modelo.idioma, ag.modelo_id, list(ag.variaveis)
         # Campos para encadear a próxima ocorrência (capturados antes do commit que expira `ag`).
         recorrencia, pai_id, executar_em = ag.recorrencia, ag.agendamento_pai_id, ag.executar_em
-        contato_id, grupo, origem = ag.contato_id, ag.grupo, ag.origem
+        contato_id, grupo, origem, anexo_id = ag.contato_id, ag.grupo, ag.origem, ag.anexo_id
         contatos = _destinatarios(sess, ag)
         # Teto por-agendamento (ADR 0013): corta o excedente e marca `parcial` no fim.
         total_destinatarios = len(contatos)
@@ -226,6 +232,30 @@ def _processar_agendamento(
             if variaveis
             else []
         )
+        # Anexo (spec 0025 / ADR 0016): sobe o PDF à Meta **1× por disparo** e monta o cabeçalho DOCUMENT.
+        # Falha ao obter/subir o documento → nenhum contato é enviado (`falhou` + alerta): não dá para
+        # mandar uma cobrança sem o boleto.
+        if anexo_id is not None:
+            anexo = sess.get(Anexo, anexo_id)
+            media_id: str | None = None
+            if anexo is not None:
+                try:
+                    media_id = upload_midia(anexo.conteudo, anexo.mime, anexo.nome_arquivo)
+                except WhatsappError:
+                    media_id = None
+            if media_id is None:
+                sess.execute(
+                    update(Agendamento)
+                    .where(Agendamento.id == aid)
+                    .values(status="falhou", motivo_ultima_transicao="falha ao subir anexo")
+                )
+                sess.commit()
+                registrar_auditoria(
+                    "agendamento.falhou", alvo_tipo="agendamento", alvo_id=aid, status="error",
+                    metadados={"motivo": "upload_anexo"}, correlation_id=aid, alertar=True,
+                )
+                return
+            componentes = [componente_documento(media_id), *componentes]
         for contato in contatos:
             _processar_contato(
                 sess, aid, modelo_id, nome, idioma, componentes, contato, agora, limite_contato, enviar

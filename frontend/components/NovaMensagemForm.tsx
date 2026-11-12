@@ -9,6 +9,7 @@ import {
   type Contato,
   type Modelo,
   criarAgendamento,
+  enviarAnexo,
   listarContatos,
   listarModelos,
 } from "@/lib/api";
@@ -31,6 +32,7 @@ export function NovaMensagemForm() {
   const [valores, setValores] = useState<Record<string, string>>({});
   const [contatoId, setContatoId] = useState("");
   const [quando, setQuando] = useState("");
+  const [anexo, setAnexo] = useState<File | null>(null); // PDF, quando o modelo é DOCUMENT (spec 0025)
 
   const [enviando, setEnviando] = useState(false);
   const [erroEnvio, setErroEnvio] = useState<string | null>(null);
@@ -58,10 +60,14 @@ export function NovaMensagemForm() {
     [modelos, modeloId],
   );
 
+  // O modelo exige anexo PDF quando tem cabeçalho DOCUMENT (spec 0025).
+  const exigeAnexo = modelo?.cabecalho_tipo === "DOCUMENT";
+
   // Troca de modelo recria os campos de variável: descarta valores do template anterior (sem órfãos).
   function escolherModelo(id: string) {
     setModeloId(id);
     setValores({});
+    setAnexo(null);
   }
 
   const variaveisPreenchidas = modelo
@@ -78,7 +84,12 @@ export function NovaMensagemForm() {
   })();
 
   const podeEnviar =
-    modeloId !== "" && contatoId !== "" && variaveisPreenchidas && dataFutura && !enviando;
+    modeloId !== "" &&
+    contatoId !== "" &&
+    variaveisPreenchidas &&
+    dataFutura &&
+    (!exigeAnexo || anexo !== null) &&
+    !enviando;
 
   async function enviar(e: FormEvent) {
     e.preventDefault();
@@ -86,11 +97,17 @@ export function NovaMensagemForm() {
     setErroEnvio(null);
     setEnviando(true);
     try {
+      // Modelo com cabeçalho DOCUMENT: sobe o PDF primeiro e vincula pelo id (spec 0025).
+      let anexoId: string | undefined;
+      if (exigeAnexo && anexo) {
+        anexoId = (await enviarAnexo(anexo)).id;
+      }
       await criarAgendamento({
         contato_id: contatoId,
         modelo_id: modelo.id,
         variaveis: modelo.variaveis.map((n) => (valores[n] ?? "").trim()),
         executar_em: saoPauloParaIso(quando),
+        anexo_id: anexoId,
       });
       setSucesso(true);
     } catch (err) {
@@ -110,6 +127,7 @@ export function NovaMensagemForm() {
     setValores({});
     setContatoId("");
     setQuando("");
+    setAnexo(null);
     setErroEnvio(null);
     setSucesso(false);
   }
@@ -188,6 +206,23 @@ export function NovaMensagemForm() {
               </label>
             ))}
           </fieldset>
+        ) : null}
+
+        {exigeAnexo ? (
+          <label>
+            Boleto (PDF)
+            <input
+              type="file"
+              accept="application/pdf"
+              onChange={(e) => setAnexo(e.target.files?.[0] ?? null)}
+            />
+            <span className="aviso">Este modelo exige um PDF no cabeçalho.</span>
+            {anexo ? (
+              <span className="texto-2" style={{ fontSize: "0.8rem" }}>
+                {anexo.name}
+              </span>
+            ) : null}
+          </label>
         ) : null}
 
         {semContatos ? (

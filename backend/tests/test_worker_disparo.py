@@ -647,3 +647,101 @@ def test_teto_atingido_alerta_sentry(db, monkeypatch):  # spec 0017 AC-5
         op == "agendamento.limite_por_agendamento" and kw.get("level") == "warning"
         for op, kw in alertas
     )
+
+
+# --- anexos no disparo (spec 0025, AC-9..AC-11) ---
+
+
+class _FakeEnviarComp:
+    """Captura os componentes passados a cada envio (para checar o cabeçalho DOCUMENT)."""
+
+    def __init__(self) -> None:
+        self.componentes: list[list] = []
+
+    def __call__(self, telefone: str, nome: str, idioma: str, componentes: list) -> str:
+        self.componentes.append(componentes)
+        return f"wamid.{uuid.uuid4().hex[:8]}"
+
+
+def _modelo_doc(db) -> str:
+    mid = str(uuid.uuid4())
+    db.add(
+        Modelo(id=mid, nome=f"doc_{mid[:8]}", corpo="oi", status="aprovado", cabecalho_tipo="DOCUMENT")
+    )
+    db.commit()
+    return mid
+
+
+def _anexo(db) -> str:
+    from app.models.anexo import Anexo
+
+    aid = str(uuid.uuid4())
+    db.add(Anexo(id=aid, nome_arquivo="b.pdf", mime="application/pdf", tamanho=5, conteudo=b"%PDF-"))
+    db.commit()
+    return aid
+
+
+def _agendamento_anexo(db, modelo_id, anexo_id, *, contato_id=None, grupo=None) -> str:
+    aid = str(uuid.uuid4())
+    db.add(
+        Agendamento(
+            id=aid, modelo_id=modelo_id, anexo_id=anexo_id, contato_id=contato_id, grupo=grupo,
+            executar_em=AGORA - timedelta(minutes=1), status="aprovado", variaveis=[],
+        )
+    )
+    db.commit()
+    return aid
+
+
+def _headers(componentes: list) -> list:
+    return [c for c in componentes if c.get("type") == "header"]
+
+
+def test_anexo_inclui_document_no_envio(db, monkeypatch):  # AC-9
+    chamadas: list[str] = []
+    monkeypatch.setattr(
+        "app.worker.disparo.upload_midia",
+        lambda conteudo, mime, nome: (chamadas.append(mime), "MEDIA123")[1],
+    )
+    mid, cid, anexo = _modelo_doc(db), _contato(db), _anexo(db)
+    aid = _agendamento_anexo(db, mid, anexo, contato_id=cid)
+    fake = _FakeEnviarComp()
+    processar_ciclo(enviar=fake, agora=AGORA)
+    assert chamadas == ["application/pdf"]  # upload 1×
+    headers = _headers(fake.componentes[0])
+    assert len(headers) == 1
+    assert headers[0]["parameters"][0]["document"]["id"] == "MEDIA123"
+    db.expire_all()
+    assert db.get(Agendamento, aid).status == "enviado"
+
+
+def test_grupo_anexo_reusa_media_id(db, monkeypatch):  # AC-10
+    calls: list[int] = []
+    monkeypatch.setattr(
+        "app.worker.disparo.upload_midia",
+        lambda conteudo, mime, nome: (calls.append(1), "MEDIAXYZ")[1],
+    )
+    mid, anexo = _modelo_doc(db), _anexo(db)
+    for _ in range(3):
+        _contato(db, grupo="g")
+    _agendamento_anexo(db, mid, anexo, grupo="g")
+    fake = _FakeEnviarComp()
+    processar_ciclo(enviar=fake, agora=AGORA)
+    assert len(calls) == 1  # upload 1× para o lote inteiro
+    assert len(fake.componentes) == 3  # 3 contatos
+    for comps in fake.componentes:
+        assert _headers(comps)[0]["parameters"][0]["document"]["id"] == "MEDIAXYZ"
+
+
+def test_anexo_upload_falha_marca_falhou(db, monkeypatch):  # AC-11
+    def _boom(conteudo, mime, nome):
+        raise WhatsappError("erro", "falha no upload")
+
+    monkeypatch.setattr("app.worker.disparo.upload_midia", _boom)
+    mid, cid, anexo = _modelo_doc(db), _contato(db), _anexo(db)
+    aid = _agendamento_anexo(db, mid, anexo, contato_id=cid)
+    fake = _FakeEnviarComp()
+    processar_ciclo(enviar=fake, agora=AGORA)  # não derruba o ciclo
+    db.expire_all()
+    assert db.get(Agendamento, aid).status == "falhou"
+    assert fake.componentes == []  # nenhum envio

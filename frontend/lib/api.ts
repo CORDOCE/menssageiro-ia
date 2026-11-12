@@ -119,10 +119,24 @@ export interface AgendamentoCriar {
   modelo_id: string;
   variaveis: string[];
   executar_em: string;
+  anexo_id?: string; // PDF obrigatório quando o modelo tem cabeçalho DOCUMENT (spec 0025)
 }
 
 export async function criarAgendamento(dados: AgendamentoCriar): Promise<Agendamento> {
   return pedirJson<Agendamento>("/agendamentos", "POST", dados);
+}
+
+// Upload de anexo PDF (spec 0025): devolve o id para vincular ao agendamento. Multipart (sem JSON).
+export interface AnexoRead {
+  id: string;
+  nome_arquivo: string;
+  tamanho: number;
+}
+
+export async function enviarAnexo(arquivo: File): Promise<AnexoRead> {
+  const form = new FormData();
+  form.append("arquivo", arquivo);
+  return pedir<AnexoRead>("/anexos", { method: "POST", body: form });
 }
 
 // Ações de gestão (tela Agenda, spec 0012) — transições de estado no backend (§5.1: a API só
